@@ -3,6 +3,7 @@ import {
   Play, Pause, SkipForward, SkipBack, Volume2, VolumeX,
   ExternalLink, Video, Music, Heart
 } from 'lucide-react'
+import { getApiBase } from '../standaloneApi'
 
 function formatTime(sec) {
   if (!sec || isNaN(sec) || sec < 0) return '0:00'
@@ -33,13 +34,14 @@ export default function PlayerBar({
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [resolvedVid, setResolvedVid] = useState('')
+  const [useIframeFallback, setUseIframeFallback] = useState(false)
 
+  const audioRef = useRef(null)
   const playerRef = useRef(null)
   const currentVidRef = useRef('')
   const fallbackQueueRef = useRef([])
   const endedTriggeredRef = useRef(false)
 
-  // Always keep latest callbacks in refs so YT.Player event listeners never use stale closures
   const onNextRef = useRef(onNext)
   const isPlayingRef = useRef(isPlaying)
   useEffect(() => {
@@ -61,6 +63,10 @@ export default function PlayerBar({
   // Resolve video_id if track lacks one
   useEffect(() => {
     endedTriggeredRef.current = false
+    setCurrentTime(0)
+    setDuration(0)
+    setUseIframeFallback(false)
+
     if (!track) {
       setResolvedVid('')
       fallbackQueueRef.current = []
@@ -71,8 +77,8 @@ export default function PlayerBar({
       fallbackQueueRef.current = [...(track.fallback_ids || [])]
       return
     }
-    const q = encodeURIComponent(`${track.title} ${track.artist} audio`)
-    fetch(`/api/search?q=${q}`)
+    const q = encodeURIComponent(`${track.title} ${track.artist}`)
+    fetch(`${getApiBase()}/search?q=${q}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.video_id) {
@@ -86,8 +92,79 @@ export default function PlayerBar({
       .catch(() => {})
   }, [track?.title, track?.artist, track?.video_id])
 
-  // Load YouTube IFrame API once
+  // Primary Engine: Native HTML5 <audio> streaming exact official track via /api/audio/{video_id}
   useEffect(() => {
+    const audio = audioRef.current
+    if (!audio || !resolvedVid || playbackMode !== 'app' || useIframeFallback) return
+
+    // Stop any iframe player so there is never ghost audio
+    if (playerRef.current && typeof playerRef.current.stopVideo === 'function') {
+      try { playerRef.current.stopVideo() } catch {}
+    }
+
+    const streamSrc = `${getApiBase()}/audio/${resolvedVid}`
+    if (audio.dataset.vid !== resolvedVid) {
+      audio.dataset.vid = resolvedVid
+      audio.src = streamSrc
+      audio.load()
+    }
+    audio.volume = isMuted ? 0 : volume / 100
+
+    if (isPlayingRef.current) {
+      audio.play().catch(() => {
+        // Only if backend stream is unreachable (e.g., standalone offline Android APK), use YT IFrame fallback
+      })
+    }
+  }, [resolvedVid, playbackMode, useIframeFallback])
+
+  // Sync play/pause with HTML5 <audio> or YT.Player fallback
+  useEffect(() => {
+    if (playbackMode !== 'app') {
+      if (audioRef.current) audioRef.current.pause()
+      if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+        try { playerRef.current.pauseVideo() } catch {}
+      }
+      return
+    }
+
+    if (!useIframeFallback && audioRef.current && resolvedVid) {
+      if (isPlaying) {
+        audioRef.current.play().catch(() => {})
+      } else {
+        audioRef.current.pause()
+      }
+      return
+    }
+
+    const p = playerRef.current
+    if (useIframeFallback && p && typeof p.getPlayerState === 'function') {
+      try {
+        const state = p.getPlayerState()
+        if (isPlaying && state !== 1 && state !== 3) {
+          p.playVideo()
+        } else if (!isPlaying && state === 1) {
+          p.pauseVideo()
+        }
+      } catch {}
+    }
+  }, [isPlaying, playbackMode, useIframeFallback, resolvedVid])
+
+  // Sync volume
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = isMuted ? 0 : volume / 100
+    }
+    const p = playerRef.current
+    if (p && typeof p.setVolume === 'function') {
+      try {
+        p.setVolume(isMuted ? 0 : volume)
+      } catch {}
+    }
+  }, [volume, isMuted])
+
+  // Load YouTube IFrame API only if needed for standalone fallback or video preview
+  useEffect(() => {
+    if (!useIframeFallback && !showVideo) return
     if (window.YT && window.YT.Player) return
     const existing = document.getElementById('yt-iframe-api-script')
     if (!existing) {
@@ -96,11 +173,11 @@ export default function PlayerBar({
       tag.src = 'https://www.youtube.com/iframe_api'
       document.body.appendChild(tag)
     }
-  }, [])
+  }, [useIframeFallback, showVideo])
 
-  // Initialize or load new video in YT.Player
+  // Secondary YT.Player fallback (used only when backend /api/audio stream is unreachable on standalone mobile)
   useEffect(() => {
-    if (!resolvedVid || playbackMode !== 'app') return
+    if (!resolvedVid || playbackMode !== 'app' || !useIframeFallback) return
 
     let cancelled = false
 
@@ -132,7 +209,6 @@ export default function PlayerBar({
               }
             },
             onStateChange: (e) => {
-              // YT.PlayerState.ENDED === 0, PLAYING === 1, PAUSED === 2
               if (e.data === 0) {
                 if (!endedTriggeredRef.current) {
                   endedTriggeredRef.current = true
@@ -147,16 +223,8 @@ export default function PlayerBar({
                 setIsPlaying(false)
               }
             },
-            onError: (e) => {
-              // Error 101 / 150 = owner blocked embed; try next fallback video ID
-              if (fallbackQueueRef.current.length > 0) {
-                const nextAlt = fallbackQueueRef.current.shift()
-                currentVidRef.current = nextAlt
-                setResolvedVid(nextAlt)
-                e.target.loadVideoById(nextAlt)
-              } else {
-                onNextRef.current()
-              }
+            onError: () => {
+              onNextRef.current()
             }
           }
         })
@@ -164,8 +232,6 @@ export default function PlayerBar({
         if (currentVidRef.current !== resolvedVid) {
           currentVidRef.current = resolvedVid
           endedTriggeredRef.current = false
-          setCurrentTime(0)
-          setDuration(0)
           if (isPlayingRef.current) {
             playerRef.current.loadVideoById(resolvedVid)
           } else {
@@ -179,58 +245,15 @@ export default function PlayerBar({
     return () => {
       cancelled = true
     }
-  }, [resolvedVid, playbackMode])
-
-  // Sync play/pause state with YT.Player
-  useEffect(() => {
-    const p = playerRef.current
-    if (!p || typeof p.getPlayerState !== 'function' || playbackMode !== 'app') return
-    try {
-      const state = p.getPlayerState()
-      if (isPlaying && state !== 1 && state !== 3) {
-        p.playVideo()
-      } else if (!isPlaying && state === 1) {
-        p.pauseVideo()
-      }
-    } catch {}
-  }, [isPlaying, playbackMode])
-
-  // Sync volume with YT.Player
-  useEffect(() => {
-    const p = playerRef.current
-    if (!p || typeof p.setVolume !== 'function') return
-    try {
-      p.setVolume(isMuted ? 0 : volume)
-    } catch {}
-  }, [volume, isMuted])
-
-  // Poll playback progress every 400ms + watchdog for end of track
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const p = playerRef.current
-      if (p && typeof p.getCurrentTime === 'function' && playbackMode === 'app') {
-        try {
-          const cur = p.getCurrentTime()
-          const dur = p.getDuration()
-          const state = p.getPlayerState()
-          if (cur !== undefined) setCurrentTime(cur)
-          if (dur && dur > 0) {
-            setDuration(dur)
-            // Backup end-of-track watchdog if browser tab was backgrounded when ENDED fired
-            if (state === 0 && !endedTriggeredRef.current) {
-              endedTriggeredRef.current = true
-              onNextRef.current()
-            }
-          }
-        } catch {}
-      }
-    }, 400)
-    return () => clearInterval(interval)
-  }, [playbackMode])
+  }, [resolvedVid, playbackMode, useIframeFallback])
 
   const handleSeek = (e) => {
     const targetSec = Number(e.target.value)
     setCurrentTime(targetSec)
+    if (!useIframeFallback && audioRef.current) {
+      audioRef.current.currentTime = targetSec
+      return
+    }
     const p = playerRef.current
     if (p && typeof p.seekTo === 'function') {
       p.seekTo(targetSec, true)
@@ -244,7 +267,42 @@ export default function PlayerBar({
 
   return (
     <>
-      {/* Persistent YT Player Container */}
+      {/* Primary Direct Studio Audio Element (Plays official Topic / Album tracks with zero embed blocks) */}
+      <audio
+        ref={audioRef}
+        preload="auto"
+        onTimeUpdate={(e) => {
+          if (!useIframeFallback) setCurrentTime(e.currentTarget.currentTime || 0)
+        }}
+        onLoadedMetadata={(e) => {
+          if (!useIframeFallback && e.currentTarget.duration && isFinite(e.currentTarget.duration)) {
+            setDuration(e.currentTarget.duration)
+          }
+        }}
+        onPlay={() => {
+          endedTriggeredRef.current = false
+          setIsPlaying(true)
+        }}
+        onPause={() => {
+          if (audioRef.current && !audioRef.current.ended) {
+            setIsPlaying(false)
+          }
+        }}
+        onEnded={() => {
+          if (!endedTriggeredRef.current) {
+            endedTriggeredRef.current = true
+            onNextRef.current()
+          }
+        }}
+        onError={() => {
+          // If direct backend audio stream fails (e.g. standalone offline Android mode), switch to YT IFrame
+          if (resolvedVid && !useIframeFallback) {
+            setUseIframeFallback(true)
+          }
+        }}
+      />
+
+      {/* Optional Video / Standalone Fallback Container */}
       <div
         className={
           showVideo && track && playbackMode === 'app'
@@ -395,7 +453,11 @@ export default function PlayerBar({
           </div>
 
           <button
-            onClick={() => setShowVideo(!showVideo)}
+            onClick={() => {
+              const nextShow = !showVideo
+              setShowVideo(nextShow)
+              if (nextShow) setUseIframeFallback(true)
+            }}
             disabled={!track || playbackMode !== 'app'}
             title="Toggle Video Preview"
             className={`p-1.5 rounded border text-xs transition-colors cursor-pointer disabled:opacity-30 ${

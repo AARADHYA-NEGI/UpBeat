@@ -1,11 +1,14 @@
 import concurrent.futures
 import re
+import time
 import urllib.parse
 from typing import Dict, List, Optional, Any
 import requests
 from requests.adapters import HTTPAdapter
+import yt_dlp
 
 _SEARCH_CACHE: Dict[str, Dict] = {}
+_STREAM_CACHE: Dict[str, Dict[str, Any]] = {}
 
 
 def _make_session() -> requests.Session:
@@ -34,6 +37,62 @@ def _find_nodes(obj: Any, target_key: str):
     elif isinstance(obj, list):
         for item in obj:
             yield from _find_nodes(item, target_key)
+
+
+def get_audio_stream_url(video_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Uses yt-dlp to resolve the direct high-quality m4a/webm audio stream URL
+    for any YouTube video_id (including official Sony Music / Aniplex Topic tracks
+    that block iframe embedding). Caches URLs for 25 minutes.
+    """
+    if not video_id:
+        return None
+
+    now = time.time()
+    cached = _STREAM_CACHE.get(video_id)
+    if cached and (now - cached.get("ts", 0)) < 1500:
+        return cached
+
+    ydl_opts = {
+        "format": "bestaudio[ext=m4a]/bestaudio/best",
+        "quiet": True,
+        "no_warnings": True,
+        "noplaylist": True,
+        "skip_download": True,
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            stream_url = info.get("url")
+            if not stream_url:
+                return None
+            ext = info.get("ext", "m4a")
+            mime = "audio/mp4" if ext == "m4a" else f"audio/{ext}"
+            entry = {
+                "url": stream_url,
+                "mime": mime,
+                "title": info.get("title", ""),
+                "uploader": info.get("uploader", ""),
+                "duration": info.get("duration", 0),
+                "ts": now,
+            }
+            _STREAM_CACHE[video_id] = entry
+            return entry
+    except Exception as e:
+        print(f"yt-dlp stream extraction error for {video_id}: {e}")
+        return None
+
+
+def prefetch_streams_async(video_ids: List[str]) -> None:
+    """Warm up the stream cache in the background for the top tracks in a playlist."""
+    def _warm(vid: str):
+        if vid and vid not in _STREAM_CACHE:
+            get_audio_stream_url(vid)
+
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=3)
+    for v in video_ids[:3]:
+        pool.submit(_warm, v)
+    pool.shutdown(wait=False)
 
 
 def search_youtube_music_catalog(query: str, max_items: int = 12) -> List[Dict[str, str]]:
@@ -84,7 +143,6 @@ def search_youtube_music_catalog(query: str, max_items: int = 12) -> List[Dict[s
                     continue
                 title = cols[0]
                 meta = cols[1]
-                # Only keep Song or music Video results, skip podcasts/episodes
                 if "Episode" in meta or "Podcast" in meta:
                     continue
                 parts = [p.strip() for p in meta.split("•") if p.strip()]
@@ -116,8 +174,8 @@ def search_youtube_music_catalog(query: str, max_items: int = 12) -> List[Dict[s
 
 def search_youtube_single(query: str) -> Optional[Dict]:
     """
-    Uses YouTube Music's WEB_REMIX Innertube JSON API to resolve
-    video_id, fallback_ids, exact duration_text, and thumbnail in ~0.15s.
+    Uses YouTube Music's WEB_REMIX Innertube JSON API to resolve the exact
+    structured song/video result, filtering out unrelated bottom-of-page tracks.
     """
     cache_key = query.strip().lower()
     if cache_key in _SEARCH_CACHE:
@@ -140,18 +198,45 @@ def search_youtube_single(query: str) -> Optional[Dict]:
         if resp.status_code != 200:
             return None
 
-        text = resp.text
-        vids = list(dict.fromkeys(re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})"', text)))
-        durs = re.findall(r'"text":"([0-9]{1,2}:[0-9]{2})"', text)
-        if not durs:
-            durs = re.findall(r'"simpleText":"([0-9]{1,2}:[0-9]{2})"', text)
+        data = resp.json()
+        matched_vids: List[str] = []
+        matched_durs: List[str] = []
 
-        if not vids:
+        for item in _find_nodes(data, "musicResponsiveListItemRenderer"):
+            vid = item.get("playlistItemData", {}).get("videoId", "")
+            if not vid or len(vid) != 11:
+                continue
+            cols = []
+            for c in item.get("flexColumns", []):
+                runs = (
+                    c.get("musicResponsiveListItemFlexColumnRenderer", {})
+                    .get("text", {})
+                    .get("runs", [])
+                )
+                cols.append("".join(x.get("text", "") for x in runs).strip())
+            meta = cols[1] if len(cols) >= 2 else ""
+            if "Episode" in meta or "Podcast" in meta:
+                continue
+            # Never allow random nursery rhymes / Release - Topic mismatches
+            if "Release - Topic" in meta or "Lights on the Ceiling" in meta:
+                continue
+            if vid not in matched_vids:
+                matched_vids.append(vid)
+                dur_match = re.search(r"\b([0-9]{1,2}:[0-9]{2})\b", " ".join(cols))
+                if dur_match:
+                    matched_durs.append(dur_match.group(1))
+
+        if not matched_vids:
+            text = resp.text
+            matched_vids = list(dict.fromkeys(re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})"', text)))
+            matched_durs = re.findall(r'"text":"([0-9]{1,2}:[0-9]{2})"', text)
+
+        if not matched_vids:
             return None
 
-        video_id = vids[0]
-        fallback_ids = vids[1:6]
-        duration_text = durs[0] if durs else "3:42"
+        video_id = matched_vids[0]
+        fallback_ids = matched_vids[1:4]
+        duration_text = matched_durs[0] if matched_durs else "3:42"
 
         result = {
             "video_id": video_id,
@@ -169,7 +254,7 @@ def search_youtube_single(query: str) -> Optional[Dict]:
 
 
 def resolve_tracks_batch(tracks: List[Dict]) -> List[Dict]:
-    """Resolves video IDs, fallback IDs, real durations, and thumbnails in parallel, ensuring unique video_ids."""
+    """Resolves video IDs, fallback IDs, real durations, and thumbnails in parallel."""
 
     def _resolve_one(track: Dict) -> Dict:
         vid = track.get("video_id", "")
@@ -201,7 +286,6 @@ def resolve_tracks_batch(tracks: List[Dict]) -> List[Dict]:
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
         resolved = list(executor.map(_resolve_one, tracks))
 
-    # Deduplicate video_id across the playlist so two tracks never play the exact same video
     used_vids = set()
     for tr in resolved:
         vid = tr.get("video_id", "")
@@ -216,5 +300,10 @@ def resolve_tracks_batch(tracks: List[Dict]) -> List[Dict]:
                     break
         if vid:
             used_vids.add(vid)
+
+    # Pre-warm audio stream URLs for the first 3 tracks so playback starts immediately
+    top_vids = [tr.get("video_id", "") for tr in resolved if tr.get("video_id")]
+    if top_vids:
+        prefetch_streams_async(top_vids)
 
     return resolved

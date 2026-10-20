@@ -1,7 +1,9 @@
 import os
 from typing import Dict, List, Any, Optional
-from fastapi import FastAPI, HTTPException
+import requests as ext_requests
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -13,7 +15,11 @@ from argon_music.backend.safari_bridge import (
     control_safari,
 )
 from argon_music.backend.curator import analyze_taste_dna, curate_playlist
-from argon_music.backend.youtube_search import resolve_tracks_batch, search_youtube_single
+from argon_music.backend.youtube_search import (
+    resolve_tracks_batch,
+    search_youtube_single,
+    get_audio_stream_url,
+)
 from argon_music.backend.favorites_store import get_favorites, toggle_favorite
 
 app = FastAPI(title="UpBeat Music API", version="2.0.0")
@@ -179,6 +185,49 @@ def list_favorites():
 @app.post("/api/favorites/toggle")
 def toggle_favorite_endpoint(req: FavoriteTrackRequest):
     return toggle_favorite(req.track)
+
+
+@app.api_route("/api/audio/{video_id}", methods=["GET", "HEAD"])
+def stream_audio_endpoint(video_id: str, request: Request):
+    """
+    Streams the exact official audio track (m4a/mp4) directly from YouTube via yt-dlp,
+    bypassing YouTube IFrame Embed Error 150 on Sony Music / Aniplex official Topic tracks.
+    """
+    info = get_audio_stream_url(video_id)
+    if not info or not info.get("url"):
+        raise HTTPException(status_code=404, detail="Audio stream unavailable")
+
+    upstream_headers = {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+    }
+    range_header = request.headers.get("range") or request.headers.get("Range")
+    if range_header:
+        upstream_headers["Range"] = range_header
+
+    upstream_resp = ext_requests.get(info["url"], headers=upstream_headers, stream=True, timeout=15)
+
+    resp_headers = {
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "public, max-age=3600",
+    }
+    for h in ("Content-Length", "Content-Range"):
+        if h in upstream_resp.headers:
+            resp_headers[h] = upstream_resp.headers[h]
+
+    def _iter_chunks():
+        try:
+            for chunk in upstream_resp.iter_content(chunk_size=65536):
+                if chunk:
+                    yield chunk
+        finally:
+            upstream_resp.close()
+
+    return StreamingResponse(
+        _iter_chunks(),
+        status_code=upstream_resp.status_code,
+        media_type=info.get("mime", "audio/mp4"),
+        headers=resp_headers,
+    )
 
 
 frontend_dist = os.path.join(os.path.dirname(__file__), "../frontend/dist")
