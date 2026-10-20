@@ -1,0 +1,11 @@
+{
+  "appId": "com.aaradhya.upbeat",
+  "appName": "UpBeat",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": ["*"]
+  }
+}

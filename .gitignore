@@ -1,0 +1,26 @@
+# Secrets & Virtual Environments
+.env
+.env.*
+.venv/
+venv/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+
+# Node / Frontend dependencies
+argon_music/frontend/node_modules/
+node_modules/
+
+# Android build outputs
+argon_music/frontend/android/.gradle/
+argon_music/frontend/android/build/
+argon_music/frontend/android/app/build/
+argon_music/frontend/android/local.properties
+
+# macOS
+.DS_Store
+UpBeat.app/
