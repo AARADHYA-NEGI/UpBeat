@@ -234,8 +234,18 @@ export default function SonicDnaView({
 
         <div className="flex-1 overflow-y-auto">
           {filteredTracks.length === 0 ? (
-            <div className="p-12 text-center text-xs text-[#a1a1aa]">
-              No matching tracks in library. Open YouTube Liked Videos or History in Safari and click Sync Safari.
+            <div className="p-12 text-center text-xs text-[#a1a1aa] flex flex-col items-center justify-center">
+              <div className="w-10 h-10 rounded-lg border border-[#2a2a32] bg-[#141418] flex items-center justify-center mb-3">
+                <Music className="w-4 h-4 text-indigo-400" />
+              </div>
+              <p className="text-sm font-medium text-[#f5f5f5]">
+                {extractedTracks.length === 0 ? 'Your Library starts fresh' : 'No matching tracks'}
+              </p>
+              <p className="text-xs text-[#9ca3af] mt-1 max-w-sm">
+                {extractedTracks.length === 0
+                  ? 'Use Direct Search (0 tokens) to find any song, artist, or YouTube playlist, and heart tracks to save them to your permanent favorites memory.'
+                  : 'Try a different search filter.'}
+              </p>
             </div>
           ) : (
             <table className="w-full text-left border-collapse">
@@ -326,32 +336,53 @@ export default function SonicDnaView({
   }
 
   // 3. TASTE PROFILE VIEW
+  const hasProfile = Boolean(tasteDna && (tasteDna.archetype || tasteDna.summary))
+
   return (
     <div className="flex-1 overflow-y-auto p-6 bg-[#0a0a0c]">
       <div className="max-w-4xl flex flex-col gap-6">
         <div className="border border-[#222228] bg-[#0d0d10] rounded-lg p-6">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-400 font-medium">
-              Taste Profile Analysis
+              Taste Profile {hasProfile ? 'Analysis' : 'Memory'}
             </span>
-            <button
-              onClick={onSyncSafari}
-              disabled={isSyncing}
-              className="px-3 py-1 rounded-md bg-[#16161c] hover:bg-[#22222a] border border-[#2a2a34] text-xs text-[#e5e5e5] flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>Re-analyze from Safari</span>
-            </button>
+            {onSyncSafari && (
+              <button
+                onClick={onSyncSafari}
+                disabled={isSyncing}
+                className="px-3 py-1 rounded-md bg-[#16161c] hover:bg-[#22222a] border border-[#2a2a34] text-xs text-[#e5e5e5] flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>Sync YouTube / Safari</span>
+              </button>
+            )}
           </div>
 
           <h2 className="text-xl font-semibold text-[#f5f5f5] tracking-tight">
-            {tasteDna?.archetype || 'Listener Profile'}
+            {hasProfile ? (tasteDna?.archetype || 'Listener Profile') : 'Personal Taste Profile'}
           </h2>
           <p className="text-xs sm:text-sm text-[#c4c4cc] mt-2 leading-relaxed max-w-2xl">
-            {tasteDna?.summary || 'Connect Safari to analyze listening habits.'}
+            {hasProfile
+              ? tasteDna?.summary
+              : favorites.length > 0
+              ? `You have ${favorites.length} song${favorites.length > 1 ? 's' : ''} in your Liked memory. UpBeat uses your favorites as your primary taste signal when curating personalized mixes.`
+              : 'Your taste profile is formed as you listen, search, and heart songs. Heart ❤️ tracks in any playlist or search to build your personal taste memory.'}
           </p>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+          {!hasProfile && favorites.length > 0 && onCurateFromFavorites && (
+            <div className="mt-4">
+              <button
+                onClick={onCurateFromFavorites}
+                className="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white flex items-center gap-2 transition-colors cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Curate Fresh Mix from Your Liked Songs</span>
+              </button>
+            </div>
+          )}
+
+          {hasProfile && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
             <div className="p-3.5 rounded-md bg-[#131318] border border-[#22222a]">
               <span className="text-[10px] font-mono uppercase text-[#9ca3af] block">Tempo Range</span>
               <span className="text-sm font-mono font-semibold text-[#f5f5f5] mt-1 block">
@@ -377,6 +408,7 @@ export default function SonicDnaView({
               </span>
             </div>
           </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

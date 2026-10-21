@@ -52,6 +52,7 @@ export default function PlaylistView({
   onSelectYoutubeResults,
   onSelectDirectSongs,
   onGenerateDefault,
+  onSelectStarter,
   needsSetup,
   onOpenSettings
 }) {
@@ -84,8 +85,30 @@ export default function PlaylistView({
           Ready to search or curate
         </p>
         <p className="text-xs text-[#9ca3af] mt-1 max-w-xs">
-          Use Search (0 tokens) for prepared playlists & songs, or AI Curate for custom mood mixes.
+          Search any song, artist, or YouTube playlist (0 tokens), or tap a starter genre below.
         </p>
+
+        {onSelectStarter && (
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-4 max-w-md">
+            {[
+              { label: 'Trending Hits', query: 'Trending music hits 2025' },
+              { label: 'Lofi & Chill', query: 'Lofi hip hop beats to relax' },
+              { label: 'New Hindi Songs', query: 'New Hindi Songs' },
+              { label: 'Hip-Hop / Rap', query: 'Hip-Hop and Rap hits' },
+              { label: 'Gym Motivation', query: 'Gym workout motivation music' },
+              { label: 'Anime Vibes', query: 'Anime opening songs best' }
+            ].map((s) => (
+              <button
+                key={s.label}
+                onClick={() => onSelectStarter(s.query)}
+                className="px-3 py-1.5 rounded-full bg-[#15151c] hover:bg-[#1e1e28] border border-[#262632] text-[11px] font-medium text-[#d4d4dc] hover:text-white transition-all cursor-pointer shadow-sm"
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-center gap-2 mt-4">
           {needsSetup && onOpenSettings && (
             <button

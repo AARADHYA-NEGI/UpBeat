@@ -1,5 +1,5 @@
 import React from 'react'
-import { Loader2, CornerDownLeft, Sparkles, Search, ListMusic } from 'lucide-react'
+import { Loader2, CornerDownLeft, Sparkles, Search, ListMusic, X } from 'lucide-react'
 
 export default function CuratorPrompt({
   prompt,
@@ -98,7 +98,23 @@ export default function CuratorPrompt({
                 : 'Describe mood, anime, soundtrack, or vibe for AI curation...'
             }
             className="w-full bg-transparent text-xs sm:text-sm text-[#f5f5f5] placeholder:text-[#73737a] focus:outline-none min-w-0"
+            disabled={busy}
           />
+          {Boolean(prompt) && !busy && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setPrompt('')
+              }}
+              title="Clear search"
+              aria-label="Clear search"
+              className="p-1 rounded-md text-[#8e8e93] hover:text-[#f5f5f5] hover:bg-[#202028] transition-colors cursor-pointer flex-shrink-0 ml-1"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         {/* Direct Search Button (0 Tokens — always accessible with 1 tap) */}

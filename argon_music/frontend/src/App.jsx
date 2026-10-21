@@ -49,7 +49,11 @@ export default function App() {
   const [selectedModel, setSelectedModel] = useState('gemini-3.8-flash')
   const [safariStatus, setSafariStatus] = useState(null)
   const [safariNowPlaying, setSafariNowPlaying] = useState(null)
-  const [extractedTracks, setExtractedTracks] = useState(() => loadStorage('argon_seeds_v2', DEFAULT_SEEDS))
+  const [extractedTracks, setExtractedTracks] = useState(() => {
+    return hasBackend()
+      ? loadStorage('argon_seeds_v2', DEFAULT_SEEDS)
+      : loadStorage('argon_seeds_v2', [])
+  })
   const [favorites, setFavorites] = useState(() => loadStorage('argon_favs_v2', []))
   const [tasteDna, setTasteDna] = useState(() => loadStorage('argon_dna_v2', null))
   const [playlist, setPlaylist] = useState(() => loadStorage('argon_playlist_v2', null))
@@ -57,8 +61,12 @@ export default function App() {
   const [currentTrackIdx, setCurrentTrackIdx] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [playbackMode, setPlaybackMode] = useState('app')
-  const [prompt, setPrompt] = useState('High-impact orchestral rock, Hiroyuki Sawano style soundtracks, and Monogatari / anime openings')
-  const [activePresetId, setActivePresetId] = useState('ost')
+  const [prompt, setPrompt] = useState(() => {
+    return hasBackend()
+      ? 'High-impact orchestral rock, Hiroyuki Sawano style soundtracks, and Monogatari / anime openings'
+      : ''
+  })
+  const [activePresetId, setActivePresetId] = useState(() => (hasBackend() ? 'ost' : null))
   const [energyLevel, setEnergyLevel] = useState(78) // Matches 'ost' preset default (78%)
   const [trackCount, setTrackCount] = useState(8)
   const [activeTab, setActiveTab] = useState('curator')
@@ -560,27 +568,12 @@ export default function App() {
         if (synced.length > 0) seeds = synced
       }
       if (!playlist) {
-        if (isConfigured()) {
-          handleGenerate(prompt, seeds)
-        } else {
-          // Seed a ready-to-play starter playlist on unconfigured mobile first launch
-          const starterPlaylist = {
-            playlist_title: 'UpBeat Starter Mix • Anime & Electronic',
-            curator_note: 'Ready to play out-of-the-box. Tap Key in the top bar to add your Gemini API key for custom AI curation.',
-            used_model: 'upbeat-starter',
-            is_fallback: false,
-            tracks: DEFAULT_SEEDS.map((s, idx) => ({
-              ...s,
-              match_tier: idx < 4 ? 'direct' : 'adjacent',
-              why_it_fits: idx < 4
-                ? 'Iconic Monogatari & anime opening theme with crisp production and melodic hooks.'
-                : 'Atmospheric electronic instrumental for deep focus and late-night sessions.'
-            }))
+        if (hasBackend()) {
+          if (isConfigured()) {
+            handleGenerate(prompt, seeds)
           }
-          setPlaylist(starterPlaylist)
-          setCurrentTrack(starterPlaylist.tracks[0])
-          setCurrentTrackIdx(0)
         }
+        // Standalone mobile starts clean so new users can search or choose their own vibe
       } else if (playlist.tracks?.length > 0 && !currentTrack) {
         setCurrentTrack(playlist.tracks[0])
         setCurrentTrackIdx(0)
@@ -830,6 +823,10 @@ export default function App() {
                 onSelectYoutubeResults={handleSelectYoutubeResults}
                 onSelectDirectSongs={handleSelectDirectSongs}
                 onGenerateDefault={() => handleDirectSearch('New Hindi Songs', 'auto')}
+                onSelectStarter={(q) => {
+                  setPrompt(q)
+                  handleDirectSearch(q, 'auto')
+                }}
                 needsSetup={!isConfigured()}
                 onOpenSettings={() => setShowKeyModal(true)}
               />
