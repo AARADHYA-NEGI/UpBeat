@@ -54,6 +54,7 @@ export default function PlayerBar({
   const fallbackQueueRef = useRef([])
   const endedTriggeredRef = useRef(false)
   const isScrubbingRef = useRef(false)
+  const lastNativeReportSecRef = useRef(0)
 
   const onNextRef = useRef(onNext)
   const isPlayingRef = useRef(isPlaying)
@@ -313,6 +314,19 @@ export default function PlayerBar({
         const dur = audioRef.current.duration
         if (typeof cur === 'number' && !isNaN(cur) && cur >= 0) {
           setCurrentTime(cur)
+          if (Math.abs(cur - lastNativeReportSecRef.current) >= 3) {
+            lastNativeReportSecRef.current = cur
+            if (window.UpBeatNative?.updatePlayback && track) {
+              window.UpBeatNative.updatePlayback(
+                true,
+                track.title || 'UpBeat',
+                track.artist || '',
+                thumbUrl || '',
+                Math.round(dur || effectiveDuration || 0),
+                Math.round(cur)
+              )
+            }
+          }
         }
         if (typeof dur === 'number' && isFinite(dur) && dur > 0) {
           setDuration(dur)
@@ -402,6 +416,17 @@ export default function PlayerBar({
   const commitSeek = (targetSec) => {
     const sec = Math.max(0, Number(targetSec) || 0)
     setCurrentTime(sec)
+    lastNativeReportSecRef.current = sec
+    if (window.UpBeatNative?.updatePlayback && track) {
+      window.UpBeatNative.updatePlayback(
+        Boolean(isPlayingRef.current),
+        track.title || 'UpBeat',
+        track.artist || '',
+        thumbUrl || '',
+        Math.round(effectiveDuration || 0),
+        Math.round(sec)
+      )
+    }
     if (!useIframeFallback && audioRef.current) {
       try {
         audioRef.current.currentTime = sec

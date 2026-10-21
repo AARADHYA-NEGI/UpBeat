@@ -61,7 +61,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v2.0.0
-          name: "UpBeat v2.8 — One-Tap Search Clear (X), Blank Slate Mobile Onboarding & Android Auto"
+          name: "UpBeat v2.9 — Interactive Notification Bar Controls (Spotify/YT Music style) & Android Auto"
           files: |
             argon_music/frontend/android/app/build/outputs/apk/debug/UpBeat.apk
             UpBeat-macOS.zip

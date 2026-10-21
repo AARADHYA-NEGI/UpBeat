@@ -8,10 +8,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PowerManager;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
@@ -28,13 +32,17 @@ import androidx.media.session.MediaButtonReceiver;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Android Auto & In-Car Media Browser Service for UpBeat.
- * Implements MediaBrowserServiceCompat + MediaSessionCompat so UpBeat appears natively
- * on car infotainment screens (Android Auto, Automotive OS, Bluetooth car decks, Wear OS).
+ * Android Notification Media Controls & Android Auto In-Car Browser Service for UpBeat.
+ * Implements MediaBrowserServiceCompat + MediaSessionCompat + MediaStyle notification controls
+ * so UpBeat displays the native interactive playback bar (Play, Pause, Forward, Backward, Scrubber)
+ * in the Android notification shade, Quick Settings, lock screen, and car display (Spotify/YT Music style).
  */
 public class UpBeatMediaService extends MediaBrowserServiceCompat {
 
@@ -43,6 +51,15 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
     private static final String PREFS_NAME = "upbeat_car_prefs";
     private static final String KEY_QUEUE = "car_queue_json";
     private static final String KEY_FAVS = "car_favs_json";
+
+    public static final String ACTION_TOGGLE_PLAY = "com.aaradhya.upbeat.ACTION_TOGGLE_PLAY";
+    public static final String ACTION_PLAY = "com.aaradhya.upbeat.ACTION_PLAY";
+    public static final String ACTION_PAUSE = "com.aaradhya.upbeat.ACTION_PAUSE";
+    public static final String ACTION_NEXT = "com.aaradhya.upbeat.ACTION_NEXT";
+    public static final String ACTION_PREV = "com.aaradhya.upbeat.ACTION_PREV";
+    public static final String ACTION_REWIND = "com.aaradhya.upbeat.ACTION_REWIND";
+    public static final String ACTION_FORWARD = "com.aaradhya.upbeat.ACTION_FORWARD";
+    public static final String ACTION_STOP = "com.aaradhya.upbeat.ACTION_STOP";
 
     public static final String MEDIA_ID_ROOT = "root";
     public static final String MEDIA_ID_QUEUE = "folder_queue";
@@ -62,6 +79,9 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
     private long currentDurationMs = 0;
     private long currentPositionMs = 0;
 
+    private Bitmap cachedArtworkBitmap = null;
+    private String cachedArtworkUrl = "";
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -69,7 +89,7 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
         createNotificationChannel();
         acquireLocks();
 
-        // Initialize MediaSessionCompat for Android Auto
+        // Initialize MediaSessionCompat with interactive transport flags
         mMediaSession = new MediaSessionCompat(this, "UpBeatMediaSession");
         mMediaSession.setFlags(
             MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
@@ -86,6 +106,7 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
         mMediaSession.setMediaButtonReceiver(mbPendingIntent);
 
         mMediaSession.setCallback(new MediaSessionCallback());
+        mMediaSession.setActive(true);
         setSessionToken(mMediaSession.getSessionToken());
 
         updatePlaybackState(PlaybackStateCompat.STATE_NONE, 0);
@@ -113,6 +134,18 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
         }
 
         @Override
+        public void onFastForward() {
+            long targetSec = (currentPositionMs / 1000) + 10;
+            dispatchToApp("seek", String.valueOf(targetSec));
+        }
+
+        @Override
+        public void onRewind() {
+            long targetSec = Math.max(0, (currentPositionMs / 1000) - 10);
+            dispatchToApp("seek", String.valueOf(targetSec));
+        }
+
+        @Override
         public void onSeekTo(long pos) {
             dispatchToApp("seek", String.valueOf(pos / 1000));
         }
@@ -134,7 +167,6 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
         if (MainActivity.sInstance != null) {
             MainActivity.sInstance.dispatchCarAction(action, payload);
         } else {
-            // Wake UpBeat app in background if Android Auto triggers playback while closed
             Intent launchIntent = new Intent(this, MainActivity.class);
             launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             launchIntent.putExtra("car_action", action);
@@ -146,7 +178,6 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
     @Nullable
     @Override
     public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints) {
-        // Return root node so Android Auto and in-car head units can browse UpBeat
         return new BrowserRoot(MEDIA_ID_ROOT, null);
     }
 
@@ -156,7 +187,6 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
 
         if (MEDIA_ID_ROOT.equals(parentMediaId)) {
-            // Top-Level Folders on Car Screen
             items.add(createFolder(MEDIA_ID_QUEUE, "Current Queue", "Active playlist tracks"));
             items.add(createFolder(MEDIA_ID_FAVORITES, "Liked Songs", "Your saved favorites"));
             items.add(createFolder(MEDIA_ID_PRESETS, "Curated Vibes", "Quick mood & genre mixes"));
@@ -229,6 +259,39 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
     public int onStartCommand(Intent intent, int flags, int startId) {
         MediaButtonReceiver.handleIntent(mMediaSession, intent);
 
+        if (intent != null && intent.getAction() != null) {
+            String act = intent.getAction();
+            if (ACTION_TOGGLE_PLAY.equals(act)) {
+                dispatchToApp(isCurrentlyPlaying ? "pause" : "play", "");
+                return START_STICKY;
+            } else if (ACTION_PLAY.equals(act)) {
+                dispatchToApp("play", "");
+                return START_STICKY;
+            } else if (ACTION_PAUSE.equals(act)) {
+                dispatchToApp("pause", "");
+                return START_STICKY;
+            } else if (ACTION_NEXT.equals(act)) {
+                dispatchToApp("next", "");
+                return START_STICKY;
+            } else if (ACTION_PREV.equals(act)) {
+                dispatchToApp("prev", "");
+                return START_STICKY;
+            } else if (ACTION_REWIND.equals(act)) {
+                long targetSec = Math.max(0, (currentPositionMs / 1000) - 10);
+                dispatchToApp("seek", String.valueOf(targetSec));
+                return START_STICKY;
+            } else if (ACTION_FORWARD.equals(act)) {
+                long targetSec = (currentPositionMs / 1000) + 10;
+                dispatchToApp("seek", String.valueOf(targetSec));
+                return START_STICKY;
+            } else if (ACTION_STOP.equals(act)) {
+                dispatchToApp("pause", "");
+                stopForeground(true);
+                stopSelf();
+                return START_NOT_STICKY;
+            }
+        }
+
         if (intent != null) {
             String t = intent.getStringExtra("title");
             String a = intent.getStringExtra("artist");
@@ -244,11 +307,16 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
             currentPositionMs = pos * 1000;
             isCurrentlyPlaying = playing;
 
+            mMediaSession.setActive(true);
             applyMediaMetadata();
             updatePlaybackState(
                 playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED,
                 currentPositionMs
             );
+
+            if (currentArtUrl != null && !currentArtUrl.isEmpty() && !currentArtUrl.equals(cachedArtworkUrl)) {
+                loadArtworkBitmapAsync(currentArtUrl);
+            }
         }
 
         Notification notification = buildNotification(currentTitle, currentArtist, isCurrentlyPlaying);
@@ -274,7 +342,10 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
             | PlaybackStateCompat.ACTION_PLAY_PAUSE
             | PlaybackStateCompat.ACTION_SKIP_TO_NEXT
             | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
-            | PlaybackStateCompat.ACTION_SEEK_TO;
+            | PlaybackStateCompat.ACTION_SEEK_TO
+            | PlaybackStateCompat.ACTION_STOP
+            | PlaybackStateCompat.ACTION_FAST_FORWARD
+            | PlaybackStateCompat.ACTION_REWIND;
 
         PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
             .setActions(actions)
@@ -290,12 +361,64 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
             .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "UpBeat")
             .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, currentDurationMs);
 
+        if (cachedArtworkBitmap != null) {
+            metaBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, cachedArtworkBitmap);
+            metaBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, cachedArtworkBitmap);
+        }
         if (currentArtUrl != null && !currentArtUrl.isEmpty()) {
             metaBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentArtUrl);
             metaBuilder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, currentArtUrl);
         }
 
         mMediaSession.setMetadata(metaBuilder.build());
+    }
+
+    private void loadArtworkBitmapAsync(final String urlString) {
+        if (urlString == null || urlString.isEmpty()) {
+            cachedArtworkBitmap = null;
+            cachedArtworkUrl = "";
+            applyMediaMetadata();
+            notifyNotification();
+            return;
+        }
+
+        new Thread(() -> {
+            try {
+                URL url = new URL(urlString);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setDoInput(true);
+                conn.setConnectTimeout(4000);
+                conn.setReadTimeout(4000);
+                conn.connect();
+                InputStream input = conn.getInputStream();
+                Bitmap bmp = BitmapFactory.decodeStream(input);
+                if (bmp != null) {
+                    cachedArtworkBitmap = bmp;
+                    cachedArtworkUrl = urlString;
+                    new Handler(Looper.getMainLooper()).post(() -> {
+                        applyMediaMetadata();
+                        notifyNotification();
+                    });
+                }
+            } catch (Exception ignored) {}
+        }).start();
+    }
+
+    private void notifyNotification() {
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        if (manager != null) {
+            manager.notify(NOTIFICATION_ID, buildNotification(currentTitle, currentArtist, isCurrentlyPlaying));
+        }
+    }
+
+    private PendingIntent createActionIntent(String action) {
+        Intent intent = new Intent(this, UpBeatMediaService.class);
+        intent.setAction(action);
+        int pFlags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            pFlags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        return PendingIntent.getService(this, action.hashCode(), intent, pFlags);
     }
 
     private Notification buildNotification(String title, String artist, boolean isPlaying) {
@@ -311,27 +434,33 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(artist)
-            .setSubText("UpBeat • Android Auto")
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSubText("UpBeat")
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(contentIntent)
             .setOngoing(isPlaying)
             .setSilent(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+            .setCategory(NotificationCompat.CATEGORY_TRANSPORT);
+
+        if (cachedArtworkBitmap != null) {
+            builder.setLargeIcon(cachedArtworkBitmap);
+        }
+
+        builder
             .addAction(new NotificationCompat.Action(
-                android.R.drawable.ic_media_previous, "Prev",
-                MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS)))
+                android.R.drawable.ic_media_previous, "Previous", createActionIntent(ACTION_PREV)))
             .addAction(new NotificationCompat.Action(
                 isPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,
                 isPlaying ? "Pause" : "Play",
-                MediaButtonReceiver.buildMediaButtonPendingIntent(this, isPlaying ? PlaybackStateCompat.ACTION_PAUSE : PlaybackStateCompat.ACTION_PLAY)))
+                createActionIntent(ACTION_TOGGLE_PLAY)))
             .addAction(new NotificationCompat.Action(
-                android.R.drawable.ic_media_next, "Next",
-                MediaButtonReceiver.buildMediaButtonPendingIntent(this, PlaybackStateCompat.ACTION_SKIP_TO_NEXT)))
+                android.R.drawable.ic_media_next, "Next", createActionIntent(ACTION_NEXT)))
             .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
                 .setMediaSession(mMediaSession.getSessionToken())
-                .setShowActionsInCompactView(0, 1, 2));
+                .setShowActionsInCompactView(0, 1, 2)
+                .setShowCancelButton(true)
+                .setCancelButtonIntent(createActionIntent(ACTION_STOP)));
 
         return builder.build();
     }
@@ -343,8 +472,9 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
                 "UpBeat Playback",
                 NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("Keeps UpBeat playing in the background & Android Auto");
+            channel.setDescription("Shows interactive music player controls in notification bar");
             channel.setShowBadge(false);
+            channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             NotificationManager manager = getSystemService(NotificationManager.class);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
