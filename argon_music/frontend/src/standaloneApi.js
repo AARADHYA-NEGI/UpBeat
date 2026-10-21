@@ -242,10 +242,20 @@ export async function searchYouTubeStandalone(query) {
 }
 
 // ---------------------------------------------------------------------------
-// Direct audio stream resolution (Innertube player, IOS client)
+// Direct audio stream resolution (Innertube player, ANDROID + IOS clients)
 // ---------------------------------------------------------------------------
 
-const PLAYER_CLIENT = {
+const ANDROID_PLAYER_CLIENT = {
+  clientName: 'ANDROID',
+  clientVersion: '20.10.38',
+  osName: 'Android',
+  osVersion: '14',
+  androidSdkVersion: 34,
+  hl: 'en',
+  gl: 'US'
+}
+
+const IOS_PLAYER_CLIENT = {
   clientName: 'IOS',
   clientVersion: '20.10.4',
   deviceMake: 'Apple',
@@ -255,39 +265,58 @@ const PLAYER_CLIENT = {
   hl: 'en',
   gl: 'US'
 }
+
 const streamCache = new Map()
 
-/** Returns a playable direct audio URL for a video id (works in the APK without the Mac). */
+/** Returns { url, duration } for a video id (works in the APK without the Mac). */
 export async function resolveStandaloneAudio(videoId) {
   if (!videoId) return null
   const cached = streamCache.get(videoId)
-  if (cached && Date.now() - cached.ts < 25 * 60 * 1000) return cached.url
-  try {
-    const resp = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)'
-      },
-      body: JSON.stringify({ context: { client: PLAYER_CLIENT }, videoId, contentCheckOk: true, racyCheckOk: true })
-    })
-    if (!resp.ok) return null
-    const data = await resp.json()
-    if (data?.playabilityStatus?.status !== 'OK') return null
-    const formats = (data?.streamingData?.adaptiveFormats || [])
-      .filter((f) => f.url && (f.mimeType || '').startsWith('audio/mp4'))
-      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))
-    if (!formats.length) return null
-    streamCache.set(videoId, { url: formats[0].url, ts: Date.now() })
-    return formats[0].url
-  } catch {
-    return null
+  if (cached && Date.now() - cached.ts < 25 * 60 * 1000) return cached
+
+  for (const client of [ANDROID_PLAYER_CLIENT, IOS_PLAYER_CLIENT]) {
+    try {
+      const resp = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          context: { client },
+          videoId,
+          contentCheckOk: true,
+          racyCheckOk: true
+        })
+      })
+      if (!resp.ok) continue
+      const data = await resp.json()
+      if (data?.playabilityStatus?.status !== 'OK') continue
+
+      // Prefer progressive formats (itag 18) first because Android WebView <audio>
+      // probes without a Range header, which returns 200 OK on progressive formats
+      // (whereas adaptiveFormats returns 403 without a Range header).
+      const progressive = (data?.streamingData?.formats || []).filter((f) => f.url)
+      const adaptive = (data?.streamingData?.adaptiveFormats || [])
+        .filter((f) => f.url && (f.mimeType || '').startsWith('audio/mp4'))
+        .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))
+
+      const chosen = progressive[0] || adaptive[0]
+      if (!chosen?.url) continue
+
+      const duration =
+        Number(data?.videoDetails?.lengthSeconds || 0) ||
+        Math.round(Number(chosen.approxDurationMs || 0) / 1000) ||
+        0
+
+      const entry = { url: chosen.url, duration, ts: Date.now() }
+      streamCache.set(videoId, entry)
+      return entry
+    } catch {}
   }
+  return null
 }
 
 /** Audio source for the player: Mac backend proxy when available, otherwise direct stream. */
 export async function getAudioSource(videoId) {
-  if (hasBackend()) return apiUrl(`/audio/${videoId}`)
+  if (hasBackend()) return { url: apiUrl(`/audio/${videoId}`), duration: 0 }
   return resolveStandaloneAudio(videoId)
 }
 

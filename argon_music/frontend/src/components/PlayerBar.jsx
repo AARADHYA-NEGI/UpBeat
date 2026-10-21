@@ -12,6 +12,15 @@ function formatTime(sec) {
   return `${m}:${s.toString().padStart(2, '0')}`
 }
 
+function parseDurationText(str) {
+  if (!str || typeof str !== 'string' || str === '--:--') return 0
+  const parts = str.trim().split(':').map(Number)
+  if (parts.some((n) => isNaN(n))) return 0
+  if (parts.length === 2) return parts[0] * 60 + parts[1]
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
+  return 0
+}
+
 export default function PlayerBar({
   currentTrack,
   isPlaying,
@@ -33,6 +42,8 @@ export default function PlayerBar({
   const [isMuted, setIsMuted] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
+  const [isScrubbing, setIsScrubbing] = useState(false)
+  const [scrubTime, setScrubTime] = useState(0)
   const [resolvedVid, setResolvedVid] = useState('')
   const [isLoadingStream, setIsLoadingStream] = useState(false)
   const [useIframeFallback, setUseIframeFallback] = useState(false)
@@ -42,6 +53,7 @@ export default function PlayerBar({
   const currentVidRef = useRef('')
   const fallbackQueueRef = useRef([])
   const endedTriggeredRef = useRef(false)
+  const isScrubbingRef = useRef(false)
 
   const onNextRef = useRef(onNext)
   const isPlayingRef = useRef(isPlaying)
@@ -51,6 +63,9 @@ export default function PlayerBar({
   useEffect(() => {
     isPlayingRef.current = isPlaying
   }, [isPlaying])
+  useEffect(() => {
+    isScrubbingRef.current = isScrubbing
+  }, [isScrubbing])
 
   const track = currentTrack || (safariNowPlaying ? {
     title: safariNowPlaying.title || 'Safari Audio',
@@ -65,7 +80,9 @@ export default function PlayerBar({
   useEffect(() => {
     endedTriggeredRef.current = false
     setCurrentTime(0)
-    setDuration(0)
+    setScrubTime(0)
+    setIsScrubbing(false)
+    setDuration(parseDurationText(track?.duration_text))
     setUseIframeFallback(false)
 
     if (!track) {
@@ -94,6 +111,10 @@ export default function PlayerBar({
       }
       if (!cancelled && data?.video_id) {
         setResolvedVid(data.video_id)
+        if (data.duration_text) {
+          const parsed = parseDurationText(data.duration_text)
+          if (parsed > 0) setDuration((prev) => (prev > 0 ? prev : parsed))
+        }
         fallbackQueueRef.current = [...(data.fallback_ids || [])]
         if (onTrackResolved) onTrackResolved(track, data)
       }
@@ -118,9 +139,15 @@ export default function PlayerBar({
     ;(async () => {
       if (audio.dataset.vid !== resolvedVid) {
         setIsLoadingStream(true)
-        const streamSrc = await getAudioSource(resolvedVid)
+        const streamInfo = await getAudioSource(resolvedVid)
         if (cancelled) return
         setIsLoadingStream(false)
+
+        const streamSrc = typeof streamInfo === 'string' ? streamInfo : streamInfo?.url
+        const streamDur = typeof streamInfo === 'object' ? Number(streamInfo?.duration || 0) : 0
+        if (streamDur > 0) {
+          setDuration((prev) => (prev > 0 ? prev : streamDur))
+        }
 
         if (!streamSrc) {
           setUseIframeFallback(true)
@@ -274,21 +301,87 @@ export default function PlayerBar({
     }
   }, [resolvedVid, playbackMode, useIframeFallback])
 
-  const handleSeek = (e) => {
-    const targetSec = Number(e.target.value)
-    setCurrentTime(targetSec)
+  // Continuous 250ms playback progress ticker for both <audio> and YT.Player fallback
+  useEffect(() => {
+    if (!isPlaying || playbackMode !== 'app') return
+
+    const interval = setInterval(() => {
+      if (isScrubbingRef.current) return
+
+      if (!useIframeFallback && audioRef.current) {
+        const cur = audioRef.current.currentTime
+        const dur = audioRef.current.duration
+        if (typeof cur === 'number' && !isNaN(cur) && cur >= 0) {
+          setCurrentTime(cur)
+        }
+        if (typeof dur === 'number' && isFinite(dur) && dur > 0) {
+          setDuration(dur)
+        }
+        return
+      }
+
+      const p = playerRef.current
+      if (useIframeFallback && p && typeof p.getCurrentTime === 'function') {
+        try {
+          const cur = p.getCurrentTime()
+          if (typeof cur === 'number' && !isNaN(cur) && cur >= 0) {
+            setCurrentTime(cur)
+          }
+          if (typeof p.getDuration === 'function') {
+            const dur = p.getDuration()
+            if (typeof dur === 'number' && isFinite(dur) && dur > 0) {
+              setDuration(dur)
+            }
+          }
+        } catch {}
+      }
+    }, 250)
+
+    return () => clearInterval(interval)
+  }, [isPlaying, playbackMode, useIframeFallback])
+
+  const commitSeek = (targetSec) => {
+    const sec = Math.max(0, Number(targetSec) || 0)
+    setCurrentTime(sec)
     if (!useIframeFallback && audioRef.current) {
-      audioRef.current.currentTime = targetSec
+      try {
+        audioRef.current.currentTime = sec
+      } catch {}
       return
     }
     const p = playerRef.current
     if (p && typeof p.seekTo === 'function') {
-      p.seekTo(targetSec, true)
+      try {
+        p.seekTo(sec, true)
+      } catch {}
     }
   }
 
+  const handleScrubStart = () => {
+    setIsScrubbing(true)
+    setScrubTime(currentTime)
+  }
+
+  const handleScrubChange = (e) => {
+    const val = Number(e.target.value)
+    if (isScrubbingRef.current) {
+      setScrubTime(val)
+    } else {
+      commitSeek(val)
+    }
+  }
+
+  const handleScrubEnd = (e) => {
+    if (!isScrubbingRef.current) return
+    const val = Number(e?.target?.value ?? scrubTime)
+    setIsScrubbing(false)
+    commitSeek(val)
+  }
+
   const isSafariMode = playbackMode === 'safari'
-  const progressPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0
+  const effectiveDuration = duration > 0 ? duration : parseDurationText(track?.duration_text)
+  const displayTime = isScrubbing ? scrubTime : currentTime
+  const progressPct = effectiveDuration > 0 ? Math.min(100, (displayTime / effectiveDuration) * 100) : 0
   const thumbUrl = track?.thumbnail || (resolvedVid ? `https://i.ytimg.com/vi/${resolvedVid}/hqdefault.jpg` : '')
   const volumeVal = isMuted ? 0 : volume
   const isFav = track && isTrackFavorite ? isTrackFavorite(track) : false
@@ -299,11 +392,18 @@ export default function PlayerBar({
         ref={audioRef}
         preload="auto"
         onTimeUpdate={(e) => {
-          if (!useIframeFallback) setCurrentTime(e.currentTarget.currentTime || 0)
+          if (!useIframeFallback && !isScrubbingRef.current) {
+            setCurrentTime(e.currentTarget.currentTime || 0)
+          }
         }}
         onLoadedMetadata={(e) => {
           setIsLoadingStream(false)
           if (!useIframeFallback && e.currentTarget.duration && isFinite(e.currentTarget.duration)) {
+            setDuration(e.currentTarget.duration)
+          }
+        }}
+        onDurationChange={(e) => {
+          if (!useIframeFallback && e.currentTarget.duration && isFinite(e.currentTarget.duration) && e.currentTarget.duration > 0) {
             setDuration(e.currentTarget.duration)
           }
         }}
@@ -350,9 +450,9 @@ export default function PlayerBar({
 
       <footer className="bg-[#0d0d10] border-t border-[#222228] px-3 sm:px-5 py-2 sm:py-0 sm:h-[68px] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-4 select-none flex-shrink-0 z-30 relative">
         {/* Top progress bar */}
-        {track && duration > 0 && (
+        {track && effectiveDuration > 0 && (
           <div
-            className="absolute top-0 left-0 h-[2px] bg-indigo-500 transition-all duration-300 pointer-events-none"
+            className="absolute top-0 left-0 h-[2px] bg-indigo-500 transition-all duration-150 pointer-events-none"
             style={{ width: `${progressPct}%` }}
           />
         )}
@@ -480,14 +580,20 @@ export default function PlayerBar({
 
             <div className="w-full flex items-center gap-3">
               <span className="text-[11px] font-mono text-[#a1a1aa] w-9 text-right">
-                {formatTime(currentTime)}
+                {formatTime(displayTime)}
               </span>
               <input
                 type="range"
                 min="0"
-                max={duration > 0 ? duration : 100}
-                value={currentTime}
-                onChange={handleSeek}
+                max={effectiveDuration > 0 ? effectiveDuration : 100}
+                step="0.25"
+                value={Math.min(displayTime, effectiveDuration > 0 ? effectiveDuration : 100)}
+                onPointerDown={handleScrubStart}
+                onTouchStart={handleScrubStart}
+                onChange={handleScrubChange}
+                onPointerUp={handleScrubEnd}
+                onTouchEnd={handleScrubEnd}
+                onMouseUp={handleScrubEnd}
                 disabled={!track || isSafariMode}
                 style={{
                   background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${progressPct}%, #26262e ${progressPct}%, #26262e 100%)`
@@ -495,7 +601,7 @@ export default function PlayerBar({
                 className="flex-1 argon-slider cursor-pointer disabled:opacity-40"
               />
               <span className="text-[11px] font-mono text-[#a1a1aa] w-9">
-                {duration > 0 ? formatTime(duration) : (track?.duration_text && track.duration_text !== '--:--' ? track.duration_text : '0:00')}
+                {effectiveDuration > 0 ? formatTime(effectiveDuration) : (track?.duration_text && track.duration_text !== '--:--' ? track.duration_text : '0:00')}
               </span>
             </div>
           </div>
@@ -587,14 +693,20 @@ export default function PlayerBar({
         {track && (
           <div className="flex sm:hidden items-center gap-2 w-full px-0.5">
             <span className="text-[10px] font-mono text-[#8e8e93] w-7">
-              {formatTime(currentTime)}
+              {formatTime(displayTime)}
             </span>
             <input
               type="range"
               min="0"
-              max={duration > 0 ? duration : 100}
-              value={currentTime}
-              onChange={handleSeek}
+              max={effectiveDuration > 0 ? effectiveDuration : 100}
+              step="0.25"
+              value={Math.min(displayTime, effectiveDuration > 0 ? effectiveDuration : 100)}
+              onPointerDown={handleScrubStart}
+              onTouchStart={handleScrubStart}
+              onChange={handleScrubChange}
+              onPointerUp={handleScrubEnd}
+              onTouchEnd={handleScrubEnd}
+              onMouseUp={handleScrubEnd}
               disabled={!track || isSafariMode}
               style={{
                 background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${progressPct}%, #26262e ${progressPct}%, #26262e 100%)`
@@ -602,7 +714,7 @@ export default function PlayerBar({
               className="flex-1 argon-slider"
             />
             <span className="text-[10px] font-mono text-[#8e8e93] w-7 text-right">
-              {duration > 0 ? formatTime(duration) : (track?.duration_text && track.duration_text !== '--:--' ? track.duration_text : '0:00')}
+              {effectiveDuration > 0 ? formatTime(effectiveDuration) : (track?.duration_text && track.duration_text !== '--:--' ? track.duration_text : '0:00')}
             </span>
           </div>
         )}
