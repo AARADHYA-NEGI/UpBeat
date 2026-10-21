@@ -51,11 +51,19 @@ jobs:
           name: UpBeat-Android-APK
           path: argon_music/frontend/android/app/build/outputs/apk/debug/UpBeat.apk
 
-      - name: Publish UpBeat.apk to GitHub Releases
+      - name: Package macOS App Bundle
+        run: |
+          if [ -d "UpBeat.app" ]; then
+            zip -r -y UpBeat-macOS.zip UpBeat.app
+          fi
+
+      - name: Publish UpBeat.apk and macOS Release to GitHub
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v2.0.0
-          name: "UpBeat v2.1 — Mobile Native Edition (Android APK & macOS)"
-          files: argon_music/frontend/android/app/build/outputs/apk/debug/UpBeat.apk
+          name: "UpBeat v2.4 — Direct Search (0 Tokens), Mobile APK & macOS Studio"
+          files: |
+            argon_music/frontend/android/app/build/outputs/apk/debug/UpBeat.apk
+            UpBeat-macOS.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
