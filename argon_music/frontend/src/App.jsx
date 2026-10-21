@@ -86,6 +86,18 @@ export default function App() {
 
   useEffect(() => {
     try { localStorage.setItem('argon_favs_v2', JSON.stringify(favorites)) } catch {}
+    if (window.UpBeatNative && typeof window.UpBeatNative.syncFavorites === 'function') {
+      try {
+        const items = favorites.slice(0, 50).map((f, idx) => ({
+          index: idx,
+          title: f.title || 'Unknown Title',
+          artist: f.artist || 'UpBeat',
+          video_id: f.video_id || '',
+          thumbnail: f.thumbnail || (f.video_id ? `https://i.ytimg.com/vi/${f.video_id}/hqdefault.jpg` : '')
+        }))
+        window.UpBeatNative.syncFavorites(JSON.stringify(items))
+      } catch {}
+    }
   }, [favorites])
 
   useEffect(() => {
@@ -97,8 +109,75 @@ export default function App() {
   useEffect(() => {
     if (playlist) {
       try { localStorage.setItem('argon_playlist_v2', JSON.stringify(playlist)) } catch {}
+      if (window.UpBeatNative && typeof window.UpBeatNative.syncQueue === 'function' && playlist.tracks?.length) {
+        try {
+          const items = playlist.tracks.slice(0, 50).map((t, idx) => ({
+            index: idx,
+            title: t.title || 'Unknown Title',
+            artist: t.artist || 'UpBeat',
+            thumbnail: t.thumbnail || (t.video_id ? `https://i.ytimg.com/vi/${t.video_id}/hqdefault.jpg` : '')
+          }))
+          window.UpBeatNative.syncQueue(JSON.stringify(items))
+        } catch {}
+      }
     }
   }, [playlist])
+
+  // Handle in-car controls from Android Auto & car head units
+  useEffect(() => {
+    window.onUpBeatCarAction = (action, payload) => {
+      switch (action) {
+        case 'play':
+          setIsPlaying(true)
+          break
+        case 'pause':
+          setIsPlaying(false)
+          break
+        case 'next':
+          handleNext()
+          break
+        case 'prev':
+          handlePrev()
+          break
+        case 'seek':
+          window.dispatchEvent(new CustomEvent('upbeat-car-seek', { detail: Number(payload) || 0 }))
+          break
+        case 'play_index': {
+          const idx = parseInt(payload, 10)
+          if (!isNaN(idx) && playlist?.tracks?.[idx]) {
+            handlePlayTrack(playlist.tracks[idx], idx)
+          }
+          break
+        }
+        case 'play_favorite': {
+          const idx = parseInt(payload, 10)
+          if (!isNaN(idx) && favorites?.[idx]) {
+            handlePlayTrack(favorites[idx], idx)
+          }
+          break
+        }
+        case 'play_preset': {
+          const presetMap = {
+            preset_late_night: 'Atmospheric late night drive lofi hip hop mix',
+            preset_focus: 'Deep focus instrumental ambient electronic beats',
+            preset_energy: 'High energy fast BPM workout motivation tracks',
+            preset_anime: 'High-impact orchestral rock Hiroyuki Sawano anime openings',
+            preset_hindi: 'New Hindi songs latest releases'
+          }
+          const promptText = presetMap[payload] || 'Curated music mix'
+          setPrompt(promptText)
+          handleDirectSearch(promptText, 'auto')
+          break
+        }
+        default:
+          break
+      }
+    }
+
+    return () => {
+      delete window.onUpBeatCarAction
+    }
+  }, [playlist, favorites, currentTrackIdx])
 
   // Load persistent favorites from disk on mount (only when Mac backend is configured)
   useEffect(() => {

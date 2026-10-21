@@ -13,9 +13,12 @@ import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
 
+    public static MainActivity sInstance = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        sInstance = this;
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
@@ -33,6 +36,36 @@ public class MainActivity extends BridgeActivity {
             wv.getSettings().setMediaPlaybackRequiresUserGesture(false);
             wv.addJavascriptInterface(new UpBeatJsBridge(), "UpBeatNative");
         }
+
+        handleCarIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleCarIntent(intent);
+    }
+
+    private void handleCarIntent(Intent intent) {
+        if (intent != null && intent.hasExtra("car_action")) {
+            String action = intent.getStringExtra("car_action");
+            String payload = intent.getStringExtra("car_payload");
+            dispatchCarAction(action, payload != null ? payload : "");
+        }
+    }
+
+    public void dispatchCarAction(final String action, final String payload) {
+        if (action == null) return;
+        if (this.bridge != null && this.bridge.getWebView() != null) {
+            final WebView wv = this.bridge.getWebView();
+            wv.post(() -> {
+                String safeAction = action.replace("'", "\\'");
+                String safePayload = payload != null ? payload.replace("'", "\\'") : "";
+                String js = "window.onUpBeatCarAction && window.onUpBeatCarAction('" + safeAction + "', '" + safePayload + "');";
+                wv.evaluateJavascript(js, null);
+            });
+        }
     }
 
     @Override
@@ -44,24 +77,41 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (sInstance == this) {
+            sInstance = null;
+        }
+    }
+
     public class UpBeatJsBridge {
         @JavascriptInterface
         public void updatePlayback(boolean isPlaying, String title, String artist) {
-            try {
-                Intent serviceIntent = new Intent(MainActivity.this, UpBeatMediaService.class);
-                serviceIntent.putExtra("title", title != null ? title : "UpBeat");
-                serviceIntent.putExtra("artist", artist != null ? artist : "");
+            updatePlayback(isPlaying, title, artist, "", 0, 0);
+        }
 
-                if (isPlaying) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        ContextCompat.startForegroundService(MainActivity.this, serviceIntent);
-                    } else {
-                        startService(serviceIntent);
-                    }
-                } else {
-                    stopService(serviceIntent);
-                }
-            } catch (Exception ignored) {}
+        @JavascriptInterface
+        public void updatePlayback(boolean isPlaying, String title, String artist, String artUrl, long durationSec, long positionSec) {
+            UpBeatMediaService.updatePlayback(
+                MainActivity.this,
+                isPlaying,
+                title,
+                artist,
+                artUrl,
+                durationSec,
+                positionSec
+            );
+        }
+
+        @JavascriptInterface
+        public void syncQueue(String queueJson) {
+            UpBeatMediaService.saveQueue(MainActivity.this, queueJson);
+        }
+
+        @JavascriptInterface
+        public void syncFavorites(String favoritesJson) {
+            UpBeatMediaService.saveFavorites(MainActivity.this, favoritesJson);
         }
     }
 }

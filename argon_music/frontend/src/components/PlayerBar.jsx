@@ -348,14 +348,17 @@ export default function PlayerBar({
     return () => clearInterval(interval)
   }, [isPlaying, playbackMode, useIframeFallback])
 
-  // Sync Android Foreground Media Service + Lock Screen MediaSession
+  // Sync Android Foreground Media Service + Android Auto + Lock Screen MediaSession
   useEffect(() => {
     try {
       if (window.UpBeatNative && typeof window.UpBeatNative.updatePlayback === 'function') {
         window.UpBeatNative.updatePlayback(
           Boolean(isPlaying && track),
           track?.title || 'UpBeat',
-          track?.artist || ''
+          track?.artist || '',
+          thumbUrl || '',
+          Math.round(effectiveDuration || 0),
+          Math.round(currentTime || 0)
         )
       }
     } catch {}
@@ -384,6 +387,17 @@ export default function PlayerBar({
       } catch {}
     }
   }, [isPlaying, track?.title, track?.artist, resolvedVid])
+
+  // Listen for in-car seek commands from Android Auto
+  useEffect(() => {
+    const onCarSeek = (e) => {
+      if (typeof e?.detail === 'number') {
+        commitSeek(e.detail)
+      }
+    }
+    window.addEventListener('upbeat-car-seek', onCarSeek)
+    return () => window.removeEventListener('upbeat-car-seek', onCarSeek)
+  }, [duration, useIframeFallback])
 
   const commitSeek = (targetSec) => {
     const sec = Math.max(0, Number(targetSec) || 0)

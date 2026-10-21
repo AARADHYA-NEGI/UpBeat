@@ -61,7 +61,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v2.0.0
-          name: "UpBeat v2.4 — Direct Search (0 Tokens), Mobile APK & macOS Studio"
+          name: "UpBeat v2.7 — Android Auto In-Car Support, Direct Search (0 Tokens) & Mobile APK"
           files: |
             argon_music/frontend/android/app/build/outputs/apk/debug/UpBeat.apk
             UpBeat-macOS.zip
