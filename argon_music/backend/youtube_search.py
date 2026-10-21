@@ -39,11 +39,32 @@ def _find_nodes(obj: Any, target_key: str):
             yield from _find_nodes(item, target_key)
 
 
+import threading
+
+_YDL_LOCAL = threading.local()
+
+
+def _get_ydl() -> yt_dlp.YoutubeDL:
+    ydl = getattr(_YDL_LOCAL, "ydl", None)
+    if ydl is None:
+        ydl = yt_dlp.YoutubeDL(
+            {
+                "format": "bestaudio[ext=m4a]/bestaudio/best",
+                "quiet": True,
+                "no_warnings": True,
+                "noplaylist": True,
+                "skip_download": True,
+            }
+        )
+        _YDL_LOCAL.ydl = ydl
+    return ydl
+
+
 def get_audio_stream_url(video_id: str) -> Optional[Dict[str, Any]]:
     """
-    Uses yt-dlp to resolve the direct high-quality m4a/webm audio stream URL
-    for any YouTube video_id (including official Sony Music / Aniplex Topic tracks
-    that block iframe embedding). Caches URLs for 25 minutes.
+    Resolves the direct high-quality m4a audio stream URL for any YouTube video_id
+    using a persistent thread-local yt-dlp instance (keeps player JS cached in memory).
+    Caches stream URLs for 25 minutes.
     """
     if not video_id:
         return None
@@ -53,31 +74,35 @@ def get_audio_stream_url(video_id: str) -> Optional[Dict[str, Any]]:
     if cached and (now - cached.get("ts", 0)) < 1500:
         return cached
 
-    ydl_opts = {
-        "format": "bestaudio[ext=m4a]/bestaudio/best",
-        "quiet": True,
-        "no_warnings": True,
-        "noplaylist": True,
-        "skip_download": True,
-    }
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-            stream_url = info.get("url")
-            if not stream_url:
-                return None
-            ext = info.get("ext", "m4a")
-            mime = "audio/mp4" if ext == "m4a" else f"audio/{ext}"
-            entry = {
-                "url": stream_url,
-                "mime": mime,
-                "title": info.get("title", ""),
-                "uploader": info.get("uploader", ""),
-                "duration": info.get("duration", 0),
-                "ts": now,
-            }
-            _STREAM_CACHE[video_id] = entry
-            return entry
+        ydl = _get_ydl()
+        info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+        stream_url = info.get("url")
+        if not stream_url:
+            return None
+        ext = info.get("ext", "m4a")
+        mime = "audio/mp4" if ext == "m4a" else f"audio/{ext}"
+        clen = int(info.get("filesize") or info.get("filesize_approx") or 0)
+        if not clen:
+            qs = urllib.parse.parse_qs(urllib.parse.urlparse(stream_url).query)
+            if "clen" in qs:
+                clen = int(qs["clen"][0])
+        ua = (info.get("http_headers") or {}).get(
+            "User-Agent",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+        )
+        entry = {
+            "url": stream_url,
+            "mime": mime,
+            "clen": clen,
+            "ua": ua,
+            "title": info.get("title", ""),
+            "uploader": info.get("uploader", ""),
+            "duration": info.get("duration", 0),
+            "ts": now,
+        }
+        _STREAM_CACHE[video_id] = entry
+        return entry
     except Exception as e:
         print(f"yt-dlp stream extraction error for {video_id}: {e}")
         return None
@@ -730,6 +755,9 @@ def direct_search_youtube_music(query: str, mode: str = "auto") -> Dict[str, Any
         # Fall back gracefully if YouTube web search was blocked
         tracks = ytm_songs
         active_source = "songs"
+
+    if tracks:
+        prefetch_streams_async([t["video_id"] for t in tracks[:3] if t.get("video_id")])
 
     result_payload = {
         "playlist_title": playlist_title,

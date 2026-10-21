@@ -639,7 +639,9 @@ export async function resolveStandaloneAudio(videoId) {
         .filter((f) => f.url && (f.mimeType || '').startsWith('audio/mp4'))
         .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))
 
-      const chosen = progressive[0] || adaptive[0]
+      // ANDROID adaptiveFormats require a poToken (403 without one), whereas ANDROID progressive (itag 18)
+      // and IOS adaptiveFormats work directly without poToken.
+      const chosen = client.clientName === 'ANDROID' ? progressive[0] : (progressive[0] || adaptive[0])
       if (!chosen?.url) continue
 
       const duration =

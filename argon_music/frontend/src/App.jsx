@@ -338,7 +338,7 @@ export default function App() {
       }
 
       setPlaylist(data)
-      if (data.tracks && data.tracks.length > 0 && !currentTrack) {
+      if (data.tracks && data.tracks.length > 0 && (!currentTrack || !isPlaying)) {
         setCurrentTrack(data.tracks[0])
         setCurrentTrackIdx(0)
       }
@@ -377,7 +377,7 @@ export default function App() {
       }
 
       setPlaylist(data)
-      if (data.tracks && data.tracks.length > 0 && !currentTrack) {
+      if (data.tracks && data.tracks.length > 0 && (!currentTrack || !isPlaying)) {
         setCurrentTrack(data.tracks[0])
         setCurrentTrackIdx(0)
       }

@@ -446,6 +446,15 @@ export default function PlayerBar({
           if (!useIframeFallback && e.currentTarget.duration && isFinite(e.currentTarget.duration)) {
             setDuration(e.currentTarget.duration)
           }
+          if (isPlayingRef.current && e.currentTarget.paused) {
+            e.currentTarget.play().catch(() => {})
+          }
+        }}
+        onCanPlay={(e) => {
+          setIsLoadingStream(false)
+          if (isPlayingRef.current && e.currentTarget.paused) {
+            e.currentTarget.play().catch(() => {})
+          }
         }}
         onDurationChange={(e) => {
           if (!useIframeFallback && e.currentTarget.duration && isFinite(e.currentTarget.duration) && e.currentTarget.duration > 0) {

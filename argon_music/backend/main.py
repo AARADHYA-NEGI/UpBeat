@@ -3,7 +3,7 @@ from typing import Dict, List, Any, Optional
 import requests as ext_requests
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -207,44 +207,123 @@ def toggle_favorite_endpoint(req: FavoriteTrackRequest):
     return toggle_favorite(req.track)
 
 
+_STREAM_HTTP_SESSION = ext_requests.Session()
+_STREAM_HTTP_SESSION.mount(
+    "https://",
+    ext_requests.adapters.HTTPAdapter(pool_connections=16, pool_maxsize=16, max_retries=2),
+)
+_STREAM_CHUNK_BYTES = 2 * 1024 * 1024  # 2 MB bounded ranges prevent googlevideo.com 128 KB throttling on open-ended ranges
+
+
 @app.api_route("/api/audio/{video_id}", methods=["GET", "HEAD"])
 def stream_audio_endpoint(video_id: str, request: Request):
     """
-    Streams the exact official audio track (m4a/mp4) directly from YouTube via yt-dlp,
-    bypassing YouTube IFrame Embed Error 150 on Sony Music / Aniplex official Topic tracks.
+    Streams the exact official audio track (m4a/mp4) directly from YouTube.
+    Fetches upstream in bounded 2 MB Range chunks so googlevideo.com never throttles
+    open-ended Range: bytes=0- requests on long mixes or DASH streams.
     """
     info = get_audio_stream_url(video_id)
     if not info or not info.get("url"):
         raise HTTPException(status_code=404, detail="Audio stream unavailable")
 
-    upstream_headers = {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
-    }
-    range_header = request.headers.get("range") or request.headers.get("Range")
-    if range_header:
-        upstream_headers["Range"] = range_header
+    stream_url = info["url"]
+    ua = info.get(
+        "ua",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    )
+    total_size = int(info.get("clen") or 0)
 
-    upstream_resp = ext_requests.get(info["url"], headers=upstream_headers, stream=True, timeout=15)
+    # If total_size wasn't in metadata, probe the first 2 bytes to discover Content-Range total
+    if total_size <= 0:
+        probe = _STREAM_HTTP_SESSION.get(
+            stream_url,
+            headers={"User-Agent": ua, "Range": "bytes=0-1"},
+            stream=True,
+            timeout=10,
+        )
+        cr = probe.headers.get("Content-Range", "")
+        probe.close()
+        if "/" in cr:
+            try:
+                total_size = int(cr.split("/")[-1])
+                info["clen"] = total_size
+            except ValueError:
+                total_size = 0
+
+    range_header = request.headers.get("range") or request.headers.get("Range")
+    start = 0
+    end = (total_size - 1) if total_size > 0 else None
+    is_partial = False
+
+    if range_header and range_header.strip().lower().startswith("bytes="):
+        is_partial = True
+        spec = range_header.strip()[6:].split(",")[0].strip()
+        parts = spec.split("-", 1)
+        if parts[0]:
+            start = int(parts[0])
+            if len(parts) > 1 and parts[1]:
+                end = int(parts[1])
+        elif len(parts) > 1 and parts[1] and total_size > 0:
+            suffix = int(parts[1])
+            start = max(0, total_size - suffix)
+            end = total_size - 1
+
+    if total_size > 0 and (end is None or end >= total_size):
+        end = total_size - 1
 
     resp_headers = {
         "Accept-Ranges": "bytes",
         "Cache-Control": "public, max-age=3600",
     }
-    for h in ("Content-Length", "Content-Range"):
-        if h in upstream_resp.headers:
-            resp_headers[h] = upstream_resp.headers[h]
+    status_code = 206 if (is_partial or total_size > 0) else 200
+    if total_size > 0 and end is not None:
+        content_len = max(0, end - start + 1)
+        resp_headers["Content-Length"] = str(content_len)
+        if status_code == 206:
+            resp_headers["Content-Range"] = f"bytes {start}-{end}/{total_size}"
+
+    if request.method == "HEAD":
+        return Response(
+            content=b"",
+            status_code=status_code,
+            media_type=info.get("mime", "audio/mp4"),
+            headers=resp_headers,
+        )
 
     def _iter_chunks():
-        try:
-            for chunk in upstream_resp.iter_content(chunk_size=65536):
-                if chunk:
-                    yield chunk
-        finally:
-            upstream_resp.close()
+        pos = start
+        target_end = end
+        while target_end is None or pos <= target_end:
+            chunk_end = (
+                min(pos + _STREAM_CHUNK_BYTES - 1, target_end)
+                if target_end is not None
+                else (pos + _STREAM_CHUNK_BYTES - 1)
+            )
+            r = _STREAM_HTTP_SESSION.get(
+                stream_url,
+                headers={"User-Agent": ua, "Range": f"bytes={pos}-{chunk_end}"},
+                stream=True,
+                timeout=15,
+            )
+            try:
+                if r.status_code not in (200, 206):
+                    break
+                received = 0
+                for piece in r.iter_content(chunk_size=65536):
+                    if piece:
+                        received += len(piece)
+                        yield piece
+                if received == 0:
+                    break
+                pos += received
+                if target_end is None and received < _STREAM_CHUNK_BYTES:
+                    break
+            finally:
+                r.close()
 
     return StreamingResponse(
         _iter_chunks(),
-        status_code=upstream_resp.status_code,
+        status_code=status_code,
         media_type=info.get("mime", "audio/mp4"),
         headers=resp_headers,
     )
