@@ -98,11 +98,11 @@ export default function SonicDnaView({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-[#1f1f24] text-[10px] font-mono uppercase tracking-wider text-[#9ca3af] bg-[#0c0c0f] sticky top-0 z-10">
-                  <th className="py-2.5 pl-6 pr-2 w-10">#</th>
-                  <th className="py-2.5 px-3">Title</th>
-                  <th className="py-2.5 px-3">Artist</th>
+                  <th className="py-2.5 pl-3.5 sm:pl-6 pr-2 w-8 sm:w-10">#</th>
+                  <th className="py-2.5 px-2 sm:px-3">Track</th>
+                  <th className="py-2.5 px-3 hidden md:table-cell">Artist</th>
                   <th className="py-2.5 px-3 hidden sm:table-cell">Style</th>
-                  <th className="py-2.5 px-3 text-right pr-6">Actions</th>
+                  <th className="py-2.5 px-2 sm:px-3 text-right pr-3.5 sm:pr-6">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#18181d] text-xs">
@@ -114,11 +114,11 @@ export default function SonicDnaView({
                       onClick={() => onPlayTrack(t, idx)}
                       className="group hover:bg-[#131318] transition-colors cursor-pointer"
                     >
-                      <td className="py-2.5 pl-6 pr-2 font-mono text-xs text-[#9ca3af]">
+                      <td className="py-2.5 pl-3.5 sm:pl-6 pr-2 font-mono text-xs text-[#9ca3af]">
                         {(idx + 1).toString().padStart(2, '0')}
                       </td>
-                      <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-3">
+                      <td className="py-2.5 px-2 sm:px-3 max-w-[210px] sm:max-w-md">
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                           <div className="w-9 h-9 rounded bg-[#18181e] border border-[#282830] overflow-hidden flex-shrink-0">
                             {thumb ? (
                               <img src={thumb} alt="" className="w-full h-full object-cover" loading="lazy" />
@@ -126,12 +126,17 @@ export default function SonicDnaView({
                               <Music className="w-3.5 h-3.5 text-[#73737a] m-auto mt-2.5" />
                             )}
                           </div>
-                          <span className="font-semibold text-[13px] text-[#f5f5f5] truncate max-w-md">
-                            {t.title}
-                          </span>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-[13px] text-[#f5f5f5] truncate">
+                              {t.title}
+                            </div>
+                            <div className="text-[11px] text-[#a1a1aa] truncate md:hidden">
+                              {t.artist}
+                            </div>
+                          </div>
                         </div>
                       </td>
-                      <td className="py-2.5 px-3 text-[#b4b4b8] truncate max-w-[200px]">
+                      <td className="py-2.5 px-3 text-[#b4b4b8] truncate max-w-[200px] hidden md:table-cell">
                         {t.artist}
                       </td>
                       <td className="py-2.5 px-3 hidden sm:table-cell">
@@ -140,7 +145,7 @@ export default function SonicDnaView({
                         </span>
                       </td>
                       <td
-                        className="py-2.5 pl-3 pr-6 text-right"
+                        className="py-2.5 pl-2 pr-3.5 sm:pr-6 text-right"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-center justify-end gap-1.5">
@@ -236,10 +241,10 @@ export default function SonicDnaView({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-[#1f1f24] text-[10px] font-mono uppercase tracking-wider text-[#9ca3af] bg-[#0c0c0f] sticky top-0 z-10">
-                  <th className="py-2.5 pl-6 pr-2 w-10">#</th>
-                  <th className="py-2.5 px-3">Title</th>
-                  <th className="py-2.5 px-3">Channel / Artist</th>
-                  <th className="py-2.5 px-3 text-right pr-6">Actions</th>
+                  <th className="py-2.5 pl-3.5 sm:pl-6 pr-2 w-8 sm:w-10">#</th>
+                  <th className="py-2.5 px-2 sm:px-3">Track</th>
+                  <th className="py-2.5 px-3 hidden md:table-cell">Channel / Artist</th>
+                  <th className="py-2.5 px-2 sm:px-3 text-right pr-3.5 sm:pr-6">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#18181d] text-xs">
@@ -252,11 +257,11 @@ export default function SonicDnaView({
                       onClick={() => onPlayTrack(t, idx)}
                       className="group hover:bg-[#131318] transition-colors cursor-pointer"
                     >
-                      <td className="py-2.5 pl-6 pr-2 font-mono text-xs text-[#9ca3af]">
+                      <td className="py-2.5 pl-3.5 sm:pl-6 pr-2 font-mono text-xs text-[#9ca3af]">
                         {(idx + 1).toString().padStart(2, '0')}
                       </td>
-                      <td className="py-2.5 px-3">
-                        <div className="flex items-center gap-3">
+                      <td className="py-2.5 px-2 sm:px-3 max-w-[210px] sm:max-w-md">
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                           <div className="w-9 h-9 rounded bg-[#18181e] border border-[#282830] overflow-hidden flex-shrink-0">
                             {thumb ? (
                               <img src={thumb} alt="" className="w-full h-full object-cover" loading="lazy" />
@@ -264,16 +269,21 @@ export default function SonicDnaView({
                               <Music className="w-3.5 h-3.5 text-[#73737a] m-auto mt-2.5" />
                             )}
                           </div>
-                          <span className="font-semibold text-[13px] text-[#f5f5f5] truncate max-w-md">
-                            {t.title}
-                          </span>
+                          <div className="min-w-0">
+                            <div className="font-semibold text-[13px] text-[#f5f5f5] truncate">
+                              {t.title}
+                            </div>
+                            <div className="text-[11px] text-[#a1a1aa] truncate md:hidden">
+                              {t.artist}
+                            </div>
+                          </div>
                         </div>
                       </td>
-                      <td className="py-2.5 px-3 text-[#b4b4b8] truncate max-w-[200px]">
+                      <td className="py-2.5 px-3 text-[#b4b4b8] truncate max-w-[200px] hidden md:table-cell">
                         {t.artist}
                       </td>
                       <td
-                        className="py-2.5 pl-3 pr-6 text-right"
+                        className="py-2.5 pl-2 pr-3.5 sm:pr-6 text-right"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-center justify-end gap-1.5">

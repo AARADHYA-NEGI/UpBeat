@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { Sparkles, Heart, Sliders, Disc, Dna } from 'lucide-react'
 import Navbar from './components/Navbar'
 import Sidebar, { PRESET_MODES } from './components/Sidebar'
 import CuratorPrompt from './components/CuratorPrompt'
 import PlaylistView from './components/PlaylistView'
 import SonicDnaView from './components/SonicDnaView'
 import PlayerBar from './components/PlayerBar'
-import { getApiBase, curateStandalone } from './standaloneApi'
-
-const API_BASE = getApiBase()
+import { getApiBase, curateStandalone, hasBackend, isNativeApp, isConfigured, getStoredApiKey } from './standaloneApi'
 
 const DEFAULT_SEEDS = [
   { title: 'Renai Circulation', artist: 'Kana Hanazawa', video_id: 'F8xpmTmdf6o', duration_text: '4:16', thumbnail: 'https://i.ytimg.com/vi/F8xpmTmdf6o/hqdefault.jpg' },
@@ -58,6 +57,7 @@ export default function App() {
   const [isResolvingBatch, setIsResolvingBatch] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [showKeyModal, setShowKeyModal] = useState(false)
   const [notification, setNotification] = useState(null)
 
   const initialBootRef = useRef(false)
@@ -88,9 +88,10 @@ export default function App() {
     }
   }, [playlist])
 
-  // Load persistent favorites from disk on mount
+  // Load persistent favorites from disk on mount (only when Mac backend is configured)
   useEffect(() => {
-    fetch(`${API_BASE}/favorites`)
+    if (!hasBackend()) return
+    fetch(`${getApiBase()}/favorites`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.favorites) setFavorites(data.favorites)
@@ -117,24 +118,27 @@ export default function App() {
   // Toggle favorite on backend + local state (with standalone mobile fallback)
   const handleToggleFavorite = async (track) => {
     if (!track) return
-    try {
-      const res = await fetch(`${getApiBase()}/favorites/toggle`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ track })
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setFavorites(data.favorites || [])
-        showNotify(
-          data.is_favorite
-            ? `Saved "${track.title}" to Favorites memory`
-            : `Removed "${track.title}" from Favorites`,
-          'info'
-        )
-        return
-      }
-    } catch {}
+    if (hasBackend()) {
+      try {
+        const res = await fetch(`${getApiBase()}/favorites/toggle`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ track })
+        })
+        const ct = res.headers.get('content-type') || ''
+        if (res.ok && ct.includes('application/json')) {
+          const data = await res.json()
+          setFavorites(data.favorites || [])
+          showNotify(
+            data.is_favorite
+              ? `Saved "${track.title}" to Favorites memory`
+              : `Removed "${track.title}" from Favorites`,
+            'info'
+          )
+          return
+        }
+      } catch {}
+    }
 
     // Standalone mobile fallback using localStorage
     const alreadyLiked = isTrackFavorite(track)
@@ -159,14 +163,14 @@ export default function App() {
 
   // Auto-heal any cached playlist tracks missing thumbnails or real durations
   useEffect(() => {
-    if (!playlist?.tracks?.length) return
+    if (!hasBackend() || !playlist?.tracks?.length) return
     const needsResolve = playlist.tracks.some(
       (t) => !t.video_id || !t.thumbnail || !t.duration_text || t.duration_text === '--:--' || t.duration_text === '3:30'
     )
     if (!needsResolve) return
 
     setIsResolvingBatch(true)
-    fetch(`${API_BASE}/resolve-batch`, {
+    fetch(`${getApiBase()}/resolve-batch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tracks: playlist.tracks })
@@ -186,9 +190,11 @@ export default function App() {
   }, [playlist?.playlist_title])
 
   const checkSafari = async () => {
+    if (!hasBackend()) return null
     try {
-      const res = await fetch(`${API_BASE}/safari/tabs`)
-      if (res.ok) {
+      const res = await fetch(`${getApiBase()}/safari/tabs`)
+      const ct = res.headers.get('content-type') || ''
+      if (res.ok && ct.includes('application/json')) {
         const data = await res.json()
         setSafariStatus(data)
         return data
@@ -198,9 +204,11 @@ export default function App() {
   }
 
   const checkNowPlaying = async () => {
+    if (!hasBackend()) return
     try {
-      const res = await fetch(`${API_BASE}/safari/now-playing`)
-      if (res.ok) {
+      const res = await fetch(`${getApiBase()}/safari/now-playing`)
+      const ct = res.headers.get('content-type') || ''
+      if (res.ok && ct.includes('application/json')) {
         const data = await res.json()
         setSafariNowPlaying(data.now_playing)
       }
@@ -209,10 +217,14 @@ export default function App() {
 
   // Sync from Safari
   const handleSyncSafari = async (silent = false) => {
+    if (!hasBackend()) {
+      if (!silent) showNotify('Safari sync requires a Mac server connection', 'info')
+      return []
+    }
     setIsSyncing(true)
     if (!silent) showNotify('Syncing tracks from Safari...', 'info')
     try {
-      const extractRes = await fetch(`${API_BASE}/safari/extract`, {
+      const extractRes = await fetch(`${getApiBase()}/safari/extract`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})
@@ -233,7 +245,7 @@ export default function App() {
         setExtractedTracks(newTracks)
         if (!silent) showNotify(`Synced ${newTracks.length} tracks from Safari`, 'success')
 
-        fetch(`${API_BASE}/taste-dna`, {
+        fetch(`${getApiBase()}/taste-dna`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ tracks: newTracks, model_name: selectedModel })
@@ -262,41 +274,55 @@ export default function App() {
     const activePrompt = overridePrompt || prompt
     if (!activePrompt || isGenerating) return
 
+    if (!isConfigured()) {
+      setShowKeyModal(true)
+      showNotify('Add your Gemini API key or Mac Server IP to curate new playlists', 'info')
+      return
+    }
+
     setIsGenerating(true)
     setActiveTab('curator')
 
     try {
       let data = null
-      try {
-        const res = await fetch(`${getApiBase()}/curate`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            seed_tracks: overrideSeeds || extractedTracks,
-            mood_prompt: activePrompt,
-            energy_level: overrideEnergy ?? energyLevel,
-            count: trackCount,
-            model_name: selectedModel
+      const curateArgs = {
+        mood_prompt: activePrompt,
+        energy_level: overrideEnergy ?? energyLevel,
+        count: trackCount,
+        model_name: selectedModel,
+        favorites
+      }
+
+      if (hasBackend()) {
+        try {
+          const res = await fetch(`${getApiBase()}/curate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              seed_tracks: overrideSeeds || extractedTracks,
+              mood_prompt: activePrompt,
+              energy_level: overrideEnergy ?? energyLevel,
+              count: trackCount,
+              model_name: selectedModel
+            })
           })
-        })
-        if (res.ok) {
+          const ct = res.headers.get('content-type') || ''
+          if (!res.ok || !ct.includes('application/json')) {
+            const err = ct.includes('application/json') ? await res.json().catch(() => ({})) : {}
+            throw new Error(err.detail || `Mac server returned HTTP ${res.status}`)
+          }
           data = await res.json()
-        } else {
-          const err = await res.json().catch(() => ({}))
-          throw new Error(err.detail || `HTTP ${res.status}`)
+        } catch (backendErr) {
+          // On the phone, fall back to the on-device engine when the Mac is unreachable
+          if (isNativeApp() && getStoredApiKey()) {
+            showNotify('Mac server unreachable — curating on this device', 'info')
+            data = await curateStandalone(curateArgs)
+          } else {
+            throw backendErr
+          }
         }
-      } catch (backendErr) {
-        // If running inside standalone Android APK / away from Mac server, use Standalone Client Engine
-        if (backendErr.message?.includes('Failed to fetch') || backendErr.message?.includes('NetworkError') || backendErr.message?.includes('HTTP 404')) {
-          data = await curateStandalone({
-            mood_prompt: activePrompt,
-            energy_level: overrideEnergy ?? energyLevel,
-            count: trackCount,
-            model_name: selectedModel
-          })
-        } else {
-          throw backendErr
-        }
+      } else {
+        data = await curateStandalone(curateArgs)
       }
 
       setPlaylist(data)
@@ -325,7 +351,27 @@ export default function App() {
         if (synced.length > 0) seeds = synced
       }
       if (!playlist) {
-        handleGenerate(prompt, seeds)
+        if (isConfigured()) {
+          handleGenerate(prompt, seeds)
+        } else {
+          // Seed a ready-to-play starter playlist on unconfigured mobile first launch
+          const starterPlaylist = {
+            playlist_title: 'UpBeat Starter Mix • Anime & Electronic',
+            curator_note: 'Ready to play out-of-the-box. Tap Key in the top bar to add your Gemini API key for custom AI curation.',
+            used_model: 'upbeat-starter',
+            is_fallback: false,
+            tracks: DEFAULT_SEEDS.map((s, idx) => ({
+              ...s,
+              match_tier: idx < 4 ? 'direct' : 'adjacent',
+              why_it_fits: idx < 4
+                ? 'Iconic Monogatari & anime opening theme with crisp production and melodic hooks.'
+                : 'Atmospheric electronic instrumental for deep focus and late-night sessions.'
+            }))
+          }
+          setPlaylist(starterPlaylist)
+          setCurrentTrack(starterPlaylist.tracks[0])
+          setCurrentTrackIdx(0)
+        }
       } else if (playlist.tracks?.length > 0 && !currentTrack) {
         setCurrentTrack(playlist.tracks[0])
         setCurrentTrackIdx(0)
@@ -333,15 +379,17 @@ export default function App() {
     })()
 
     const timer = setInterval(() => {
-      checkSafari()
-      checkNowPlaying()
+      if (hasBackend()) {
+        checkSafari()
+        checkNowPlaying()
+      }
     }, 7000)
     return () => clearInterval(timer)
   }, [])
 
   const handleOpenSafari = async (destination = 'yt_liked') => {
     try {
-      await fetch(`${API_BASE}/safari/open`, {
+      await fetch(`${getApiBase()}/safari/open`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ destination })
@@ -450,7 +498,7 @@ export default function App() {
     if (!targetUrl) return
 
     try {
-      await fetch(`${API_BASE}/safari/open`, {
+      await fetch(`${getApiBase()}/safari/open`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ destination: 'custom', custom_url: targetUrl })
@@ -463,7 +511,7 @@ export default function App() {
 
   const handleSafariControl = async (action) => {
     try {
-      const res = await fetch(`${API_BASE}/safari/control`, {
+      const res = await fetch(`${getApiBase()}/safari/control`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action })
@@ -487,19 +535,19 @@ export default function App() {
     : null
 
   return (
-    <div className="h-screen w-screen bg-[#0a0a0c] text-[#f5f5f5] flex flex-col overflow-hidden">
+    <div className="h-[100dvh] w-screen bg-[#0a0a0c] text-[#f5f5f5] flex flex-col overflow-hidden">
       {/* Subtle Status Notification */}
       {notification && (
-        <div className="fixed bottom-20 left-6 z-50">
+        <div className="fixed bottom-36 sm:bottom-20 left-4 right-4 sm:left-6 sm:right-auto z-50">
           <div className={`px-3.5 py-2 rounded-md border text-xs font-mono flex items-center gap-2 shadow-xl ${
             notification.type === 'error'
               ? 'bg-[#1c1012] text-[#fca5a5] border-[#4c1d24]'
               : 'bg-[#16161c] text-[#e4e4e7] border-indigo-500/40'
           }`}>
-            <span className={`w-2 h-2 rounded-full ${
+            <span className={`w-2 h-2 rounded-full shrink-0 ${
               notification.type === 'error' ? 'bg-red-500' : 'bg-indigo-400'
             }`} />
-            <span>{notification.msg}</span>
+            <span className="truncate">{notification.msg}</span>
           </div>
         </div>
       )}
@@ -519,6 +567,8 @@ export default function App() {
         extractedCount={extractedTracks.length}
         favoritesCount={favorites.length}
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+        showKeyModal={showKeyModal}
+        setShowKeyModal={setShowKeyModal}
       />
 
       {/* Workspace Body */}
@@ -562,6 +612,8 @@ export default function App() {
                 onPushToSafari={handlePushToSafari}
                 isGenerating={isGenerating}
                 onGenerateDefault={() => handleGenerate(prompt)}
+                needsSetup={!isConfigured()}
+                onOpenSettings={() => setShowKeyModal(true)}
               />
             </>
           ) : (
@@ -612,6 +664,66 @@ export default function App() {
         isTrackFavorite={isTrackFavorite}
         onToggleFavorite={handleToggleFavorite}
       />
+
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="sm:hidden pb-safe bg-[#0b0b0e] border-t border-[#1e1e26] grid grid-cols-5 items-center shrink-0 z-30 select-none">
+        <button
+          onClick={() => { setActiveTab('curator'); setIsSidebarOpen(false) }}
+          className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+            activeTab === 'curator' && !isSidebarOpen ? 'text-indigo-400' : 'text-[#8e8e96]'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span className="text-[10px] font-medium">Curator</span>
+        </button>
+
+        <button
+          onClick={() => { setActiveTab('favorites'); setIsSidebarOpen(false) }}
+          className={`relative flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+            activeTab === 'favorites' && !isSidebarOpen ? 'text-rose-400' : 'text-[#8e8e96]'
+          }`}
+        >
+          <div className="relative">
+            <Heart className={`w-4 h-4 ${favorites.length > 0 ? 'fill-rose-500/40' : ''}`} />
+            {favorites.length > 0 && (
+              <span className="absolute -top-1.5 -right-2.5 text-[9px] font-mono px-1 rounded-full bg-rose-500/20 text-rose-300">
+                {favorites.length}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-medium">Liked</span>
+        </button>
+
+        <button
+          onClick={() => setIsSidebarOpen((prev) => !prev)}
+          className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+            isSidebarOpen ? 'text-indigo-400' : 'text-[#8e8e96]'
+          }`}
+        >
+          <Sliders className="w-4 h-4" />
+          <span className="text-[10px] font-medium">Modes</span>
+        </button>
+
+        <button
+          onClick={() => { setActiveTab('library'); setIsSidebarOpen(false) }}
+          className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+            activeTab === 'library' && !isSidebarOpen ? 'text-indigo-400' : 'text-[#8e8e96]'
+          }`}
+        >
+          <Disc className="w-4 h-4" />
+          <span className="text-[10px] font-medium">Seeds</span>
+        </button>
+
+        <button
+          onClick={() => { setActiveTab('dna'); setIsSidebarOpen(false) }}
+          className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+            activeTab === 'dna' && !isSidebarOpen ? 'text-indigo-400' : 'text-[#8e8e96]'
+          }`}
+        >
+          <Dna className="w-4 h-4" />
+          <span className="text-[10px] font-medium">Profile</span>
+        </button>
+      </nav>
     </div>
   )
 }

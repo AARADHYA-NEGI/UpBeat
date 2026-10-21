@@ -1,5 +1,5 @@
 import React from 'react'
-import { Loader2, CornerDownLeft } from 'lucide-react'
+import { Loader2, CornerDownLeft, Sparkles } from 'lucide-react'
 
 export default function CuratorPrompt({
   prompt,
@@ -8,9 +8,9 @@ export default function CuratorPrompt({
   isGenerating
 }) {
   const suggestions = [
-    'Focused late-night coding with minimal electronic & OSTs',
-    'Hiroyuki Sawano / Attack on Titan style orchestral intensity',
     'Monogatari Series / Japanese math-pop & jazz-rock',
+    'Hiroyuki Sawano / Attack on Titan orchestral intensity',
+    'Focused late-night coding with minimal electronic & OSTs',
     'Dark synthwave & industrial midtempo',
     'Ambient downtempo for deep problem solving'
   ]
@@ -22,42 +22,43 @@ export default function CuratorPrompt({
   }
 
   return (
-    <div className="border-b border-[#222226] bg-[#0d0d0f] px-6 py-4">
-      <form onSubmit={handleSubmit} className="flex items-center gap-2.5">
-        <div className="flex-1 flex items-center bg-[#131317] border border-[#2a2a32] focus-within:border-indigo-500/70 rounded-md px-3.5 py-2 transition-colors">
-          <span className="text-xs font-mono text-indigo-400 mr-2.5 select-none font-semibold">
+    <div className="border-b border-[#222226] bg-[#0d0d0f] px-3.5 py-2.5 sm:px-6 sm:py-4 flex-shrink-0">
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <div className="flex-1 flex items-center bg-[#131317] border border-[#2a2a32] focus-within:border-indigo-500/70 rounded-lg px-3 py-2 transition-colors min-w-0">
+          <span className="text-xs font-mono text-indigo-400 mr-2 select-none font-semibold">
             &gt;
           </span>
           <input
             type="text"
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Describe direction, genre, mood, or context..."
-            className="w-full bg-transparent text-xs sm:text-sm text-[#f5f5f5] placeholder:text-[#73737a] focus:outline-none"
+            placeholder="Search series, artist, mood, or soundtrack..."
+            className="w-full bg-transparent text-xs sm:text-sm text-[#f5f5f5] placeholder:text-[#73737a] focus:outline-none min-w-0"
           />
         </div>
 
         <button
           type="submit"
           disabled={isGenerating || !prompt.trim()}
-          className="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-xs flex items-center gap-2 transition-all shadow-sm shadow-indigo-500/20 disabled:opacity-40 cursor-pointer flex-shrink-0"
+          className="px-3.5 sm:px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-500 text-white font-medium text-xs flex items-center gap-1.5 transition-all shadow-sm shadow-indigo-500/20 disabled:opacity-40 cursor-pointer flex-shrink-0"
         >
           {isGenerating ? (
             <>
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>Generating</span>
+              <span className="hidden xs:inline">Curating</span>
             </>
           ) : (
             <>
+              <Sparkles className="w-3.5 h-3.5 sm:hidden" />
               <span>Generate</span>
-              <CornerDownLeft className="w-3.5 h-3.5 opacity-80" />
+              <CornerDownLeft className="w-3.5 h-3.5 opacity-80 hidden sm:inline" />
             </>
           )}
         </button>
       </form>
 
-      {/* Wrapping Suggestion Chips (no horizontal clipping) */}
-      <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+      {/* Single-row horizontal scroll on mobile, wrapping chips on desktop */}
+      <div className="flex items-center gap-1.5 mt-2 overflow-x-auto no-scrollbar sm:flex-wrap pb-0.5">
         {suggestions.map((s, idx) => {
           const isCurrent = prompt === s
           return (
@@ -69,7 +70,7 @@ export default function CuratorPrompt({
                 onGenerate(s)
               }}
               disabled={isGenerating}
-              className={`px-2.5 py-1 rounded-md border text-[11px] transition-colors cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md border text-[11px] whitespace-nowrap transition-colors cursor-pointer flex-shrink-0 ${
                 isCurrent
                   ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-200 font-medium'
                   : 'bg-[#141418] hover:bg-[#1e1e24] border-[#26262e] text-[#b4b4b8] hover:text-[#f5f5f5]'
