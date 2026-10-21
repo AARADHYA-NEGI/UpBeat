@@ -316,6 +316,10 @@ export default function PlayerBar({
         }
         if (typeof dur === 'number' && isFinite(dur) && dur > 0) {
           setDuration(dur)
+          if ((audioRef.current.ended || cur >= dur - 0.25) && dur > 5 && !endedTriggeredRef.current) {
+            endedTriggeredRef.current = true
+            onNextRef.current()
+          }
         }
         return
       }
@@ -331,6 +335,10 @@ export default function PlayerBar({
             const dur = p.getDuration()
             if (typeof dur === 'number' && isFinite(dur) && dur > 0) {
               setDuration(dur)
+              if (cur >= dur - 0.3 && dur > 5 && !endedTriggeredRef.current) {
+                endedTriggeredRef.current = true
+                onNextRef.current()
+              }
             }
           }
         } catch {}
@@ -339,6 +347,43 @@ export default function PlayerBar({
 
     return () => clearInterval(interval)
   }, [isPlaying, playbackMode, useIframeFallback])
+
+  // Sync Android Foreground Media Service + Lock Screen MediaSession
+  useEffect(() => {
+    try {
+      if (window.UpBeatNative && typeof window.UpBeatNative.updatePlayback === 'function') {
+        window.UpBeatNative.updatePlayback(
+          Boolean(isPlaying && track),
+          track?.title || 'UpBeat',
+          track?.artist || ''
+        )
+      }
+    } catch {}
+
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      try {
+        if (track && typeof window.MediaMetadata !== 'undefined') {
+          const artUrl = track.thumbnail || (resolvedVid ? `https://i.ytimg.com/vi/${resolvedVid}/hqdefault.jpg` : '')
+          navigator.mediaSession.metadata = new window.MediaMetadata({
+            title: track.title || 'UpBeat',
+            artist: track.artist || 'UpBeat Curator',
+            album: 'UpBeat',
+            artwork: artUrl ? [{ src: artUrl, sizes: '480x360', type: 'image/jpeg' }] : []
+          })
+        }
+        navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
+        navigator.mediaSession.setActionHandler('play', () => setIsPlaying(true))
+        navigator.mediaSession.setActionHandler('pause', () => setIsPlaying(false))
+        navigator.mediaSession.setActionHandler('previoustrack', () => onPrev())
+        navigator.mediaSession.setActionHandler('nexttrack', () => onNextRef.current())
+        navigator.mediaSession.setActionHandler('seekto', (details) => {
+          if (details && typeof details.seekTime === 'number') {
+            commitSeek(details.seekTime)
+          }
+        })
+      } catch {}
+    }
+  }, [isPlaying, track?.title, track?.artist, resolvedVid])
 
   const commitSeek = (targetSec) => {
     const sec = Math.max(0, Number(targetSec) || 0)
