@@ -49,6 +49,7 @@ export default function PlaylistView({
   isSearching,
   isLoadingPlaylistBrowse,
   onSelectMatchedPlaylist,
+  onSelectYoutubeResults,
   onSelectDirectSongs,
   onGenerateDefault,
   needsSetup,
@@ -63,11 +64,11 @@ export default function PlaylistView({
         <Loader2 className={`w-6 h-6 animate-spin mb-3 ${isSearching ? 'text-emerald-400' : 'text-indigo-400'}`} />
         <p className="text-sm font-medium text-[#f5f5f5]">
           {isSearching
-            ? 'Searching prepared playlists & songs...'
+            ? 'Searching YouTube & YT Music...'
             : 'Curating playlist & resolving streams...'}
         </p>
         <p className="text-xs font-mono text-[#9ca3af] mt-1">
-          {isSearching ? 'YouTube Music Direct • 0 AI Tokens' : `Model: ${selectedModel}`}
+          {isSearching ? 'YouTube Direct Search • 0 AI Tokens' : `Model: ${selectedModel}`}
         </p>
       </div>
     )
@@ -111,8 +112,9 @@ export default function PlaylistView({
   const tracks = playlist.tracks || []
   const isDirectSearch = Boolean(playlist.is_direct_search)
   const matchedPlaylists = playlist.matched_playlists || []
+  const youtubeResults = playlist.youtube_results || []
   const songResults = playlist.song_results || []
-  const activeSource = playlist.active_source || 'songs'
+  const activeSource = playlist.active_source || (youtubeResults.length > 0 ? 'youtube' : 'songs')
   const activeBrowseId = playlist.active_browse_id || ''
 
   const usedModel = playlist.used_model || selectedModel
@@ -193,9 +195,25 @@ export default function PlaylistView({
           </div>
         </div>
 
-        {/* Direct Search: Prepared Playlists & Top Songs Switcher Strip */}
-        {isDirectSearch && (matchedPlaylists.length > 0 || songResults.length > 0) && (
+        {/* Direct Search: YouTube Results, YT Music Songs & Relevant Playlists Switcher Strip */}
+        {isDirectSearch && (youtubeResults.length > 0 || songResults.length > 0 || matchedPlaylists.length > 0) && (
           <div className="flex items-center gap-1.5 mt-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            {youtubeResults.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onSelectYoutubeResults && onSelectYoutubeResults()}
+                disabled={isLoadingPlaylistBrowse}
+                className={`px-2.5 py-1 rounded-md border text-[11px] font-medium flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer flex-shrink-0 ${
+                  activeSource === 'youtube'
+                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-200'
+                    : 'bg-[#141419] hover:bg-[#1c1c24] border-[#282832] text-[#b4b4bc]'
+                }`}
+              >
+                <Play className="w-3 h-3 text-emerald-400 fill-emerald-400" />
+                <span>YouTube Results ({youtubeResults.length})</span>
+              </button>
+            )}
+
             {songResults.length > 0 && (
               <button
                 type="button"
@@ -208,7 +226,7 @@ export default function PlaylistView({
                 }`}
               >
                 <Disc className="w-3 h-3 text-emerald-400" />
-                <span>Top Songs ({songResults.length})</span>
+                <span>YT Music Songs ({songResults.length})</span>
               </button>
             )}
 

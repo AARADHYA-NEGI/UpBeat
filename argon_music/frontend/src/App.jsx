@@ -436,15 +436,31 @@ export default function App() {
     }
   }
 
+  const handleSelectYoutubeResults = () => {
+    setPlaylist((prev) => {
+      if (!prev || !prev.youtube_results?.length) return prev
+      const q = prev.search_query || prompt
+      return {
+        ...prev,
+        playlist_title: `"${q}"`,
+        subtitle: `YouTube Search Results • ${prev.youtube_results.length} matches (0 AI tokens)`,
+        vibe_description: `Direct YouTube search results for "${q}"`,
+        active_source: 'youtube',
+        active_browse_id: '',
+        tracks: prev.youtube_results
+      }
+    })
+  }
+
   const handleSelectDirectSongs = () => {
     setPlaylist((prev) => {
       if (!prev || !prev.song_results?.length) return prev
       const q = prev.search_query || prompt
       return {
         ...prev,
-        playlist_title: `Search: "${q}"`,
-        subtitle: `Direct YouTube Music results • ${prev.song_results.length} songs (0 AI tokens)`,
-        vibe_description: `Direct YouTube Music results • ${prev.song_results.length} songs (0 AI tokens)`,
+        playlist_title: `"${q}" • YT Music Songs`,
+        subtitle: `YouTube Music Songs • ${prev.song_results.length} tracks (0 AI tokens)`,
+        vibe_description: `YouTube Music audio tracks for "${q}" (0 AI tokens)`,
         active_source: 'songs',
         active_browse_id: '',
         tracks: prev.song_results
@@ -732,6 +748,7 @@ export default function App() {
                 isSearching={isSearching}
                 isLoadingPlaylistBrowse={isLoadingPlaylistBrowse}
                 onSelectMatchedPlaylist={handleSelectMatchedPlaylist}
+                onSelectYoutubeResults={handleSelectYoutubeResults}
                 onSelectDirectSongs={handleSelectDirectSongs}
                 onGenerateDefault={() => handleDirectSearch('New Hindi Songs', 'auto')}
                 needsSetup={!isConfigured()}

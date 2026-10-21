@@ -431,13 +431,236 @@ def browse_youtube_music_playlist(
         return []
 
 
+_YT_WEB_CONTEXT = {
+    "client": {
+        "clientName": "WEB",
+        "clientVersion": "2.20260918.01.00",
+        "hl": "en",
+        "gl": "IN",
+    }
+}
+_YTM_SEARCH_CONTEXT = {
+    "client": {
+        "clientName": "WEB_REMIX",
+        "clientVersion": "1.20260918.01.00",
+        "hl": "en",
+        "gl": "IN",
+    }
+}
+_YTM_SONGS_PARAM = "EgWKAQIIAWoKEAkQBRAKEAMQBA=="
+_STOPWORDS = {"songs", "song", "music", "the", "a", "an", "of", "and", "best", "top", "new", "latest", "playlist", "mix", "for", "to", "in"}
+
+
+def _runs_text(obj: Any) -> str:
+    if not isinstance(obj, dict):
+        return ""
+    if "simpleText" in obj:
+        return obj.get("simpleText", "")
+    return "".join(r.get("text", "") for r in obj.get("runs", []))
+
+
+def _query_tokens(q: str) -> List[str]:
+    toks = re.findall(r"[a-z0-9]+", q.lower())
+    core = [t for t in toks if t not in _STOPWORDS]
+    return core or toks
+
+
+def _relevance(text: str, tokens: List[str]) -> float:
+    if not tokens:
+        return 0.0
+    t = text.lower()
+    return sum(1 for tok in tokens if tok in t) / len(tokens)
+
+
+def _duration_to_seconds(d: str) -> int:
+    try:
+        parts = [int(p) for p in d.split(":")]
+    except ValueError:
+        return 0
+    secs = 0
+    for p in parts:
+        secs = secs * 60 + p
+    return secs
+
+
+def _yt_web_search(query: str, pages: int = 2) -> Dict[str, Any]:
+    """Exact same results (and order) as typing the query on youtube.com."""
+    url = "https://www.youtube.com/youtubei/v1/search?prettyPrint=false"
+    videos: List[Dict[str, Any]] = []
+    playlists: List[Dict[str, Any]] = []
+    seen_v, seen_p = set(), set()
+    payload: Dict[str, Any] = {"context": _YT_WEB_CONTEXT, "query": query}
+
+    for _ in range(max(1, pages)):
+        try:
+            r = _SESSION.post(url, json=payload, timeout=5.0)
+            if r.status_code != 200:
+                break
+            data = r.json()
+        except Exception:
+            break
+
+        for v in _find_nodes(data, "videoRenderer"):
+            vid = v.get("videoId", "")
+            dur = _runs_text(v.get("lengthText", {}))
+            # Skip live streams / premieres (no fixed duration, not streamable as a track)
+            if not vid or len(vid) != 11 or vid in seen_v or not dur:
+                continue
+            seen_v.add(vid)
+            title = _runs_text(v.get("title", {}))
+            channel = _runs_text(v.get("ownerText", {})) or _runs_text(v.get("longBylineText", {}))
+            views = _runs_text(v.get("shortViewCountText", {})) or _runs_text(v.get("viewCountText", {}))
+            published = _runs_text(v.get("publishedTimeText", {}))
+            meta = " • ".join(x for x in (views, published) if x)
+            videos.append(
+                {
+                    "title": title,
+                    "artist": channel or "YouTube",
+                    "video_id": vid,
+                    "fallback_ids": [],
+                    "duration_text": dur,
+                    "thumbnail": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+                    "url": f"https://www.youtube.com/watch?v={vid}",
+                    "embed_url": f"https://www.youtube.com/embed/{vid}?autoplay=1&enablejsapi=1",
+                    "match_tier": "Direct Match",
+                    "reason": meta or "YouTube search result",
+                    "why_it_fits": meta or "YouTube search result",
+                    "vibe": "YouTube",
+                    "duration_sec": _duration_to_seconds(dur),
+                }
+            )
+
+        for lk in _find_nodes(data, "lockupViewModel"):
+            if lk.get("contentType") != "LOCKUP_CONTENT_TYPE_PLAYLIST":
+                continue
+            pid = lk.get("contentId", "")
+            # Radio mixes (RD...) are generated per-user and can't be browsed
+            if not pid or pid.startswith("RD") or pid in seen_p:
+                continue
+            seen_p.add(pid)
+            md = lk.get("metadata", {}).get("lockupMetadataViewModel", {})
+            title = md.get("title", {}).get("content", "")
+            owner = ""
+            for row in md.get("metadata", {}).get("contentMetadataViewModel", {}).get("metadataRows", []):
+                for part in row.get("metadataParts", []):
+                    txt = part.get("text", {}).get("content", "")
+                    if txt and txt != "Playlist" and not owner:
+                        owner = txt
+            if title:
+                playlists.append(
+                    {
+                        "browse_id": f"VL{pid}",
+                        "title": title,
+                        "subtitle": f"YouTube Playlist • {owner}" if owner else "YouTube Playlist",
+                        "thumbnail": "",
+                        "is_editorial": False,
+                        "source": "youtube",
+                    }
+                )
+
+        tokens = [c.get("token") for c in _find_nodes(data, "continuationCommand") if c.get("token")]
+        if not tokens:
+            break
+        payload = {"context": _YT_WEB_CONTEXT, "continuation": tokens[0]}
+
+    return {"videos": videos, "playlists": playlists}
+
+
+def _ytm_search(query: str, songs_only: bool) -> Dict[str, Any]:
+    url = "https://music.youtube.com/youtubei/v1/search?prettyPrint=false"
+    body: Dict[str, Any] = {"context": _YTM_SEARCH_CONTEXT, "query": query}
+    if songs_only:
+        body["params"] = _YTM_SONGS_PARAM
+    try:
+        r = _SESSION.post(url, json=body, timeout=5.0)
+        return r.json() if r.status_code == 200 else {}
+    except Exception:
+        return {}
+
+
+def _parse_ytm_songs(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    seen = set()
+    for item in _find_nodes(data, "musicResponsiveListItemRenderer"):
+        vid = item.get("playlistItemData", {}).get("videoId", "")
+        if not vid or len(vid) != 11 or vid in seen:
+            continue
+        cols = [_extract_runs_text(c, "musicResponsiveListItemFlexColumnRenderer") for c in item.get("flexColumns", [])]
+        if not cols or not cols[0]:
+            continue
+        meta = cols[1] if len(cols) > 1 else ""
+        plays = cols[2] if len(cols) > 2 else ""
+        if any(b in meta for b in ("Episode", "Podcast", "Release - Topic")):
+            continue
+        parts = [p.strip() for p in meta.split("•") if p.strip()]
+        if parts and parts[0] in ("Song", "Video"):
+            parts = parts[1:]
+        dur = ""
+        if parts and re.match(r"^\d{1,2}:\d{2}(:\d{2})?$", parts[-1]):
+            dur = parts.pop()
+        artist = parts[0] if parts else "Unknown Artist"
+        album = parts[1] if len(parts) > 1 else ""
+        bits = []
+        if album and album.lower() != cols[0].lower():
+            bits.append(f"Album: {album}")
+        if plays:
+            bits.append(plays)
+        reason = " • ".join(bits) if bits else "YouTube Music song"
+        seen.add(vid)
+        out.append(
+            {
+                "title": cols[0],
+                "artist": artist,
+                "video_id": vid,
+                "fallback_ids": [],
+                "duration_text": dur,
+                "thumbnail": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+                "url": f"https://www.youtube.com/watch?v={vid}",
+                "embed_url": f"https://www.youtube.com/embed/{vid}?autoplay=1&enablejsapi=1",
+                "match_tier": "Direct Match",
+                "reason": reason,
+                "why_it_fits": reason,
+                "vibe": "YT Music",
+            }
+        )
+        if len(out) >= 25:
+            break
+    return out
+
+
+def _parse_ytm_playlists(data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    seen = set()
+    for item in _find_nodes(data, "musicResponsiveListItemRenderer"):
+        bid = item.get("navigationEndpoint", {}).get("browseEndpoint", {}).get("browseId", "")
+        if not bid.startswith("VL") or bid in seen:
+            continue
+        cols = [_extract_runs_text(c, "musicResponsiveListItemFlexColumnRenderer") for c in item.get("flexColumns", [])]
+        if not cols or not cols[0]:
+            continue
+        meta = cols[1] if len(cols) > 1 else "Playlist"
+        seen.add(bid)
+        out.append(
+            {
+                "browse_id": bid,
+                "title": cols[0],
+                "subtitle": meta,
+                "thumbnail": "",
+                "is_editorial": "YouTube Music" in meta or bid.startswith("VLRDCLAK"),
+                "source": "ytmusic",
+            }
+        )
+    return out
+
+
 def direct_search_youtube_music(query: str, mode: str = "auto") -> Dict[str, Any]:
     """
-    Fast, zero-token YouTube Music search returning both prepared Playlists and verified Songs.
-    - mode="auto": loads top prepared playlist if the query looks like a playlist/release lookup,
-      otherwise loads top individual songs (while always returning both playlists + songs for 1-click switching).
-    - mode="playlists": loads the #1 matching prepared playlist.
-    - mode="songs": loads the direct song results.
+    Zero-token direct search that mirrors youtube.com.
+    - Primary results = YouTube search results in YouTube's exact relevance order.
+    - Secondary: YouTube Music "Songs" results + matching playlists (only those actually
+      relevant to the query), selectable with one tap.
+    - A playlist is auto-loaded ONLY when the user explicitly asks for one
+      (query contains "playlist") or mode == "playlists".
     """
     q_clean = query.strip()
     if not q_clean:
@@ -449,169 +672,70 @@ def direct_search_youtube_music(query: str, mode: str = "auto") -> Dict[str, Any
     if cached and (now - cached.get("ts", 0)) < 1200:
         return dict(cached["data"])
 
-    url = "https://music.youtube.com/youtubei/v1/search?prettyPrint=false"
-    ctx_ytm = {
-        "client": {
-            "clientName": "WEB_REMIX",
-            "clientVersion": "1.20260918.01.00",
-            "hl": "en",
-            "gl": "IN",
-        }
-    }
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
+        f_yt = pool.submit(_yt_web_search, q_clean, 2)
+        f_ytm_songs = pool.submit(_ytm_search, q_clean, True)
+        f_ytm_all = pool.submit(_ytm_search, q_clean, False)
+        yt = f_yt.result()
+        ytm_songs = _parse_ytm_songs(f_ytm_songs.result())
+        ytm_playlists = _parse_ytm_playlists(f_ytm_all.result())
 
-    def _fetch_unfiltered():
-        try:
-            r = _SESSION.post(url, json={"context": ctx_ytm, "query": q_clean}, timeout=5.0)
-            return r.json() if r.status_code == 200 else {}
-        except Exception:
-            return {}
+    youtube_results = yt["videos"][:40]
+    tokens = _query_tokens(q_clean)
 
-    def _fetch_songs_filtered():
-        try:
-            r = _SESSION.post(
-                url,
-                json={"context": ctx_ytm, "query": q_clean, "params": "EgWKAQIIAWoKEAkQBRAKEAMQBA=="},
-                timeout=5.0,
-            )
-            return r.json() if r.status_code == 200 else {}
-        except Exception:
-            return {}
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
-        f_unfiltered = pool.submit(_fetch_unfiltered)
-        f_songs = pool.submit(_fetch_songs_filtered)
-        data_unfiltered = f_unfiltered.result()
-        data_songs = f_songs.result()
-
-    matched_playlists: List[Dict[str, str]] = []
-    seen_browse_ids = set()
-
-    for item in _find_nodes(data_unfiltered, "musicResponsiveListItemRenderer"):
-        browse_id = item.get("navigationEndpoint", {}).get("browseEndpoint", {}).get("browseId", "")
-        if not browse_id.startswith("VL") or browse_id in seen_browse_ids:
+    # Playlists: keep YouTube's order, then YT Music ones, but only if their title actually
+    # matches the query (no more "Jazzhop Studies" for "lofi rap songs").
+    candidate_pls = yt["playlists"] + ytm_playlists
+    matched_playlists: List[Dict[str, Any]] = []
+    seen_titles = set()
+    for pl in candidate_pls:
+        key = pl["title"].strip().lower()
+        if key in seen_titles:
             continue
-        cols = [_extract_runs_text(c, "musicResponsiveListItemFlexColumnRenderer") for c in item.get("flexColumns", [])]
-        pl_title = cols[0] if cols else ""
-        pl_meta = cols[1] if len(cols) > 1 else "Playlist"
-        if not pl_title:
+        score = _relevance(pl["title"], tokens)
+        if score < 0.5:
             continue
-        thumbs = (
-            item.get("thumbnail", {})
-            .get("musicThumbnailRenderer", {})
-            .get("thumbnail", {})
-            .get("thumbnails", [])
-        )
-        thumb = thumbs[-1].get("url", "") if thumbs else ""
-        seen_browse_ids.add(browse_id)
-        matched_playlists.append(
-            {
-                "browse_id": browse_id,
-                "title": pl_title,
-                "subtitle": pl_meta,
-                "thumbnail": thumb,
-                "is_editorial": "YouTube Music" in pl_meta or browse_id.startswith("VLRDCLAK"),
-            }
-        )
-        if len(matched_playlists) >= 6:
-            break
-
-    # Prioritize official YouTube Music editorial playlists when available
-    matched_playlists.sort(key=lambda p: (0 if p.get("is_editorial") else 1))
-
-    # Extract songs from the Songs-filtered search (plus any unfiltered songs as backup)
-    song_results: List[Dict[str, Any]] = []
-    seen_song_vids = set()
-
-    for src_data in (data_songs, data_unfiltered):
-        for item in _find_nodes(src_data, "musicResponsiveListItemRenderer"):
-            vid = item.get("playlistItemData", {}).get("videoId", "")
-            if not vid or len(vid) != 11 or vid in seen_song_vids:
-                continue
-            cols = [_extract_runs_text(c, "musicResponsiveListItemFlexColumnRenderer") for c in item.get("flexColumns", [])]
-            if not cols or not cols[0]:
-                continue
-            title = cols[0]
-            meta = cols[1] if len(cols) > 1 else ""
-            plays = cols[2] if len(cols) > 2 else ""
-            if "Episode" in meta or "Podcast" in meta or "Release - Topic" in meta:
-                continue
-
-            parts = [p.strip() for p in meta.split("•") if p.strip()]
-            # Remove leading "Song" or "Video" label if present
-            if parts and parts[0] in ("Song", "Video"):
-                parts = parts[1:]
-
-            dur = ""
-            if parts and re.match(r"^\d{1,2}:\d{2}$", parts[-1]):
-                dur = parts.pop()
-            else:
-                dur_m = re.search(r"\b(\d{1,2}:\d{2})\b", meta)
-                if dur_m:
-                    dur = dur_m.group(1)
-
-            artist = parts[0] if parts else "Unknown Artist"
-            album = parts[1] if len(parts) > 1 else ""
-
-            reason_bits = []
-            if album and album.lower() != title.lower():
-                reason_bits.append(f"Album: {album}")
-            if plays:
-                reason_bits.append(plays)
-            reason_str = " • ".join(reason_bits) if reason_bits else "Direct YouTube Music track"
-
-            seen_song_vids.add(vid)
-            song_results.append(
-                {
-                    "title": title,
-                    "artist": artist,
-                    "video_id": vid,
-                    "fallback_ids": [],
-                    "duration_text": dur,
-                    "thumbnail": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
-                    "url": f"https://www.youtube.com/watch?v={vid}",
-                    "embed_url": f"https://www.youtube.com/embed/{vid}?autoplay=1&enablejsapi=1",
-                    "match_tier": "Direct Match",
-                    "reason": reason_str,
-                    "why_it_fits": reason_str,
-                    "vibe": plays or "Direct",
-                }
-            )
-            if len(song_results) >= 25:
-                break
+        seen_titles.add(key)
+        pl["relevance"] = round(score, 2)
+        matched_playlists.append(pl)
+    # Stable sort: higher relevance first, original (YouTube) order preserved within ties
+    matched_playlists.sort(key=lambda p: -p["relevance"])
+    matched_playlists = matched_playlists[:6]
 
     q_lower = q_clean.lower()
-    wants_playlist = mode == "playlists" or (
-        mode == "auto"
-        and bool(matched_playlists)
-        and (
-            any(kw in q_lower for kw in _PLAYLIST_KEYWORDS)
-            or matched_playlists[0].get("is_editorial", False)
-        )
-    )
+    wants_playlist = mode == "playlists" or (mode == "auto" and "playlist" in q_lower)
+    wants_ytm = mode == "songs"
 
-    active_source = "songs"
+    active_source = "youtube"
     active_browse_id = ""
-    tracks = song_results
-    playlist_title = f'Search: "{q_clean}"'
-    vibe_description = f"Direct YouTube Music results • {len(song_results)} songs found (0 AI tokens used)"
+    tracks = youtube_results
+    playlist_title = f'"{q_clean}"'
+    vibe = f"YouTube results • {len(youtube_results)} videos • same order as youtube.com (0 AI tokens)"
 
-    if wants_playlist and matched_playlists:
-        top_pl = matched_playlists[0]
-        pl_tracks = browse_youtube_music_playlist(
-            top_pl["browse_id"], top_pl["title"], top_pl["subtitle"]
-        )
+    if wants_ytm and ytm_songs:
+        active_source = "songs"
+        tracks = ytm_songs
+        vibe = f"YouTube Music songs • {len(ytm_songs)} results (0 AI tokens)"
+    elif wants_playlist and matched_playlists:
+        top = matched_playlists[0]
+        pl_tracks = browse_youtube_music_playlist(top["browse_id"], top["title"], top["subtitle"])
         if pl_tracks:
             tracks = pl_tracks
             active_source = "playlist"
-            active_browse_id = top_pl["browse_id"]
-            playlist_title = top_pl["title"]
-            vibe_description = f"{top_pl['subtitle']} • Prepared playlist for \"{q_clean}\" (0 AI tokens)"
+            active_browse_id = top["browse_id"]
+            playlist_title = top["title"]
+            vibe = f"{top['subtitle']} • playlist for \"{q_clean}\" (0 AI tokens)"
+
+    if not tracks:
+        # Fall back gracefully if YouTube web search was blocked
+        tracks = ytm_songs
+        active_source = "songs"
 
     result_payload = {
         "playlist_title": playlist_title,
-        "subtitle": f'Direct Search • "{q_clean}"',
-        "vibe_description": vibe_description,
-        "curator_note": vibe_description,
+        "subtitle": vibe,
+        "vibe_description": vibe,
+        "curator_note": vibe,
         "used_model": "direct-search (0 tokens)",
         "requested_model": "direct-search",
         "is_fallback": False,
@@ -620,9 +744,9 @@ def direct_search_youtube_music(query: str, mode: str = "auto") -> Dict[str, Any
         "active_source": active_source,
         "active_browse_id": active_browse_id,
         "matched_playlists": matched_playlists,
-        "song_results": song_results,
+        "youtube_results": youtube_results,
+        "song_results": ytm_songs,
         "tracks": tracks,
     }
     _DIRECT_SEARCH_CACHE[cache_key] = {"data": result_payload, "ts": now}
     return dict(result_payload)
-
