@@ -6,7 +6,16 @@ import CuratorPrompt from './components/CuratorPrompt'
 import PlaylistView from './components/PlaylistView'
 import SonicDnaView from './components/SonicDnaView'
 import PlayerBar from './components/PlayerBar'
-import { getApiBase, curateStandalone, hasBackend, isNativeApp, isConfigured, getStoredApiKey } from './standaloneApi'
+import {
+  getApiBase,
+  curateStandalone,
+  directSearchStandalone,
+  browsePlaylistStandalone,
+  hasBackend,
+  isNativeApp,
+  isConfigured,
+  getStoredApiKey
+} from './standaloneApi'
 
 const DEFAULT_SEEDS = [
   { title: 'Renai Circulation', artist: 'Kana Hanazawa', video_id: 'F8xpmTmdf6o', duration_text: '4:16', thumbnail: 'https://i.ytimg.com/vi/F8xpmTmdf6o/hqdefault.jpg' },
@@ -53,7 +62,10 @@ export default function App() {
   const [energyLevel, setEnergyLevel] = useState(78) // Matches 'ost' preset default (78%)
   const [trackCount, setTrackCount] = useState(8)
   const [activeTab, setActiveTab] = useState('curator')
+  const [searchMode, setSearchMode] = useState('direct')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
+  const [isLoadingPlaylistBrowse, setIsLoadingPlaylistBrowse] = useState(false)
   const [isResolvingBatch, setIsResolvingBatch] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -338,6 +350,108 @@ export default function App() {
     }
   }
 
+  // Zero-Token Direct YouTube Music Search (Prepared Playlists + Songs)
+  const handleDirectSearch = async (overrideQuery, mode = 'auto') => {
+    const q = (overrideQuery ?? prompt ?? '').trim()
+    if (!q || isSearching || isGenerating) return
+
+    setIsSearching(true)
+    setActiveTab('curator')
+
+    try {
+      let data = null
+      if (hasBackend()) {
+        try {
+          const res = await fetch(
+            `${getApiBase()}/direct-search?q=${encodeURIComponent(q)}&mode=${encodeURIComponent(mode)}`
+          )
+          const ct = res.headers.get('content-type') || ''
+          if (res.ok && ct.includes('application/json')) {
+            data = await res.json()
+          }
+        } catch {}
+      }
+
+      if (!data) {
+        data = await directSearchStandalone(q, mode)
+      }
+
+      setPlaylist(data)
+      if (data.tracks && data.tracks.length > 0 && !currentTrack) {
+        setCurrentTrack(data.tracks[0])
+        setCurrentTrackIdx(0)
+      }
+      const label = data.active_source === 'playlist'
+        ? `Loaded playlist "${data.playlist_title}" (${data.tracks?.length || 0} tracks • 0 tokens)`
+        : `Found ${data.tracks?.length || 0} tracks for "${q}" (0 tokens)`
+      showNotify(label, 'success')
+    } catch (e) {
+      showNotify(`Search failed: ${e.message}`, 'error')
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const handleSelectMatchedPlaylist = async (pl) => {
+    if (!pl?.browse_id || isLoadingPlaylistBrowse) return
+    setIsLoadingPlaylistBrowse(true)
+    try {
+      let tracks = []
+      if (hasBackend()) {
+        try {
+          const res = await fetch(
+            `${getApiBase()}/playlist-browse?browse_id=${encodeURIComponent(pl.browse_id)}&title=${encodeURIComponent(pl.title || '')}&subtitle=${encodeURIComponent(pl.subtitle || '')}`
+          )
+          const ct = res.headers.get('content-type') || ''
+          if (res.ok && ct.includes('application/json')) {
+            const d = await res.json()
+            tracks = d.tracks || []
+          }
+        } catch {}
+      }
+      if (!tracks.length) {
+        tracks = await browsePlaylistStandalone(pl.browse_id, pl.title, pl.subtitle)
+      }
+
+      if (tracks.length > 0) {
+        setPlaylist((prev) =>
+          prev
+            ? {
+                ...prev,
+                playlist_title: pl.title,
+                subtitle: `${pl.subtitle} • 0 AI tokens`,
+                vibe_description: `${pl.subtitle} • Prepared playlist`,
+                active_source: 'playlist',
+                active_browse_id: pl.browse_id,
+                tracks
+              }
+            : prev
+        )
+        showNotify(`Loaded "${pl.title}" (${tracks.length} tracks • 0 tokens)`, 'info')
+      } else {
+        showNotify('Could not load tracks from that playlist', 'warning')
+      }
+    } finally {
+      setIsLoadingPlaylistBrowse(false)
+    }
+  }
+
+  const handleSelectDirectSongs = () => {
+    setPlaylist((prev) => {
+      if (!prev || !prev.song_results?.length) return prev
+      const q = prev.search_query || prompt
+      return {
+        ...prev,
+        playlist_title: `Search: "${q}"`,
+        subtitle: `Direct YouTube Music results • ${prev.song_results.length} songs (0 AI tokens)`,
+        vibe_description: `Direct YouTube Music results • ${prev.song_results.length} songs (0 AI tokens)`,
+        active_source: 'songs',
+        active_browse_id: '',
+        tracks: prev.song_results
+      }
+    })
+  }
+
   // Initial boot: check Safari, auto-sync if YT tab is open, and ensure a playlist exists
   useEffect(() => {
     if (initialBootRef.current) return
@@ -598,7 +712,11 @@ export default function App() {
                 prompt={prompt}
                 setPrompt={handlePromptChange}
                 onGenerate={(p) => handleGenerate(p)}
+                onDirectSearch={(q) => handleDirectSearch(q, 'auto')}
+                searchMode={searchMode}
+                setSearchMode={setSearchMode}
                 isGenerating={isGenerating}
+                isSearching={isSearching}
               />
               <PlaylistView
                 playlist={playlist}
@@ -611,7 +729,11 @@ export default function App() {
                 onPlayTrack={handlePlayTrack}
                 onPushToSafari={handlePushToSafari}
                 isGenerating={isGenerating}
-                onGenerateDefault={() => handleGenerate(prompt)}
+                isSearching={isSearching}
+                isLoadingPlaylistBrowse={isLoadingPlaylistBrowse}
+                onSelectMatchedPlaylist={handleSelectMatchedPlaylist}
+                onSelectDirectSongs={handleSelectDirectSongs}
+                onGenerateDefault={() => handleDirectSearch('New Hindi Songs', 'auto')}
                 needsSetup={!isConfigured()}
                 onOpenSettings={() => setShowKeyModal(true)}
               />

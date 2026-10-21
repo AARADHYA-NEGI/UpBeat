@@ -180,10 +180,18 @@ export async function generateWithDirectGemini(prompt, preferredModel = 'gemini-
 // ---------------------------------------------------------------------------
 
 const YTM_CONTEXT = {
-  client: { clientName: 'WEB_REMIX', clientVersion: '1.20260918.01.00', hl: 'en', gl: 'US' }
+  client: { clientName: 'WEB_REMIX', clientVersion: '1.20260918.01.00', hl: 'en', gl: 'IN' }
 }
 const BLOCKED_META = ['Episode', 'Podcast', 'Release - Topic', 'Lights on the Ceiling']
 const searchCache = new Map()
+const directSearchCache = new Map()
+const playlistBrowseCache = new Map()
+
+const PLAYLIST_KEYWORDS = [
+  'playlist', 'new ', 'latest', 'top ', 'best ', 'hits', 'hitlist',
+  'songs', 'ost', 'soundtrack', '2024', '2025', '2026', 'collection',
+  'mix', 'chart', 'trending', 'essentials'
+]
 
 function* findNodes(obj, key) {
   if (Array.isArray(obj)) {
@@ -192,6 +200,220 @@ function* findNodes(obj, key) {
     if (key in obj) yield obj[key]
     for (const v of Object.values(obj)) yield* findNodes(v, key)
   }
+}
+
+function extractColText(colObj, rendererKey) {
+  return (colObj?.[rendererKey]?.text?.runs || []).map((r) => r.text || '').join('').trim()
+}
+
+export async function browsePlaylistStandalone(browseId, playlistTitle = '', playlistSubtitle = '', maxTracks = 35) {
+  if (!browseId) return []
+  const cached = playlistBrowseCache.get(browseId)
+  if (cached && Date.now() - cached.ts < 30 * 60 * 1000) return cached.tracks
+
+  try {
+    const resp = await fetch('https://music.youtube.com/youtubei/v1/browse?prettyPrint=false', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: YTM_CONTEXT, browseId })
+    })
+    if (!resp.ok) return []
+    const data = await resp.json()
+    const tracks = []
+    const seenVids = new Set()
+
+    for (const item of findNodes(data, 'musicResponsiveListItemRenderer')) {
+      const vid = item?.playlistItemData?.videoId
+      if (!vid || vid.length !== 11 || seenVids.has(vid)) continue
+
+      const cols = (item.flexColumns || []).map((c) => extractColText(c, 'musicResponsiveListItemFlexColumnRenderer'))
+      const fixed = (item.fixedColumns || []).map((c) => extractColText(c, 'musicResponsiveListItemFixedColumnRenderer'))
+
+      const title = cols[0] || ''
+      const artist = cols[1] || 'Unknown Artist'
+      const extra = cols[2] || ''
+      if (!title || BLOCKED_META.some((b) => artist.includes(b))) continue
+
+      let dur = ''
+      if (fixed[0] && /^\d{1,2}:\d{2}$/.test(fixed[0])) {
+        dur = fixed[0]
+      } else {
+        const m = [...cols, ...fixed].join(' ').match(/\b(\d{1,2}:\d{2})\b/)
+        if (m) dur = m[1]
+      }
+
+      seenVids.add(vid)
+      const reasonParts = []
+      if (extra) reasonParts.push(extra)
+      if (playlistTitle) reasonParts.push(`Featured in ${playlistTitle}`)
+      const reason = reasonParts.length ? reasonParts.join(' • ') : 'Featured track from official playlist'
+
+      tracks.push({
+        title,
+        artist,
+        video_id: vid,
+        fallback_ids: [],
+        duration_text: dur,
+        thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+        url: `https://www.youtube.com/watch?v=${vid}`,
+        match_tier: 'Direct Match',
+        reason,
+        why_it_fits: reason,
+        vibe: 'Playlist'
+      })
+      if (tracks.length >= maxTracks) break
+    }
+
+    playlistBrowseCache.set(browseId, { tracks, ts: Date.now() })
+    return tracks
+  } catch {
+    return []
+  }
+}
+
+export async function directSearchStandalone(query, mode = 'auto') {
+  const qClean = (query || '').trim()
+  if (!qClean) {
+    return { playlist_title: 'Direct Search', tracks: [], matched_playlists: [], song_results: [] }
+  }
+
+  const cacheKey = `${qClean.toLowerCase()}::${mode}`
+  const cached = directSearchCache.get(cacheKey)
+  if (cached && Date.now() - cached.ts < 20 * 60 * 1000) return cached.data
+
+  const searchUrl = 'https://music.youtube.com/youtubei/v1/search?prettyPrint=false'
+  const [dataUnfiltered, dataSongs] = await Promise.all([
+    fetch(searchUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: YTM_CONTEXT, query: qClean })
+    }).then((r) => (r.ok ? r.json() : {})).catch(() => ({})),
+    fetch(searchUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context: YTM_CONTEXT, query: qClean, params: 'EgWKAQIIAWoKEAkQBRAKEAMQBA==' })
+    }).then((r) => (r.ok ? r.json() : {})).catch(() => ({}))
+  ])
+
+  const matchedPlaylists = []
+  const seenBrowseIds = new Set()
+
+  for (const item of findNodes(dataUnfiltered, 'musicResponsiveListItemRenderer')) {
+    const browseId = item?.navigationEndpoint?.browseEndpoint?.browseId || ''
+    if (!browseId.startsWith('VL') || seenBrowseIds.has(browseId)) continue
+    const cols = (item.flexColumns || []).map((c) => extractColText(c, 'musicResponsiveListItemFlexColumnRenderer'))
+    const plTitle = cols[0] || ''
+    const plMeta = cols[1] || 'Playlist'
+    if (!plTitle) continue
+    const thumbs = item?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || []
+    const thumb = thumbs.length ? thumbs[thumbs.length - 1].url || '' : ''
+    seenBrowseIds.add(browseId)
+    matchedPlaylists.push({
+      browse_id: browseId,
+      title: plTitle,
+      subtitle: plMeta,
+      thumbnail: thumb,
+      is_editorial: plMeta.includes('YouTube Music') || browseId.startsWith('VLRDCLAK')
+    })
+    if (matchedPlaylists.length >= 6) break
+  }
+
+  matchedPlaylists.sort((a, b) => (a.is_editorial ? 0 : 1) - (b.is_editorial ? 0 : 1))
+
+  const songResults = []
+  const seenSongVids = new Set()
+
+  for (const srcData of [dataSongs, dataUnfiltered]) {
+    for (const item of findNodes(srcData, 'musicResponsiveListItemRenderer')) {
+      const vid = item?.playlistItemData?.videoId
+      if (!vid || vid.length !== 11 || seenSongVids.has(vid)) continue
+      const cols = (item.flexColumns || []).map((c) => extractColText(c, 'musicResponsiveListItemFlexColumnRenderer'))
+      if (!cols[0]) continue
+      const title = cols[0]
+      const meta = cols[1] || ''
+      const plays = cols[2] || ''
+      if (BLOCKED_META.some((b) => meta.includes(b))) continue
+
+      const parts = meta.split('•').map((s) => s.trim()).filter(Boolean)
+      if (parts[0] === 'Song' || parts[0] === 'Video') parts.shift()
+
+      let dur = ''
+      if (parts.length && /^\d{1,2}:\d{2}$/.test(parts[parts.length - 1])) {
+        dur = parts.pop()
+      } else {
+        const m = meta.match(/\b(\d{1,2}:\d{2})\b/)
+        if (m) dur = m[1]
+      }
+
+      const artist = parts[0] || 'Unknown Artist'
+      const album = parts[1] || ''
+      const reasonBits = []
+      if (album && album.toLowerCase() !== title.toLowerCase()) reasonBits.push(`Album: ${album}`)
+      if (plays) reasonBits.push(plays)
+      const reason = reasonBits.length ? reasonBits.join(' • ') : 'Direct YouTube Music track'
+
+      seenSongVids.add(vid)
+      songResults.push({
+        title,
+        artist,
+        video_id: vid,
+        fallback_ids: [],
+        duration_text: dur,
+        thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
+        url: `https://www.youtube.com/watch?v=${vid}`,
+        match_tier: 'Direct Match',
+        reason,
+        why_it_fits: reason,
+        vibe: plays || 'Direct'
+      })
+      if (songResults.length >= 25) break
+    }
+  }
+
+  const qLower = qClean.toLowerCase()
+  const wantsPlaylist =
+    mode === 'playlists' ||
+    (mode === 'auto' &&
+      matchedPlaylists.length > 0 &&
+      (PLAYLIST_KEYWORDS.some((kw) => qLower.includes(kw)) || matchedPlaylists[0].is_editorial))
+
+  let activeSource = 'songs'
+  let activeBrowseId = ''
+  let tracks = songResults
+  let playlistTitle = `Search: "${qClean}"`
+  let vibeDescription = `Direct YouTube Music results • ${songResults.length} songs found (0 AI tokens used)`
+
+  if (wantsPlaylist && matchedPlaylists.length > 0) {
+    const topPl = matchedPlaylists[0]
+    const plTracks = await browsePlaylistStandalone(topPl.browse_id, topPl.title, topPl.subtitle)
+    if (plTracks.length > 0) {
+      tracks = plTracks
+      activeSource = 'playlist'
+      activeBrowseId = topPl.browse_id
+      playlistTitle = topPl.title
+      vibeDescription = `${topPl.subtitle} • Prepared playlist for "${qClean}" (0 AI tokens)`
+    }
+  }
+
+  const payload = {
+    playlist_title: playlistTitle,
+    subtitle: `Direct Search • "${qClean}"`,
+    vibe_description: vibeDescription,
+    curator_note: vibeDescription,
+    used_model: 'direct-search (0 tokens)',
+    requested_model: 'direct-search',
+    is_fallback: false,
+    is_direct_search: true,
+    search_query: qClean,
+    active_source: activeSource,
+    active_browse_id: activeBrowseId,
+    matched_playlists: matchedPlaylists,
+    song_results: songResults,
+    tracks
+  }
+
+  directSearchCache.set(cacheKey, { data: payload, ts: Date.now() })
+  return payload
 }
 
 async function ytmSearchItems(query) {

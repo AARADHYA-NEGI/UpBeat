@@ -19,6 +19,8 @@ from argon_music.backend.youtube_search import (
     resolve_tracks_batch,
     search_youtube_single,
     get_audio_stream_url,
+    direct_search_youtube_music,
+    browse_youtube_music_playlist,
 )
 from argon_music.backend.favorites_store import get_favorites, toggle_favorite
 
@@ -162,6 +164,24 @@ def search_track(q: str):
     if not res:
         raise HTTPException(status_code=404, detail="Track not found")
     return res
+
+
+@app.get("/api/direct-search")
+def direct_search_endpoint(q: str, mode: str = "auto"):
+    """Zero-token direct YouTube Music lookup for both prepared playlists and songs."""
+    return direct_search_youtube_music(q, mode=mode)
+
+
+@app.get("/api/playlist-browse")
+def playlist_browse_endpoint(browse_id: str, title: str = "", subtitle: str = ""):
+    """Fetches tracks inside a prepared YouTube Music playlist (0 AI tokens)."""
+    tracks = browse_youtube_music_playlist(browse_id, playlist_title=title, playlist_subtitle=subtitle)
+    return {
+        "browse_id": browse_id,
+        "title": title,
+        "subtitle": subtitle,
+        "tracks": tracks,
+    }
 
 
 class ResolveBatchRequest(BaseModel):

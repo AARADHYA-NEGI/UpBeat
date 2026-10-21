@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import {
   Play, Pause, ExternalLink, Loader2, Music,
-  ChevronDown, ChevronUp, Heart, Info, KeyRound
+  ChevronDown, ChevronUp, Heart, Info, KeyRound, ListMusic, Disc
 } from 'lucide-react'
 
 function cleanMusicalRationale(text) {
@@ -46,6 +46,10 @@ export default function PlaylistView({
   onPlayTrack,
   onPushToSafari,
   isGenerating,
+  isSearching,
+  isLoadingPlaylistBrowse,
+  onSelectMatchedPlaylist,
+  onSelectDirectSongs,
   onGenerateDefault,
   needsSetup,
   onOpenSettings
@@ -53,15 +57,17 @@ export default function PlaylistView({
   const [expandedIdx, setExpandedIdx] = useState(null)
   const [showModelDetails, setShowModelDetails] = useState(false)
 
-  if (isGenerating) {
+  if (isGenerating || isSearching) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8 sm:p-12 text-center select-none">
-        <Loader2 className="w-6 h-6 text-indigo-400 animate-spin mb-3" />
+        <Loader2 className={`w-6 h-6 animate-spin mb-3 ${isSearching ? 'text-emerald-400' : 'text-indigo-400'}`} />
         <p className="text-sm font-medium text-[#f5f5f5]">
-          Curating playlist & resolving streams...
+          {isSearching
+            ? 'Searching prepared playlists & songs...'
+            : 'Curating playlist & resolving streams...'}
         </p>
         <p className="text-xs font-mono text-[#9ca3af] mt-1">
-          Model: {selectedModel}
+          {isSearching ? 'YouTube Music Direct • 0 AI Tokens' : `Model: ${selectedModel}`}
         </p>
       </div>
     )
@@ -74,10 +80,10 @@ export default function PlaylistView({
           <Music className="w-4 h-4 text-indigo-400" />
         </div>
         <p className="text-sm font-medium text-[#f5f5f5]">
-          Ready to curate
+          Ready to search or curate
         </p>
         <p className="text-xs text-[#9ca3af] mt-1 max-w-xs">
-          Enter any anime, soundtrack, artist, or mood above to generate a custom playlist.
+          Use Search (0 tokens) for prepared playlists & songs, or AI Curate for custom mood mixes.
         </p>
         <div className="flex items-center gap-2 mt-4">
           {needsSetup && onOpenSettings && (
@@ -103,9 +109,15 @@ export default function PlaylistView({
   }
 
   const tracks = playlist.tracks || []
+  const isDirectSearch = Boolean(playlist.is_direct_search)
+  const matchedPlaylists = playlist.matched_playlists || []
+  const songResults = playlist.song_results || []
+  const activeSource = playlist.active_source || 'songs'
+  const activeBrowseId = playlist.active_browse_id || ''
+
   const usedModel = playlist.used_model || selectedModel
   const reqModel = playlist.requested_model || selectedModel
-  const didFallback = Boolean(playlist.is_fallback) || usedModel !== reqModel
+  const didFallback = !isDirectSearch && (Boolean(playlist.is_fallback) || usedModel !== reqModel)
   const fallbackReason =
     playlist.fallback_reason ||
     (didFallback ? `High demand (HTTP 503) or rate limit on ${reqModel}` : '')
@@ -117,7 +129,7 @@ export default function PlaylistView({
       {needsSetup && onOpenSettings && (
         <div className="px-3.5 py-2 bg-indigo-500/15 border-b border-indigo-500/30 flex items-center justify-between gap-2">
           <span className="text-[11px] text-indigo-200 leading-snug">
-            Add your Gemini API Key (or Mac Wi-Fi URL) to curate new AI playlists on this phone.
+            Direct Search works with 0 setup. Add a Gemini API Key only if you want custom AI curation.
           </span>
           <button
             onClick={onOpenSettings}
@@ -138,21 +150,28 @@ export default function PlaylistView({
                 {playlist.playlist_title || 'Curated Selection'}
               </h2>
 
-              <button
-                type="button"
-                onClick={() => setShowModelDetails((prev) => !prev)}
-                className={`flex items-center gap-1 text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
-                  didFallback
-                    ? 'bg-amber-500/10 text-amber-200 border-amber-500/30'
-                    : 'bg-emerald-500/10 text-emerald-200 border-emerald-500/25'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${didFallback ? 'bg-amber-400' : 'bg-emerald-400'}`} />
-                <span className="truncate max-w-[160px] sm:max-w-none">
-                  {didFallback ? `${usedModel} (Fallback)` : `${usedModel}${latencySec ? ` · ${latencySec}` : ''}`}
+              {isDirectSearch ? (
+                <span className="flex items-center gap-1 text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-md border bg-emerald-500/10 text-emerald-200 border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span>DIRECT • 0 TOKENS</span>
                 </span>
-                <Info className="w-3 h-3 opacity-70" />
-              </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowModelDetails((prev) => !prev)}
+                  className={`flex items-center gap-1 text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
+                    didFallback
+                      ? 'bg-amber-500/10 text-amber-200 border-amber-500/30'
+                      : 'bg-emerald-500/10 text-emerald-200 border-emerald-500/25'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${didFallback ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+                  <span className="truncate max-w-[160px] sm:max-w-none">
+                    {didFallback ? `${usedModel} (Fallback)` : `${usedModel}${latencySec ? ` · ${latencySec}` : ''}`}
+                  </span>
+                  <Info className="w-3 h-3 opacity-70" />
+                </button>
+              )}
             </div>
 
             <p className="text-[11px] sm:text-xs text-[#a1a1aa] mt-0.5 line-clamp-1 max-w-2xl">
@@ -174,7 +193,57 @@ export default function PlaylistView({
           </div>
         </div>
 
-        {showModelDetails && (
+        {/* Direct Search: Prepared Playlists & Top Songs Switcher Strip */}
+        {isDirectSearch && (matchedPlaylists.length > 0 || songResults.length > 0) && (
+          <div className="flex items-center gap-1.5 mt-1.5 overflow-x-auto no-scrollbar pb-0.5">
+            {songResults.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onSelectDirectSongs && onSelectDirectSongs()}
+                disabled={isLoadingPlaylistBrowse}
+                className={`px-2.5 py-1 rounded-md border text-[11px] font-medium flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer flex-shrink-0 ${
+                  activeSource === 'songs'
+                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-200'
+                    : 'bg-[#141419] hover:bg-[#1c1c24] border-[#282832] text-[#b4b4bc]'
+                }`}
+              >
+                <Disc className="w-3 h-3 text-emerald-400" />
+                <span>Top Songs ({songResults.length})</span>
+              </button>
+            )}
+
+            {matchedPlaylists.map((pl) => {
+              const isActivePl = activeSource === 'playlist' && activeBrowseId === pl.browse_id
+              return (
+                <button
+                  key={pl.browse_id}
+                  type="button"
+                  onClick={() => onSelectMatchedPlaylist && onSelectMatchedPlaylist(pl)}
+                  disabled={isLoadingPlaylistBrowse}
+                  className={`px-2.5 py-1 rounded-md border text-[11px] flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer flex-shrink-0 ${
+                    isActivePl
+                      ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-200 font-medium'
+                      : 'bg-[#141419] hover:bg-[#1c1c24] border-[#282832] text-[#b4b4bc] hover:text-white'
+                  }`}
+                >
+                  {isLoadingPlaylistBrowse && isActivePl ? (
+                    <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />
+                  ) : (
+                    <ListMusic className="w-3 h-3 text-emerald-400 flex-shrink-0" />
+                  )}
+                  <span className="truncate max-w-[200px]">{pl.title}</span>
+                  {pl.is_editorial && (
+                    <span className="text-[9px] font-mono px-1 rounded bg-emerald-500/15 text-emerald-300">
+                      Official
+                    </span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {showModelDetails && !isDirectSearch && (
           <div className="mt-1 px-3 py-2 rounded-md bg-[#121217] border border-[#282832] text-[11px] sm:text-xs flex items-center justify-between gap-2">
             <div className="text-[#d4d4d8]">
               <span className="font-mono text-[10px] uppercase text-indigo-400 font-semibold mr-1.5">
