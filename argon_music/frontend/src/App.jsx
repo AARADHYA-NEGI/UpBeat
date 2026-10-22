@@ -282,7 +282,16 @@ export default function App() {
   useEffect(() => {
     if (!hasBackend() || !playlist?.tracks?.length) return
     const needsResolve = playlist.tracks.some(
-      (t) => !t.video_id || !t.thumbnail || !t.duration_text || t.duration_text === '--:--' || t.duration_text === '3:30' || t.duration_text === '3:42'
+      (t) =>
+        !t.video_id ||
+        !t.thumbnail ||
+        !t.duration_text ||
+        t.duration_text === '--:--' ||
+        t.duration_text === '3:30' ||
+        t.duration_text === '3:42' ||
+        t.duration_text === '3:00' ||
+        t.duration_text === '8:29' ||
+        t.duration_text === '8:08'
     )
     if (!needsResolve) return
 
@@ -694,10 +703,13 @@ export default function App() {
 
   const handleTrackResolved = (track, resolvedData) => {
     if (!track || !resolvedData) return
-    const resolvedDurText =
-      resolvedData.duration_text && resolvedData.duration_text !== '3:42' && resolvedData.duration_text !== '--:--'
-        ? resolvedData.duration_text
-        : (resolvedData.duration ? formatDurationSeconds(resolvedData.duration) : '')
+    const badDurs = new Set(['3:42', '3:30', '--:--', '3:00', '8:29', '8:08'])
+    let resolvedDurText = ''
+    if (resolvedData.duration && resolvedData.duration > 0) {
+      resolvedDurText = formatDurationSeconds(resolvedData.duration)
+    } else if (resolvedData.duration_text && !badDurs.has(resolvedData.duration_text)) {
+      resolvedDurText = resolvedData.duration_text
+    }
 
     setPlaylist((prev) => {
       if (!prev || !prev.tracks) return prev
@@ -708,12 +720,13 @@ export default function App() {
             (t.video_id && t.video_id === (resolvedData.video_id || track.video_id)) ||
             (t.title === track.title && t.artist === track.artist)
           if (!isMatch) return t
+          const finalDur = resolvedDurText || (badDurs.has(t.duration_text) ? '' : t.duration_text)
           return {
             ...t,
             video_id: resolvedData.video_id || t.video_id,
             fallback_ids: resolvedData.fallback_ids?.length ? resolvedData.fallback_ids : t.fallback_ids,
             thumbnail: resolvedData.thumbnail || t.thumbnail,
-            duration_text: resolvedDurText || t.duration_text
+            duration_text: finalDur
           }
         })
       }
@@ -724,12 +737,13 @@ export default function App() {
         (cur.video_id && cur.video_id === (resolvedData.video_id || track.video_id)) ||
         (cur.title === track.title && cur.artist === track.artist)
       if (!isMatch) return cur
+      const finalDur = resolvedDurText || (badDurs.has(cur.duration_text) ? '' : cur.duration_text)
       return {
         ...cur,
         video_id: resolvedData.video_id || cur.video_id,
         fallback_ids: resolvedData.fallback_ids?.length ? resolvedData.fallback_ids : cur.fallback_ids,
         thumbnail: resolvedData.thumbnail || cur.thumbnail,
-        duration_text: resolvedDurText || cur.duration_text
+        duration_text: finalDur
       }
     })
   }

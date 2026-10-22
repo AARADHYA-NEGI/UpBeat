@@ -57,7 +57,14 @@ export default function PlayerBar({
   const [isLoadingStream, setIsLoadingStream] = useState(false)
   const [useIframeFallback, setUseIframeFallback] = useState(false)
 
-  const audioRef = useRef(null)
+  const audioRefA = useRef(null)
+  const audioRefB = useRef(null)
+  const activeDeckRef = useRef('A')
+  const fadeIntervalRef = useRef(null)
+
+  const getActiveAudio = () => (activeDeckRef.current === 'A' ? audioRefA.current : audioRefB.current)
+  const getInactiveAudio = () => (activeDeckRef.current === 'A' ? audioRefB.current : audioRefA.current)
+
   const playerRef = useRef(null)
   const currentVidRef = useRef('')
   const fallbackQueueRef = useRef([])
@@ -164,9 +171,10 @@ export default function PlayerBar({
         Math.round(sec)
       )
     }
-    if (!useIframeFallback && audioRef.current) {
+    const activeAudio = getActiveAudio()
+    if (!useIframeFallback && activeAudio) {
       try {
-        audioRef.current.currentTime = sec
+        activeAudio.currentTime = sec
       } catch {}
       return
     }
@@ -275,52 +283,113 @@ export default function PlayerBar({
     }
   }, [track?.title, track?.artist, track?.video_id])
 
-  // Primary Engine: Native HTML5 <audio> using either Mac backend (/api/audio) or direct standalone Innertube stream
+  // Primary Engine: Native Dual-Deck HTML5 <audio> with smooth ~1s seamless crossfade
   useEffect(() => {
-    const audio = audioRef.current
-    if (!audio || !resolvedVid || playbackMode !== 'app' || useIframeFallback) return
+    if (!resolvedVid || playbackMode !== 'app' || useIframeFallback) return
 
     let cancelled = false
+    const currentActive = getActiveAudio()
+    const targetDeck = activeDeckRef.current === 'A' ? 'B' : 'A'
+    const targetAudio = targetDeck === 'A' ? audioRefA.current : audioRefB.current
+
+    if (!targetAudio) return
 
     if (playerRef.current && typeof playerRef.current.stopVideo === 'function') {
       try { playerRef.current.stopVideo() } catch {}
     }
 
     ;(async () => {
-      if (audio.dataset.vid !== resolvedVid) {
-        setIsLoadingStream(true)
-        const streamInfo = await getAudioSource(resolvedVid)
-        if (cancelled) return
-        setIsLoadingStream(false)
+      // If the active audio is already playing this video, nothing to load
+      if (currentActive?.dataset?.vid === resolvedVid) return
 
-        const streamSrc = typeof streamInfo === 'string' ? streamInfo : streamInfo?.url
-        const streamDur = typeof streamInfo === 'object' ? Number(streamInfo?.duration || 0) : 0
-        if (streamDur > 0) {
-          if (authoritativeDurationRef.current <= 0 || Math.abs(authoritativeDurationRef.current - streamDur) > 3) {
-            authoritativeDurationRef.current = streamDur
-            setDuration(streamDur)
-          }
-          if (onTrackResolved) {
-            onTrackResolved(track, {
-              video_id: resolvedVid,
-              duration: streamDur,
-              duration_text: formatTime(streamDur)
-            })
-          }
+      setIsLoadingStream(true)
+      const streamInfo = await getAudioSource(resolvedVid)
+      if (cancelled) return
+      setIsLoadingStream(false)
+
+      const streamSrc = typeof streamInfo === 'string' ? streamInfo : streamInfo?.url
+      const streamDur = typeof streamInfo === 'object' ? Number(streamInfo?.duration || 0) : 0
+      if (streamDur > 0) {
+        if (authoritativeDurationRef.current <= 0 || Math.abs(authoritativeDurationRef.current - streamDur) > 3) {
+          authoritativeDurationRef.current = streamDur
+          setDuration(streamDur)
         }
+        if (onTrackResolved) {
+          onTrackResolved(track, {
+            video_id: resolvedVid,
+            duration: streamDur,
+            duration_text: formatTime(streamDur)
+          })
+        }
+      }
 
-        if (!streamSrc) {
-          setUseIframeFallback(true)
+      if (!streamSrc) {
+        setUseIframeFallback(true)
+        return
+      }
+
+      targetAudio.dataset.vid = resolvedVid
+      targetAudio.src = streamSrc
+      targetAudio.load()
+
+      const targetVol = isMuted ? 0 : volume / 100
+      const isPrevPlaying = currentActive && !currentActive.paused && currentActive.currentTime > 0
+
+      if (isPrevPlaying && isPlayingRef.current) {
+        // Smooth ~1 sec seamless transition: target audio starts at 0 volume and fades in,
+        // while the previous song keeps playing and smoothly fades out!
+        targetAudio.volume = 0
+        try {
+          await targetAudio.play()
+        } catch {}
+
+        if (cancelled) {
+          targetAudio.pause()
           return
         }
-        audio.dataset.vid = resolvedVid
-        audio.src = streamSrc
-        audio.load()
-      }
-      audio.volume = isMuted ? 0 : volume / 100
 
-      if (isPlayingRef.current) {
-        audio.play().catch(() => {})
+        activeDeckRef.current = targetDeck
+
+        if (fadeIntervalRef.current) clearInterval(fadeIntervalRef.current)
+        const oldAudio = currentActive
+        const oldStartVol = oldAudio.volume
+        const fadeStart = Date.now()
+        const fadeDuration = 800 // ~1 sec crossfade
+
+        fadeIntervalRef.current = setInterval(() => {
+          const elapsed = Date.now() - fadeStart
+          const progress = Math.min(1, elapsed / fadeDuration)
+
+          if (targetAudio) targetAudio.volume = targetVol * progress
+          if (oldAudio) oldAudio.volume = Math.max(0, oldStartVol * (1 - progress))
+
+          if (progress >= 1) {
+            clearInterval(fadeIntervalRef.current)
+            fadeIntervalRef.current = null
+            if (targetAudio) targetAudio.volume = targetVol
+            if (oldAudio) {
+              oldAudio.pause()
+              oldAudio.src = ''
+              oldAudio.dataset.vid = ''
+            }
+          }
+        }, 40)
+      } else {
+        // Initial play or paused state: switch immediately
+        if (fadeIntervalRef.current) {
+          clearInterval(fadeIntervalRef.current)
+          fadeIntervalRef.current = null
+        }
+        if (currentActive && currentActive !== targetAudio) {
+          currentActive.pause()
+          currentActive.src = ''
+          currentActive.dataset.vid = ''
+        }
+        activeDeckRef.current = targetDeck
+        targetAudio.volume = targetVol
+        if (isPlayingRef.current) {
+          targetAudio.play().catch(() => {})
+        }
       }
     })()
 
@@ -332,20 +401,27 @@ export default function PlayerBar({
   // Sync play/pause with HTML5 <audio> or YT.Player fallback
   useEffect(() => {
     if (playbackMode !== 'app') {
-      if (audioRef.current) audioRef.current.pause()
+      if (audioRefA.current) audioRefA.current.pause()
+      if (audioRefB.current) audioRefB.current.pause()
       if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
         try { playerRef.current.pauseVideo() } catch {}
       }
       return
     }
 
-    if (!useIframeFallback && audioRef.current && resolvedVid) {
+    const activeAudio = getActiveAudio()
+    if (!useIframeFallback && activeAudio && resolvedVid) {
       if (isPlaying) {
-        if (audioRef.current.src) {
-          audioRef.current.play().catch(() => {})
+        if (activeAudio.src) {
+          activeAudio.play().catch(() => {})
         }
       } else {
-        audioRef.current.pause()
+        if (fadeIntervalRef.current) {
+          clearInterval(fadeIntervalRef.current)
+          fadeIntervalRef.current = null
+        }
+        if (audioRefA.current) audioRefA.current.pause()
+        if (audioRefB.current) audioRefB.current.pause()
       }
       return
     }
@@ -365,8 +441,9 @@ export default function PlayerBar({
 
   // Sync volume
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume / 100
+    const activeAudio = getActiveAudio()
+    if (activeAudio && !fadeIntervalRef.current) {
+      activeAudio.volume = isMuted ? 0 : volume / 100
     }
     const p = playerRef.current
     if (p && typeof p.setVolume === 'function') {
@@ -468,8 +545,9 @@ export default function PlayerBar({
     const interval = setInterval(() => {
       if (isScrubbingRef.current) return
 
-      if (!useIframeFallback && audioRef.current) {
-        const audio = audioRef.current
+      if (!useIframeFallback) {
+        const audio = getActiveAudio()
+        if (!audio) return
         const cur = audio.currentTime
         const rawDur = audio.duration
         const targetDur =
@@ -629,113 +707,112 @@ export default function PlayerBar({
 
   return (
     <>
-      <audio
-        ref={audioRef}
-        preload="auto"
-        onTimeUpdate={(e) => {
-          if (!useIframeFallback && !isScrubbingRef.current) {
-            setCurrentTime(e.currentTarget.currentTime || 0)
-          }
-        }}
-        onLoadedMetadata={(e) => {
-          setIsLoadingStream(false)
-          const raw = e.currentTarget.duration
-          if (raw && isFinite(raw) && raw > 0) {
-            sanitizeDuration(raw)
-            const realDur = Math.round(raw)
-            if (
-              onTrackResolved &&
-              (!track?.duration_text ||
-                track.duration_text === '3:42' ||
-                track.duration_text === '--:--' ||
-                Math.abs(parseDurationText(track.duration_text) - realDur) > 8)
-            ) {
-              onTrackResolved(track, {
-                video_id: resolvedVid,
-                duration: realDur,
-                duration_text: formatTime(realDur)
-              })
+      {['A', 'B'].map((deck) => (
+        <audio
+          key={deck}
+          ref={deck === 'A' ? audioRefA : audioRefB}
+          preload="auto"
+          onTimeUpdate={(e) => {
+            if (activeDeckRef.current === deck && !useIframeFallback && !isScrubbingRef.current) {
+              setCurrentTime(e.currentTarget.currentTime || 0)
             }
-          }
-          if (isPlayingRef.current && e.currentTarget.paused) {
-            e.currentTarget.play().catch(() => {})
-          }
-        }}
-        onCanPlay={(e) => {
-          setIsLoadingStream(false)
-          if (isPlayingRef.current && e.currentTarget.paused) {
-            e.currentTarget.play().catch(() => {})
-          }
-        }}
-        onDurationChange={(e) => {
-          sanitizeDuration(e.currentTarget.duration)
-        }}
-        onPlay={() => {
-          setIsLoadingStream(false)
-          endedTriggeredRef.current = false
-          setIsPlaying(true)
-          lastCurChangeTimeRef.current = Date.now()
-          if (window.UpBeatNative?.updatePlayback && track) {
-            window.UpBeatNative.updatePlayback(
-              true,
-              track.title || 'UpBeat',
-              track.artist || '',
-              thumbUrl || '',
-              Math.round(effectiveDuration || 0),
-              Math.round(audioRef.current?.currentTime || 0)
-            )
-          }
-        }}
-        onPause={() => {
-          if (audioRef.current && !audioRef.current.ended) {
-            setIsPlaying(false)
-            if (window.UpBeatNative?.updatePlayback && track) {
-              window.UpBeatNative.updatePlayback(
-                false,
-                track.title || 'UpBeat',
-                track.artist || '',
-                thumbUrl || '',
-                Math.round(effectiveDuration || 0),
-                Math.round(audioRef.current?.currentTime || 0)
-              )
+          }}
+          onLoadedMetadata={(e) => {
+            if (activeDeckRef.current === deck) {
+              setIsLoadingStream(false)
+              sanitizeDuration(e.currentTarget.duration)
             }
-          }
-        }}
-        onWaiting={(e) => {
-          const cur = e.currentTarget.currentTime || 0
-          const targetDur = duration > 0 ? duration : (authoritativeDurationRef.current || parseDurationText(track?.duration_text))
-          if (targetDur > 5 && cur >= targetDur - 2.0 && !endedTriggeredRef.current) {
-            endedTriggeredRef.current = true
-            onNextRef.current()
-          }
-        }}
-        onStalled={(e) => {
-          const cur = e.currentTarget.currentTime || 0
-          const targetDur = duration > 0 ? duration : (authoritativeDurationRef.current || parseDurationText(track?.duration_text))
-          if (targetDur > 5 && cur >= targetDur - 2.0 && !endedTriggeredRef.current) {
-            endedTriggeredRef.current = true
-            onNextRef.current()
-          }
-        }}
-        onEnded={() => {
-          if (!endedTriggeredRef.current) {
-            endedTriggeredRef.current = true
-            onNextRef.current()
-          }
-        }}
-        onError={() => {
-          setIsLoadingStream(false)
-          if (resolvedVid && !useIframeFallback) {
-            // Try next fallback_id with direct stream first before iframe
-            if (fallbackQueueRef.current.length > 0) {
-              const nextAlt = fallbackQueueRef.current.shift()
-              setResolvedVid(nextAlt)
-            } else {
-              setUseIframeFallback(true)
+            if (isPlayingRef.current && e.currentTarget.paused && !fadeIntervalRef.current) {
+              e.currentTarget.play().catch(() => {})
             }
-          }
-        }}
-      />
+          }}
+          onCanPlay={(e) => {
+            if (activeDeckRef.current === deck) {
+              setIsLoadingStream(false)
+            }
+          }}
+          onDurationChange={(e) => {
+            if (activeDeckRef.current === deck) {
+              sanitizeDuration(e.currentTarget.duration)
+            }
+          }}
+          onPlay={(e) => {
+            if (activeDeckRef.current === deck) {
+              setIsLoadingStream(false)
+              endedTriggeredRef.current = false
+              setIsPlaying(true)
+              lastCurChangeTimeRef.current = Date.now()
+              if (window.UpBeatNative?.updatePlayback && track) {
+                window.UpBeatNative.updatePlayback(
+                  true,
+                  track.title || 'UpBeat',
+                  track.artist || '',
+                  thumbUrl || '',
+                  Math.round(effectiveDuration || 0),
+                  Math.round(e.currentTarget.currentTime || 0)
+                )
+              }
+            }
+          }}
+          onPause={(e) => {
+            if (activeDeckRef.current === deck && !fadeIntervalRef.current) {
+              const audio = e.currentTarget
+              if (audio && !audio.ended) {
+                setIsPlaying(false)
+                if (window.UpBeatNative?.updatePlayback && track) {
+                  window.UpBeatNative.updatePlayback(
+                    false,
+                    track.title || 'UpBeat',
+                    track.artist || '',
+                    thumbUrl || '',
+                    Math.round(effectiveDuration || 0),
+                    Math.round(audio.currentTime || 0)
+                  )
+                }
+              }
+            }
+          }}
+          onWaiting={(e) => {
+            if (activeDeckRef.current === deck) {
+              const cur = e.currentTarget.currentTime || 0
+              const targetDur = duration > 0 ? duration : (authoritativeDurationRef.current || parseDurationText(track?.duration_text))
+              if (targetDur > 5 && cur >= targetDur - 2.0 && !endedTriggeredRef.current) {
+                endedTriggeredRef.current = true
+                onNextRef.current()
+              }
+            }
+          }}
+          onStalled={(e) => {
+            if (activeDeckRef.current === deck) {
+              const cur = e.currentTarget.currentTime || 0
+              const targetDur = duration > 0 ? duration : (authoritativeDurationRef.current || parseDurationText(track?.duration_text))
+              if (targetDur > 5 && cur >= targetDur - 2.0 && !endedTriggeredRef.current) {
+                endedTriggeredRef.current = true
+                onNextRef.current()
+              }
+            }
+          }}
+          onEnded={() => {
+            if (activeDeckRef.current === deck && !endedTriggeredRef.current) {
+              endedTriggeredRef.current = true
+              onNextRef.current()
+            }
+          }}
+          onError={() => {
+            if (activeDeckRef.current === deck) {
+              setIsLoadingStream(false)
+              if (resolvedVid && !useIframeFallback) {
+                if (fallbackQueueRef.current.length > 0) {
+                  const nextAlt = fallbackQueueRef.current.shift()
+                  setResolvedVid(nextAlt)
+                } else {
+                  setUseIframeFallback(true)
+                }
+              }
+            }
+          }}
+        />
+      ))}
 
       {/* Optional Video Container */}
       <div

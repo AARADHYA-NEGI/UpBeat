@@ -346,10 +346,16 @@ def resolve_tracks_batch(tracks: List[Dict]) -> List[Dict]:
 
     def _resolve_one(track: Dict) -> Dict:
         vid = track.get("video_id", "")
-        has_valid_dur = bool(track.get("duration_text")) and track.get("duration_text") not in ("--:--", "3:30", "3:42")
-        if vid and len(vid) == 11 and has_valid_dur and track.get("thumbnail") and track.get("fallback_ids"):
+        has_valid_dur = bool(track.get("duration_text")) and track.get("duration_text") not in ("--:--", "3:30", "3:42", "3:00", "8:29", "8:08")
+        if vid and len(vid) == 11 and track.get("thumbnail"):
+            if not has_valid_dur:
+                real_d = get_video_duration(vid)
+                if real_d:
+                    track["duration_text"] = real_d
             track["url"] = f"https://www.youtube.com/watch?v={vid}"
             track["embed_url"] = f"https://www.youtube.com/embed/{vid}?autoplay=1&enablejsapi=1"
+            if "fallback_ids" not in track:
+                track["fallback_ids"] = []
             return track
 
         search_q = track.get("search_query") or f"{track.get('title', '')} {track.get('artist', '')}"
@@ -370,7 +376,7 @@ def resolve_tracks_batch(tracks: List[Dict]) -> List[Dict]:
             track["url"] = f"https://www.youtube.com/results?search_query={q_enc}"
             track["embed_url"] = ""
 
-        if (not track.get("duration_text") or track.get("duration_text") in ("--:--", "3:30", "3:42")) and track.get("video_id"):
+        if (not track.get("duration_text") or track.get("duration_text") in ("--:--", "3:30", "3:42", "3:00", "8:29", "8:08")) and track.get("video_id"):
             track["duration_text"] = get_video_duration(track["video_id"])
         return track
 
