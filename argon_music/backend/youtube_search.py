@@ -326,6 +326,19 @@ def search_youtube_single(query: str) -> Optional[Dict]:
         if not duration_text or duration_text in ("3:42", "3:30", "--:--"):
             duration_text = get_video_duration(video_id)
 
+        # Pre-verify video_id is streamable; if blocked or login required, promote first working fallback
+        if video_id:
+            info = get_audio_stream_url(video_id)
+            if not info and fallback_ids:
+                for alt_idx, alt_vid in enumerate(list(fallback_ids)):
+                    alt_info = get_audio_stream_url(alt_vid)
+                    if alt_info:
+                        fallback_ids.pop(alt_idx)
+                        fallback_ids.insert(0, video_id)
+                        video_id = alt_vid
+                        duration_text = format_seconds(int(alt_info.get("duration") or 0))
+                        break
+
         result = {
             "video_id": video_id,
             "fallback_ids": fallback_ids,

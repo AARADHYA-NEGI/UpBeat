@@ -211,8 +211,8 @@ def toggle_favorite_endpoint(req: FavoriteTrackRequest):
 @app.get("/api/audio-info/{video_id}")
 def audio_info_endpoint(video_id: str):
     info = get_audio_stream_url(video_id)
-    if not info:
-        return {"video_id": video_id, "duration": 0, "duration_text": "", "url": f"/api/audio/{video_id}"}
+    if not info or not info.get("url"):
+        raise HTTPException(status_code=404, detail="Audio stream unavailable")
     dur_sec = int(info.get("duration") or 0)
     return {
         "video_id": video_id,

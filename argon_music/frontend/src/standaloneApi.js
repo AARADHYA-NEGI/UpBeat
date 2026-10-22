@@ -685,7 +685,10 @@ export async function getAudioSource(videoId) {
         }
       }
     } catch {}
-    return { url: apiUrl(`/audio/${videoId}`), duration: 0 }
+    // If Mac backend fails (e.g. yt-dlp bot challenge/login-required), try direct Innertube player
+    const standalone = await resolveStandaloneAudio(videoId)
+    if (standalone?.url) return standalone
+    return null
   }
   return resolveStandaloneAudio(videoId)
 }

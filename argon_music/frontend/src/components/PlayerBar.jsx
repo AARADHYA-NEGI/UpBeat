@@ -77,8 +77,8 @@ export default function PlayerBar({
   const lastCurPosRef = useRef(0)
   const lastCurChangeTimeRef = useRef(Date.now())
 
-  // Defends against the WebKit / Chromium HE-AAC SBR bug where sample rate mismatch
-  // causes audio.duration to inflate by ~2x (e.g. 3m28s -> 6m56s).
+  // Defends against the WebKit / Chromium HE-AAC SBR bug (2x duration) and
+  // 32kbps partial VBR bitrate estimation bug (which falsely inflates 4:00 -> 15:32).
   const sanitizeDuration = (rawDur) => {
     if (useIframeFallback) return
     if (typeof rawDur !== 'number' || !isFinite(rawDur) || rawDur <= 0) return
@@ -86,31 +86,11 @@ export default function PlayerBar({
     const authDur = authoritativeDurationRef.current
 
     if (authDur > 0) {
-      const ratio = rawDur / authDur
-      // If browser duration is roughly double the canonical track duration (HE-AAC / SBR bug),
-      // reject the inflated browser duration and clamp back to the authoritative duration.
-      if (ratio >= 1.6 && ratio <= 2.4) {
-        setDuration(authDur)
-        return
-      }
-      // If authoritative duration was the stale 3:42 fallback or drastically smaller than actual stream
-      if (ratio > 2.4) {
-        authoritativeDurationRef.current = Math.round(rawDur)
-        setDuration(Math.round(rawDur))
-        return
-      }
-      // If browser duration is significantly longer (> 25% but <= 240%) than canonical YouTube track duration
-      if (ratio > 1.25) {
-        setDuration(authDur)
-        return
-      }
-      // If browser reports only initial partial buffer duration (< 60%)
-      if (ratio < 0.6) {
-        setDuration(authDur)
-        return
-      }
-      // Consistent within +/- 25% tolerance
-      setDuration(Math.round(rawDur))
+      // The authoritative duration is established from official YouTube track metadata
+      // and /api/audio-info. WebKit/Chromium audio.duration is notoriously prone to
+      // 32kbps bitrate inflation (e.g. 4:00 -> 15:32) and HE-AAC SBR 2x bug (4:00 -> 8:00).
+      // Always clamp duration to the authoritative duration!
+      setDuration(authDur)
     } else {
       authoritativeDurationRef.current = Math.round(rawDur)
       setDuration(Math.round(rawDur))
@@ -174,7 +154,9 @@ export default function PlayerBar({
     const activeAudio = getActiveAudio()
     if (!useIframeFallback && activeAudio) {
       try {
-        activeAudio.currentTime = sec
+        if (activeAudio.readyState >= 1) {
+          activeAudio.currentTime = sec
+        }
       } catch {}
       return
     }
@@ -324,6 +306,11 @@ export default function PlayerBar({
       }
 
       if (!streamSrc) {
+        if (fallbackQueueRef.current.length > 0) {
+          const nextVid = fallbackQueueRef.current.shift()
+          setResolvedVid(nextVid)
+          return
+        }
         setUseIframeFallback(true)
         return
       }
@@ -341,7 +328,13 @@ export default function PlayerBar({
         targetAudio.volume = 0
         try {
           await targetAudio.play()
-        } catch {}
+        } catch {
+          if (fallbackQueueRef.current.length > 0) {
+            const nextVid = fallbackQueueRef.current.shift()
+            setResolvedVid(nextVid)
+            return
+          }
+        }
 
         if (cancelled) {
           targetAudio.pause()
@@ -388,7 +381,12 @@ export default function PlayerBar({
         activeDeckRef.current = targetDeck
         targetAudio.volume = targetVol
         if (isPlayingRef.current) {
-          targetAudio.play().catch(() => {})
+          targetAudio.play().catch(() => {
+            if (fallbackQueueRef.current.length > 0) {
+              const nextVid = fallbackQueueRef.current.shift()
+              setResolvedVid(nextVid)
+            }
+          })
         }
       }
     })()
@@ -799,16 +797,12 @@ export default function PlayerBar({
             }
           }}
           onError={() => {
-            if (activeDeckRef.current === deck) {
-              setIsLoadingStream(false)
-              if (resolvedVid && !useIframeFallback) {
-                if (fallbackQueueRef.current.length > 0) {
-                  const nextAlt = fallbackQueueRef.current.shift()
-                  setResolvedVid(nextAlt)
-                } else {
-                  setUseIframeFallback(true)
-                }
-              }
+            setIsLoadingStream(false)
+            if (fallbackQueueRef.current.length > 0) {
+              const nextAlt = fallbackQueueRef.current.shift()
+              setResolvedVid(nextAlt)
+            } else if (!useIframeFallback) {
+              setUseIframeFallback(true)
             }
           }}
         />
