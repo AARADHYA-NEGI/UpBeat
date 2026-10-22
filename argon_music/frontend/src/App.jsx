@@ -737,17 +737,17 @@ export default function App() {
     : null
 
   return (
-    <div className="h-[100dvh] w-screen bg-[#0a0a0c] text-[#f5f5f5] flex flex-col overflow-hidden">
-      {/* Subtle Status Notification */}
+    <div className="h-[100dvh] w-screen bg-[#0a0a0d] text-[#f4f4f5] flex flex-col overflow-hidden">
+      {/* Subtle Antigravity Status Notification */}
       {notification && (
         <div className="fixed bottom-36 sm:bottom-20 left-4 right-4 sm:left-6 sm:right-auto z-50">
-          <div className={`px-3.5 py-2 rounded-md border text-xs font-mono flex items-center gap-2 shadow-xl ${
+          <div className={`px-3.5 py-2 rounded-lg border text-xs font-mono flex items-center gap-2 shadow-2xl backdrop-blur-md ${
             notification.type === 'error'
-              ? 'bg-[#1c1012] text-[#fca5a5] border-[#4c1d24]'
-              : 'bg-[#16161c] text-[#e4e4e7] border-indigo-500/40'
+              ? 'bg-[#181012] text-[#fca5a5] border-rose-500/40'
+              : 'bg-[#131318] text-[#f4f4f5] border-sky-500/40'
           }`}>
             <span className={`w-2 h-2 rounded-full shrink-0 ${
-              notification.type === 'error' ? 'bg-red-500' : 'bg-indigo-400'
+              notification.type === 'error' ? 'bg-rose-500' : 'bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.8)]'
             }`} />
             <span className="truncate">{notification.msg}</span>
           </div>
@@ -783,6 +783,11 @@ export default function App() {
           setTrackCount={setTrackCount}
           activePresetId={activePresetId}
           onSelectPreset={handleSelectPreset}
+          onNewSession={() => {
+            setPrompt('')
+            setActivePresetId(null)
+            showNotify('New session ready', 'info')
+          }}
           extractedCount={extractedTracks.length}
           favoritesCount={favorites.length}
           onOpenFavoritesTab={() => setActiveTab('favorites')}
@@ -793,7 +798,7 @@ export default function App() {
           onCloseMobile={() => setIsSidebarOpen(false)}
         />
 
-        <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#0a0a0c]">
+        <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#0a0a0d]">
           {activeTab === 'curator' ? (
             <>
               <CuratorPrompt
@@ -805,6 +810,7 @@ export default function App() {
                 setSearchMode={setSearchMode}
                 isGenerating={isGenerating}
                 isSearching={isSearching}
+                selectedModel={selectedModel}
               />
               <PlaylistView
                 playlist={playlist}
@@ -880,63 +886,63 @@ export default function App() {
         onToggleFavorite={handleToggleFavorite}
       />
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="sm:hidden pb-safe bg-[#0b0b0e] border-t border-[#1e1e26] grid grid-cols-5 items-center shrink-0 z-30 select-none">
+      {/* Mobile Bottom Navigation Bar - Antigravity Minimal */}
+      <nav className="sm:hidden pb-safe bg-[#0a0a0d] border-t border-[#1c1c22] grid grid-cols-5 items-center shrink-0 z-30 select-none">
         <button
           onClick={() => { setActiveTab('curator'); setIsSidebarOpen(false) }}
           className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-            activeTab === 'curator' && !isSidebarOpen ? 'text-indigo-400' : 'text-[#8e8e96]'
+            activeTab === 'curator' && !isSidebarOpen ? 'text-sky-400 font-medium' : 'text-[#71717a]'
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          <span className="text-[10px] font-medium">Curator</span>
+          <span className="text-[10px]">Curator</span>
         </button>
 
         <button
           onClick={() => { setActiveTab('favorites'); setIsSidebarOpen(false) }}
           className={`relative flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-            activeTab === 'favorites' && !isSidebarOpen ? 'text-rose-400' : 'text-[#8e8e96]'
+            activeTab === 'favorites' && !isSidebarOpen ? 'text-rose-400 font-medium' : 'text-[#71717a]'
           }`}
         >
           <div className="relative">
-            <Heart className={`w-4 h-4 ${favorites.length > 0 ? 'fill-rose-500/40' : ''}`} />
+            <Heart className={`w-4 h-4 ${favorites.length > 0 ? 'fill-rose-500/40 text-rose-400' : ''}`} />
             {favorites.length > 0 && (
               <span className="absolute -top-1.5 -right-2.5 text-[9px] font-mono px-1 rounded-full bg-rose-500/20 text-rose-300">
                 {favorites.length}
               </span>
             )}
           </div>
-          <span className="text-[10px] font-medium">Liked</span>
+          <span className="text-[10px]">Liked</span>
         </button>
 
         <button
           onClick={() => setIsSidebarOpen((prev) => !prev)}
           className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-            isSidebarOpen ? 'text-indigo-400' : 'text-[#8e8e96]'
+            isSidebarOpen ? 'text-sky-400 font-medium' : 'text-[#71717a]'
           }`}
         >
           <Sliders className="w-4 h-4" />
-          <span className="text-[10px] font-medium">Modes</span>
+          <span className="text-[10px]">Modes</span>
         </button>
 
         <button
           onClick={() => { setActiveTab('library'); setIsSidebarOpen(false) }}
           className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-            activeTab === 'library' && !isSidebarOpen ? 'text-indigo-400' : 'text-[#8e8e96]'
+            activeTab === 'library' && !isSidebarOpen ? 'text-sky-400 font-medium' : 'text-[#71717a]'
           }`}
         >
           <Disc className="w-4 h-4" />
-          <span className="text-[10px] font-medium">Seeds</span>
+          <span className="text-[10px]">Seeds</span>
         </button>
 
         <button
           onClick={() => { setActiveTab('dna'); setIsSidebarOpen(false) }}
           className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-            activeTab === 'dna' && !isSidebarOpen ? 'text-indigo-400' : 'text-[#8e8e96]'
+            activeTab === 'dna' && !isSidebarOpen ? 'text-sky-400 font-medium' : 'text-[#71717a]'
           }`}
         >
           <Dna className="w-4 h-4" />
-          <span className="text-[10px] font-medium">Profile</span>
+          <span className="text-[10px]">Profile</span>
         </button>
       </nav>
     </div>
