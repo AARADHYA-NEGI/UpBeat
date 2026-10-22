@@ -49,7 +49,7 @@ def _get_ydl() -> yt_dlp.YoutubeDL:
     if ydl is None:
         ydl = yt_dlp.YoutubeDL(
             {
-                "format": "bestaudio[ext=m4a]/bestaudio/best",
+                "format": "bestaudio[ext=m4a][format_id!=139][format_id!=599]/bestaudio[ext=m4a]/bestaudio/best",
                 "quiet": True,
                 "no_warnings": True,
                 "noplaylist": True,
@@ -611,6 +611,7 @@ def _parse_ytm_songs(data: Dict[str, Any]) -> List[Dict[str, Any]]:
         if not vid or len(vid) != 11 or vid in seen:
             continue
         cols = [_extract_runs_text(c, "musicResponsiveListItemFlexColumnRenderer") for c in item.get("flexColumns", [])]
+        fixed = [_extract_runs_text(c, "musicResponsiveListItemFixedColumnRenderer") for c in item.get("fixedColumns", [])]
         if not cols or not cols[0]:
             continue
         meta = cols[1] if len(cols) > 1 else ""
@@ -621,8 +622,14 @@ def _parse_ytm_songs(data: Dict[str, Any]) -> List[Dict[str, Any]]:
         if parts and parts[0] in ("Song", "Video"):
             parts = parts[1:]
         dur = ""
-        if parts and re.match(r"^\d{1,2}:\d{2}(:\d{2})?$", parts[-1]):
+        if fixed and re.match(r"^\d{1,2}:\d{2}(:\d{2})?$", fixed[0]):
+            dur = fixed[0]
+        elif parts and re.match(r"^\d{1,2}:\d{2}(:\d{2})?$", parts[-1]):
             dur = parts.pop()
+        else:
+            m = re.search(r"\b(\d{1,2}:\d{2}(?::\d{2})?)\b", " ".join(cols + fixed))
+            if m:
+                dur = m.group(1)
         artist = parts[0] if parts else "Unknown Artist"
         album = parts[1] if len(parts) > 1 else ""
         bits = []

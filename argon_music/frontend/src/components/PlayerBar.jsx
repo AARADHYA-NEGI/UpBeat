@@ -13,8 +13,12 @@ function formatTime(sec) {
 }
 
 function parseDurationText(str) {
-  if (!str || typeof str !== 'string' || str === '--:--') return 0
-  const parts = str.trim().split(':').map(Number)
+  if (!str) return 0
+  if (typeof str === 'number' && isFinite(str) && str > 0) return Math.round(str)
+  if (typeof str !== 'string' || str === '--:--') return 0
+  const clean = str.trim()
+  if (/^\d+$/.test(clean)) return parseInt(clean, 10)
+  const parts = clean.split(':').map(Number)
   if (parts.some((n) => isNaN(n))) return 0
   if (parts.length === 2) return parts[0] * 60 + parts[1]
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2]
@@ -56,6 +60,45 @@ export default function PlayerBar({
   const isScrubbingRef = useRef(false)
   const lastNativeReportSecRef = useRef(0)
 
+  // Global fix for HE-AAC / SBR 2x duration desync and player freeze bug
+  const authoritativeDurationRef = useRef(0)
+  const lastCurPosRef = useRef(0)
+  const lastCurChangeTimeRef = useRef(Date.now())
+
+  // Defends against the WebKit / Chromium HE-AAC SBR bug where sample rate mismatch
+  // causes audio.duration to inflate by ~2x (e.g. 3m28s -> 6m56s).
+  const sanitizeDuration = (rawDur) => {
+    if (useIframeFallback) return
+    if (typeof rawDur !== 'number' || !isFinite(rawDur) || rawDur <= 0) return
+
+    const authDur = authoritativeDurationRef.current
+
+    if (authDur > 0) {
+      const ratio = rawDur / authDur
+      // If browser duration is roughly double the canonical track duration (HE-AAC / SBR bug),
+      // reject the inflated browser duration and clamp back to the authoritative duration.
+      if (ratio >= 1.6 && ratio <= 2.4) {
+        setDuration(authDur)
+        return
+      }
+      // If browser duration is significantly longer (> 25%) than canonical YouTube track duration
+      if (ratio > 1.25) {
+        setDuration(authDur)
+        return
+      }
+      // If browser reports only initial partial buffer duration (< 60%)
+      if (ratio < 0.6) {
+        setDuration(authDur)
+        return
+      }
+      // Consistent within +/- 25% tolerance
+      setDuration(Math.round(rawDur))
+    } else {
+      authoritativeDurationRef.current = Math.round(rawDur)
+      setDuration(Math.round(rawDur))
+    }
+  }
+
   const onNextRef = useRef(onNext)
   const isPlayingRef = useRef(isPlaying)
   useEffect(() => {
@@ -83,8 +126,16 @@ export default function PlayerBar({
     setCurrentTime(0)
     setScrubTime(0)
     setIsScrubbing(false)
-    setDuration(parseDurationText(track?.duration_text))
+    lastCurPosRef.current = 0
+    lastCurChangeTimeRef.current = Date.now()
     setUseIframeFallback(false)
+
+    const initialDur =
+      parseDurationText(track?.duration_text) ||
+      Number(track?.duration_sec || 0) ||
+      Number(track?.duration || 0)
+    authoritativeDurationRef.current = initialDur
+    setDuration(initialDur)
 
     if (!track) {
       setResolvedVid('')
@@ -114,7 +165,10 @@ export default function PlayerBar({
         setResolvedVid(data.video_id)
         if (data.duration_text) {
           const parsed = parseDurationText(data.duration_text)
-          if (parsed > 0) setDuration((prev) => (prev > 0 ? prev : parsed))
+          if (parsed > 0) {
+            authoritativeDurationRef.current = parsed
+            setDuration(parsed)
+          }
         }
         fallbackQueueRef.current = [...(data.fallback_ids || [])]
         if (onTrackResolved) onTrackResolved(track, data)
@@ -147,7 +201,10 @@ export default function PlayerBar({
         const streamSrc = typeof streamInfo === 'string' ? streamInfo : streamInfo?.url
         const streamDur = typeof streamInfo === 'object' ? Number(streamInfo?.duration || 0) : 0
         if (streamDur > 0) {
-          setDuration((prev) => (prev > 0 ? prev : streamDur))
+          if (authoritativeDurationRef.current <= 0 || Math.abs(authoritativeDurationRef.current - streamDur) > 3) {
+            authoritativeDurationRef.current = streamDur
+            setDuration(streamDur)
+          }
         }
 
         if (!streamSrc) {
@@ -310,10 +367,25 @@ export default function PlayerBar({
       if (isScrubbingRef.current) return
 
       if (!useIframeFallback && audioRef.current) {
-        const cur = audioRef.current.currentTime
-        const dur = audioRef.current.duration
+        const audio = audioRef.current
+        const cur = audio.currentTime
+        const rawDur = audio.duration
+        const targetDur =
+          duration > 0
+            ? duration
+            : (authoritativeDurationRef.current > 0
+                ? authoritativeDurationRef.current
+                : parseDurationText(track?.duration_text))
+
         if (typeof cur === 'number' && !isNaN(cur) && cur >= 0) {
           setCurrentTime(cur)
+
+          // Track progress advancement for stall / frozen detection
+          if (Math.abs(cur - lastCurPosRef.current) > 0.05) {
+            lastCurPosRef.current = cur
+            lastCurChangeTimeRef.current = Date.now()
+          }
+
           if (Math.abs(cur - lastNativeReportSecRef.current) >= 3) {
             lastNativeReportSecRef.current = cur
             if (window.UpBeatNative?.updatePlayback && track) {
@@ -322,18 +394,36 @@ export default function PlayerBar({
                 track.title || 'UpBeat',
                 track.artist || '',
                 thumbUrl || '',
-                Math.round(dur || effectiveDuration || 0),
+                Math.round(targetDur || 0),
                 Math.round(cur)
               )
             }
           }
         }
-        if (typeof dur === 'number' && isFinite(dur) && dur > 0) {
-          setDuration(dur)
-          if ((audioRef.current.ended || cur >= dur - 0.25) && dur > 5 && !endedTriggeredRef.current) {
-            endedTriggeredRef.current = true
-            onNextRef.current()
-          }
+
+        // Sanitize audio duration to prevent 2x SBR bug from inflating UI
+        if (typeof rawDur === 'number' && isFinite(rawDur) && rawDur > 0) {
+          sanitizeDuration(rawDur)
+        }
+
+        // Multi-tier End-of-Track and Freeze Protection:
+        // 1. Audio element fired ended
+        // 2. Playback reached real target duration (within 0.4s)
+        // 3. Audio stalled near the true end (within 2s) and hasn't advanced for >= 1.2s
+        // 4. Fallback 2x SBR freeze detection: stopped at half of raw browser duration for >= 1.8s
+        const timeSinceAdvance = Date.now() - (lastCurChangeTimeRef.current || Date.now())
+        const isEnded = Boolean(audio.ended)
+        const reachedTargetEnd = targetDur > 5 && cur >= targetDur - 0.4
+        const stalledNearEnd = targetDur > 5 && cur >= targetDur - 2.0 && timeSinceAdvance >= 1200
+        const isSbr2xFreeze =
+          typeof rawDur === 'number' &&
+          rawDur > 20 &&
+          Math.abs(cur - rawDur / 2) <= 3.0 &&
+          timeSinceAdvance >= 1800
+
+        if ((isEnded || reachedTargetEnd || stalledNearEnd || isSbr2xFreeze) && !endedTriggeredRef.current) {
+          endedTriggeredRef.current = true
+          onNextRef.current()
         }
         return
       }
@@ -348,8 +438,9 @@ export default function PlayerBar({
           if (typeof p.getDuration === 'function') {
             const dur = p.getDuration()
             if (typeof dur === 'number' && isFinite(dur) && dur > 0) {
-              setDuration(dur)
-              if (cur >= dur - 0.3 && dur > 5 && !endedTriggeredRef.current) {
+              sanitizeDuration(dur)
+              const effectiveDur = duration > 0 ? duration : (authoritativeDurationRef.current || parseDurationText(track?.duration_text))
+              if (cur >= effectiveDur - 0.3 && effectiveDur > 5 && !endedTriggeredRef.current) {
                 endedTriggeredRef.current = true
                 onNextRef.current()
               }
@@ -360,7 +451,7 @@ export default function PlayerBar({
     }, 250)
 
     return () => clearInterval(interval)
-  }, [isPlaying, playbackMode, useIframeFallback])
+  }, [isPlaying, playbackMode, useIframeFallback, duration, track])
 
   // Sync Android Foreground Media Service + Android Auto + Lock Screen MediaSession
   useEffect(() => {
@@ -416,6 +507,9 @@ export default function PlayerBar({
   const commitSeek = (targetSec) => {
     const sec = Math.max(0, Number(targetSec) || 0)
     setCurrentTime(sec)
+    lastCurPosRef.current = sec
+    lastCurChangeTimeRef.current = Date.now()
+    endedTriggeredRef.current = false
     lastNativeReportSecRef.current = sec
     if (window.UpBeatNative?.updatePlayback && track) {
       window.UpBeatNative.updatePlayback(
@@ -463,8 +557,16 @@ export default function PlayerBar({
   }
 
   const isSafariMode = playbackMode === 'safari'
-  const effectiveDuration = duration > 0 ? duration : parseDurationText(track?.duration_text)
-  const displayTime = isScrubbing ? scrubTime : currentTime
+  const effectiveDuration =
+    duration > 0
+      ? duration
+      : (authoritativeDurationRef.current > 0
+          ? authoritativeDurationRef.current
+          : parseDurationText(track?.duration_text))
+  const displayTime = Math.min(
+    isScrubbing ? scrubTime : currentTime,
+    effectiveDuration > 0 ? effectiveDuration : Infinity
+  )
   const progressPct = effectiveDuration > 0 ? Math.min(100, (displayTime / effectiveDuration) * 100) : 0
   const thumbUrl = track?.thumbnail || (resolvedVid ? `https://i.ytimg.com/vi/${resolvedVid}/hqdefault.jpg` : '')
   const volumeVal = isMuted ? 0 : volume
@@ -482,9 +584,7 @@ export default function PlayerBar({
         }}
         onLoadedMetadata={(e) => {
           setIsLoadingStream(false)
-          if (!useIframeFallback && e.currentTarget.duration && isFinite(e.currentTarget.duration)) {
-            setDuration(e.currentTarget.duration)
-          }
+          sanitizeDuration(e.currentTarget.duration)
           if (isPlayingRef.current && e.currentTarget.paused) {
             e.currentTarget.play().catch(() => {})
           }
@@ -496,18 +596,33 @@ export default function PlayerBar({
           }
         }}
         onDurationChange={(e) => {
-          if (!useIframeFallback && e.currentTarget.duration && isFinite(e.currentTarget.duration) && e.currentTarget.duration > 0) {
-            setDuration(e.currentTarget.duration)
-          }
+          sanitizeDuration(e.currentTarget.duration)
         }}
         onPlay={() => {
           setIsLoadingStream(false)
           endedTriggeredRef.current = false
           setIsPlaying(true)
+          lastCurChangeTimeRef.current = Date.now()
         }}
         onPause={() => {
           if (audioRef.current && !audioRef.current.ended) {
             setIsPlaying(false)
+          }
+        }}
+        onWaiting={(e) => {
+          const cur = e.currentTarget.currentTime || 0
+          const targetDur = duration > 0 ? duration : (authoritativeDurationRef.current || parseDurationText(track?.duration_text))
+          if (targetDur > 5 && cur >= targetDur - 2.0 && !endedTriggeredRef.current) {
+            endedTriggeredRef.current = true
+            onNextRef.current()
+          }
+        }}
+        onStalled={(e) => {
+          const cur = e.currentTarget.currentTime || 0
+          const targetDur = duration > 0 ? duration : (authoritativeDurationRef.current || parseDurationText(track?.duration_text))
+          if (targetDur > 5 && cur >= targetDur - 2.0 && !endedTriggeredRef.current) {
+            endedTriggeredRef.current = true
+            onNextRef.current()
           }
         }}
         onEnded={() => {

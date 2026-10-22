@@ -550,10 +550,19 @@ async function ytmSearchItems(query) {
     const cols = (item.flexColumns || []).map((c) =>
       (c?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || []).map((r) => r.text || '').join('').trim()
     )
+    const fixed = (item.fixedColumns || []).map((c) =>
+      (c?.musicResponsiveListItemFixedColumnRenderer?.text?.runs || []).map((r) => r.text || '').join('').trim()
+    )
     const meta = cols[1] || ''
     if (BLOCKED_META.some((b) => meta.includes(b))) continue
     const metaParts = meta.split('•').map((s) => s.trim()).filter(Boolean)
-    const dur = (cols.join(' ').match(/\b(\d{1,2}:\d{2})\b/) || [])[1] || ''
+    let dur = ''
+    if (fixed[0] && /^\d{1,2}:\d{2}(:\d{2})?$/.test(fixed[0])) {
+      dur = fixed[0]
+    } else {
+      const m = [...cols, ...fixed].join(' ').match(/\b(\d{1,2}:\d{2}(:\d{2})?)\b/)
+      if (m) dur = m[1]
+    }
     if (!out.some((o) => o.video_id === vid)) {
       out.push({ title: cols[0] || '', artist: metaParts[1] || meta, video_id: vid, duration_text: dur })
     }
@@ -637,7 +646,13 @@ export async function resolveStandaloneAudio(videoId) {
       const progressive = (data?.streamingData?.formats || []).filter((f) => f.url)
       const adaptive = (data?.streamingData?.adaptiveFormats || [])
         .filter((f) => f.url && (f.mimeType || '').startsWith('audio/mp4'))
-        .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0))
+        .sort((a, b) => {
+          // Deprioritize HE-AAC (mp4a.40.5 / itag 139 / itag 599) to avoid the SBR 2x duration bug in WebKit/Chromium
+          const aIsHe = (a.mimeType || '').includes('mp4a.40.5') || a.itag === 139 || a.itag === 599
+          const bIsHe = (b.mimeType || '').includes('mp4a.40.5') || b.itag === 139 || b.itag === 599
+          if (aIsHe !== bIsHe) return aIsHe ? 1 : -1
+          return (b.bitrate || 0) - (a.bitrate || 0)
+        })
 
       // ANDROID adaptiveFormats require a poToken (403 without one), whereas ANDROID progressive (itag 18)
       // and IOS adaptiveFormats work directly without poToken.
@@ -659,7 +674,19 @@ export async function resolveStandaloneAudio(videoId) {
 
 /** Audio source for the player: Mac backend proxy when available, otherwise direct stream. */
 export async function getAudioSource(videoId) {
-  if (hasBackend()) return { url: apiUrl(`/audio/${videoId}`), duration: 0 }
+  if (hasBackend()) {
+    try {
+      const resp = await fetch(apiUrl(`/audio-info/${videoId}`))
+      if (resp.ok) {
+        const info = await resp.json()
+        return {
+          url: apiUrl(`/audio/${videoId}`),
+          duration: Number(info?.duration || 0)
+        }
+      }
+    } catch {}
+    return { url: apiUrl(`/audio/${videoId}`), duration: 0 }
+  }
   return resolveStandaloneAudio(videoId)
 }
 

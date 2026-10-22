@@ -207,6 +207,20 @@ def toggle_favorite_endpoint(req: FavoriteTrackRequest):
     return toggle_favorite(req.track)
 
 
+@app.get("/api/audio-info/{video_id}")
+def audio_info_endpoint(video_id: str):
+    info = get_audio_stream_url(video_id)
+    if not info:
+        return {"video_id": video_id, "duration": 0, "url": f"/api/audio/{video_id}"}
+    return {
+        "video_id": video_id,
+        "duration": int(info.get("duration") or 0),
+        "url": f"/api/audio/{video_id}",
+        "title": info.get("title", ""),
+        "artist": info.get("uploader", ""),
+    }
+
+
 _STREAM_HTTP_SESSION = ext_requests.Session()
 _STREAM_HTTP_SESSION.mount(
     "https://",
@@ -275,6 +289,8 @@ def stream_audio_endpoint(video_id: str, request: Request):
         "Accept-Ranges": "bytes",
         "Cache-Control": "public, max-age=3600",
     }
+    if info.get("duration"):
+        resp_headers["X-Track-Duration"] = str(info["duration"])
     status_code = 206 if (is_partial or total_size > 0) else 200
     if total_size > 0 and end is not None:
         content_len = max(0, end - start + 1)
