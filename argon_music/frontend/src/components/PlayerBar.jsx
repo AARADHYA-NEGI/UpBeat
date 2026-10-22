@@ -321,26 +321,23 @@ export default function PlayerBar({
 
     ;(async () => {
       // If the active audio is already playing this video, nothing to load
-      if (currentActive?.dataset?.vid === resolvedVid) return
+      if (currentActive?.dataset?.vid === resolvedVid && !currentActive.paused) {
+        setIsLoadingStream(false)
+        return
+      }
 
-      setIsLoadingStream(true)
-      const streamInfo = await getAudioSource(resolvedVid)
-      if (cancelled) return
-      setIsLoadingStream(false)
+      const isMacBackend = hasBackend()
+      let streamSrc = isMacBackend ? `${getApiBase()}/audio/${resolvedVid}` : null
 
-      const streamSrc = typeof streamInfo === 'string' ? streamInfo : streamInfo?.url
-      const streamDur = typeof streamInfo === 'object' ? Number(streamInfo?.duration || 0) : 0
-      if (streamDur > 0) {
-        if (authoritativeDurationRef.current <= 0 || Math.abs(authoritativeDurationRef.current - streamDur) > 3) {
-          authoritativeDurationRef.current = streamDur
-          setDuration(streamDur)
-        }
-        if (onTrackResolved) {
-          onTrackResolved(track, {
-            video_id: resolvedVid,
-            duration: streamDur,
-            duration_text: formatTime(streamDur)
-          })
+      // In standalone mode (or if backend is missing), resolve audio asynchronously
+      if (!streamSrc) {
+        setIsLoadingStream(true)
+        try {
+          const streamInfo = await getAudioSource(resolvedVid)
+          if (cancelled) return
+          streamSrc = typeof streamInfo === 'string' ? streamInfo : streamInfo?.url
+        } catch {} finally {
+          setIsLoadingStream(false)
         }
       }
 
@@ -755,18 +752,16 @@ export default function PlayerBar({
             }
           }}
           onLoadedMetadata={(e) => {
+            setIsLoadingStream(false)
             if (activeDeckRef.current === deck) {
-              setIsLoadingStream(false)
               sanitizeDuration(e.currentTarget.duration)
             }
             if (isPlayingRef.current && e.currentTarget.paused && !fadeIntervalRef.current) {
               e.currentTarget.play().catch(() => {})
             }
           }}
-          onCanPlay={(e) => {
-            if (activeDeckRef.current === deck) {
-              setIsLoadingStream(false)
-            }
+          onCanPlay={() => {
+            setIsLoadingStream(false)
           }}
           onDurationChange={(e) => {
             if (activeDeckRef.current === deck) {
@@ -774,8 +769,8 @@ export default function PlayerBar({
             }
           }}
           onPlay={(e) => {
+            setIsLoadingStream(false)
             if (activeDeckRef.current === deck) {
-              setIsLoadingStream(false)
               endedTriggeredRef.current = false
               setIsPlaying(true)
               lastCurChangeTimeRef.current = Date.now()

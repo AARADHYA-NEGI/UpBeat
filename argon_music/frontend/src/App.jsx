@@ -715,23 +715,27 @@ export default function App() {
 
     setPlaylist((prev) => {
       if (!prev || !prev.tracks) return prev
-      return {
-        ...prev,
-        tracks: prev.tracks.map((t) => {
-          const isMatch =
-            (t.video_id && t.video_id === (resolvedData.video_id || track.video_id)) ||
-            (t.title === track.title && t.artist === track.artist)
-          if (!isMatch) return t
-          const finalDur = resolvedDurText || (badDurs.has(t.duration_text) ? '' : t.duration_text)
-          return {
-            ...t,
-            video_id: resolvedData.video_id || t.video_id,
-            fallback_ids: resolvedData.fallback_ids?.length ? resolvedData.fallback_ids : t.fallback_ids,
-            thumbnail: resolvedData.thumbnail || t.thumbnail,
-            duration_text: finalDur
-          }
-        })
-      }
+      let changed = false
+      const nextTracks = prev.tracks.map((t) => {
+        const isMatch =
+          (t.video_id && t.video_id === (resolvedData.video_id || track.video_id)) ||
+          (t.title === track.title && t.artist === track.artist)
+        if (!isMatch) return t
+        const finalDur = resolvedDurText || (badDurs.has(t.duration_text) ? '' : t.duration_text)
+        const newVid = resolvedData.video_id || t.video_id
+        if (t.video_id === newVid && t.duration_text === finalDur && t.thumbnail) {
+          return t
+        }
+        changed = true
+        return {
+          ...t,
+          video_id: newVid,
+          fallback_ids: resolvedData.fallback_ids?.length ? resolvedData.fallback_ids : t.fallback_ids,
+          thumbnail: resolvedData.thumbnail || t.thumbnail,
+          duration_text: finalDur
+        }
+      })
+      return changed ? { ...prev, tracks: nextTracks } : prev
     })
     setCurrentTrack((cur) => {
       if (!cur) return cur
@@ -740,9 +744,13 @@ export default function App() {
         (cur.title === track.title && cur.artist === track.artist)
       if (!isMatch) return cur
       const finalDur = resolvedDurText || (badDurs.has(cur.duration_text) ? '' : cur.duration_text)
+      const newVid = resolvedData.video_id || cur.video_id
+      if (cur.video_id === newVid && cur.duration_text === finalDur && cur.thumbnail) {
+        return cur
+      }
       return {
         ...cur,
-        video_id: resolvedData.video_id || cur.video_id,
+        video_id: newVid,
         fallback_ids: resolvedData.fallback_ids?.length ? resolvedData.fallback_ids : cur.fallback_ids,
         thumbnail: resolvedData.thumbnail || cur.thumbnail,
         duration_text: finalDur
