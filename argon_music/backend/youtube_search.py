@@ -243,86 +243,251 @@ def search_youtube_music_catalog(query: str, max_items: int = 12) -> List[Dict[s
     return catalog
 
 
+_YT_WEB_CONTEXT = {
+    "client": {
+        "clientName": "WEB",
+        "clientVersion": "2.20260918.01.00",
+        "hl": "en",
+        "gl": "IN",
+    }
+}
+_YTM_SEARCH_CONTEXT = {
+    "client": {
+        "clientName": "WEB_REMIX",
+        "clientVersion": "1.20260918.01.00",
+        "hl": "en",
+        "gl": "IN",
+    }
+}
+_YTM_SONGS_PARAM = "EgWKAQIIAWoKEAkQBRAKEAMQBA=="
+_STOPWORDS = {"songs", "song", "music", "the", "a", "an", "of", "and", "best", "top", "new", "latest", "playlist", "mix", "for", "to", "in"}
+
+
+def _runs_text(obj: Any) -> str:
+    if not isinstance(obj, dict):
+        return ""
+    if "simpleText" in obj:
+        return obj.get("simpleText", "")
+    return "".join(r.get("text", "") for r in obj.get("runs", []))
+
+
+def _query_tokens(q: str) -> List[str]:
+    toks = re.findall(r"[a-z0-9]+", q.lower())
+    core = [t for t in toks if t not in _STOPWORDS]
+    return core or toks
+
+
+def _relevance(text: str, tokens: List[str]) -> float:
+    if not tokens:
+        return 0.0
+    t = text.lower()
+    return sum(1 for tok in tokens if tok in t) / len(tokens)
+
+
+def _duration_to_seconds(d: str) -> int:
+    try:
+        parts = [int(p) for p in d.split(":")]
+    except ValueError:
+        return 0
+    secs = 0
+    for p in parts:
+        secs = secs * 60 + p
+    return secs
+
+
+def _yt_web_search(query: str, pages: int = 2) -> Dict[str, Any]:
+    """Exact same results (and order) as typing the query on youtube.com."""
+    url = "https://www.youtube.com/youtubei/v1/search?prettyPrint=false"
+    videos: List[Dict[str, Any]] = []
+    playlists: List[Dict[str, Any]] = []
+    seen_v, seen_p = set(), set()
+    payload: Dict[str, Any] = {"context": _YT_WEB_CONTEXT, "query": query}
+
+    for _ in range(max(1, pages)):
+        try:
+            r = _SESSION.post(url, json=payload, timeout=5.0)
+            if r.status_code != 200:
+                break
+            data = r.json()
+        except Exception:
+            break
+
+        for v in _find_nodes(data, "videoRenderer"):
+            vid = v.get("videoId", "")
+            dur = _runs_text(v.get("lengthText", {}))
+            # Skip live streams / premieres (no fixed duration, not streamable as a track)
+            if not vid or len(vid) != 11 or vid in seen_v or not dur:
+                continue
+            seen_v.add(vid)
+            title = _runs_text(v.get("title", {}))
+            channel = _runs_text(v.get("ownerText", {})) or _runs_text(v.get("longBylineText", {}))
+            views = _runs_text(v.get("shortViewCountText", {})) or _runs_text(v.get("viewCountText", {}))
+            published = _runs_text(v.get("publishedTimeText", {}))
+            meta = " • ".join(x for x in (views, published) if x)
+            videos.append(
+                {
+                    "title": title,
+                    "artist": channel or "YouTube",
+                    "video_id": vid,
+                    "fallback_ids": [],
+                    "duration_text": dur,
+                    "thumbnail": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+                    "url": f"https://www.youtube.com/watch?v={vid}",
+                    "embed_url": f"https://www.youtube.com/embed/{vid}?autoplay=1&enablejsapi=1",
+                    "match_tier": "Direct Match",
+                    "reason": meta or "YouTube search result",
+                    "why_it_fits": meta or "YouTube search result",
+                    "vibe": "YouTube",
+                    "duration_sec": _duration_to_seconds(dur),
+                }
+            )
+
+        for lk in _find_nodes(data, "lockupViewModel"):
+            if lk.get("contentType") != "LOCKUP_CONTENT_TYPE_PLAYLIST":
+                continue
+            pid = lk.get("contentId", "")
+            # Radio mixes (RD...) are generated per-user and can't be browsed
+            if not pid or pid.startswith("RD") or pid in seen_p:
+                continue
+            seen_p.add(pid)
+            md = lk.get("metadata", {}).get("lockupMetadataViewModel", {})
+            title = md.get("title", {}).get("content", "")
+            owner = ""
+            for row in md.get("metadata", {}).get("contentMetadataViewModel", {}).get("metadataRows", []):
+                for part in row.get("metadataParts", []):
+                    txt = part.get("text", {}).get("content", "")
+                    if txt and txt != "Playlist" and not owner:
+                        owner = txt
+            if title:
+                playlists.append(
+                    {
+                        "browse_id": f"VL{pid}",
+                        "title": title,
+                        "subtitle": f"YouTube Playlist • {owner}" if owner else "YouTube Playlist",
+                        "thumbnail": "",
+                        "is_editorial": False,
+                        "source": "youtube",
+                    }
+                )
+
+        tokens = [c.get("token") for c in _find_nodes(data, "continuationCommand") if c.get("token")]
+        if not tokens:
+            break
+        payload = {"context": _YT_WEB_CONTEXT, "continuation": tokens[0]}
+
+    return {"videos": videos, "playlists": playlists}
+
+
 def search_youtube_single(query: str) -> Optional[Dict]:
     """
-    Uses YouTube Music's WEB_REMIX Innertube JSON API to resolve the exact
-    structured song/video result, filtering out unrelated bottom-of-page tracks.
+    Resolves the exact structured song/video result for a query.
+    Intelligently balances YouTube Web search (for long compilations, 1-hour mixes, OSTs, and exact title matches)
+    and YouTube Music WEB_REMIX (for official album singles).
     """
     cache_key = query.strip().lower()
     if cache_key in _SEARCH_CACHE:
         return dict(_SEARCH_CACHE[cache_key])
 
     try:
-        url = "https://music.youtube.com/youtubei/v1/search?prettyPrint=false"
-        payload = {
-            "context": {
-                "client": {
-                    "clientName": "WEB_REMIX",
-                    "clientVersion": "1.20260918.01.00",
-                    "hl": "en",
-                    "gl": "US",
+        tokens = _query_tokens(query)
+        mix_keywords = (
+            "1 hour", "1hour", "1hr", "hour", "hours", "2 hour", "3 hour",
+            "mix", "compilation", "ost", "soundtrack", "bgm", "medley",
+            "extended", "作業用", "full album", "theme", "epic", "battle",
+            "ambient", "lofi", "beats", "non-stop", "nonstop"
+        )
+        is_mix_query = any(k in query.lower() for k in mix_keywords)
+
+        # 1. Fetch web search results (robust for long mixes, compilations, and accurate titles)
+        web_res = _yt_web_search(query, pages=1)
+        web_videos = web_res.get("videos", [])
+        web_best = None
+        if web_videos:
+            top_w = web_videos[0]
+            w_title_artist = (top_w.get("title") or "") + " " + (top_w.get("artist") or "")
+            w_rel = _relevance(w_title_artist, tokens)
+            web_best = (top_w, w_rel)
+
+        # 2. Query YouTube Music WEB_REMIX
+        ytm_vids: List[str] = []
+        ytm_durs: List[str] = []
+        ytm_best_rel = 0.0
+
+        if not (web_best and (is_mix_query or web_best[1] >= 0.75)):
+            try:
+                url = "https://music.youtube.com/youtubei/v1/search?prettyPrint=false"
+                payload = {
+                    "context": {
+                        "client": {
+                            "clientName": "WEB_REMIX",
+                            "clientVersion": "1.20260918.01.00",
+                            "hl": "en",
+                            "gl": "US",
+                        }
+                    },
+                    "query": query,
                 }
-            },
-            "query": query,
-        }
-        resp = _SESSION.post(url, json=payload, timeout=6.0)
-        if resp.status_code != 200:
+                resp = _SESSION.post(url, json=payload, timeout=6.0)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    for item in _find_nodes(data, "musicResponsiveListItemRenderer"):
+                        vid = item.get("playlistItemData", {}).get("videoId", "")
+                        if not vid or len(vid) != 11:
+                            continue
+                        cols = []
+                        for c in item.get("flexColumns", []):
+                            runs = (
+                                c.get("musicResponsiveListItemFlexColumnRenderer", {})
+                                .get("text", {})
+                                .get("runs", [])
+                            )
+                            cols.append("".join(x.get("text", "") for x in runs).strip())
+                        fixed = []
+                        for c in item.get("fixedColumns", []):
+                            runs = (
+                                c.get("musicResponsiveListItemFixedColumnRenderer", {})
+                                .get("text", {})
+                                .get("runs", [])
+                            )
+                            fixed.append("".join(x.get("text", "") for x in runs).strip())
+
+                        meta = cols[1] if len(cols) >= 2 else ""
+                        if "Episode" in meta or "Podcast" in meta:
+                            continue
+                        if "Release - Topic" in meta or "Lights on the Ceiling" in meta:
+                            continue
+                        if vid not in ytm_vids:
+                            ytm_vids.append(vid)
+                            dur_val = ""
+                            if fixed and re.match(r"^\d{1,2}:\d{2}(:\d{2})?$", fixed[0]):
+                                dur_val = fixed[0]
+                            else:
+                                dur_match = re.search(r"\b((?:\d{1,2}:)?\d{1,2}:\d{2})\b", " ".join(cols + fixed))
+                                if dur_match:
+                                    dur_val = dur_match.group(1)
+                            if dur_val:
+                                ytm_durs.append(dur_val)
+                            if len(ytm_vids) == 1:
+                                ytm_best_rel = _relevance(" ".join(cols), tokens)
+            except Exception:
+                pass
+
+        # 3. Smart selection between Web and YTM
+        if web_best and (not ytm_vids or web_best[1] > ytm_best_rel or (is_mix_query and web_best[1] >= 0.3) or ytm_best_rel < 0.35):
+            video_id = web_best[0]["video_id"]
+            duration_text = web_best[0].get("duration_text", "")
+            fallback_ids = [v["video_id"] for v in web_videos[1:4]]
+        elif ytm_vids:
+            video_id = ytm_vids[0]
+            duration_text = ytm_durs[0] if ytm_durs else ""
+            fallback_ids = ytm_vids[1:4]
+        elif web_videos:
+            video_id = web_videos[0]["video_id"]
+            duration_text = web_videos[0].get("duration_text", "")
+            fallback_ids = [v["video_id"] for v in web_videos[1:4]]
+        else:
             return None
 
-        data = resp.json()
-        matched_vids: List[str] = []
-        matched_durs: List[str] = []
-
-        for item in _find_nodes(data, "musicResponsiveListItemRenderer"):
-            vid = item.get("playlistItemData", {}).get("videoId", "")
-            if not vid or len(vid) != 11:
-                continue
-            cols = []
-            for c in item.get("flexColumns", []):
-                runs = (
-                    c.get("musicResponsiveListItemFlexColumnRenderer", {})
-                    .get("text", {})
-                    .get("runs", [])
-                )
-                cols.append("".join(x.get("text", "") for x in runs).strip())
-            fixed = []
-            for c in item.get("fixedColumns", []):
-                runs = (
-                    c.get("musicResponsiveListItemFixedColumnRenderer", {})
-                    .get("text", {})
-                    .get("runs", [])
-                )
-                fixed.append("".join(x.get("text", "") for x in runs).strip())
-
-            meta = cols[1] if len(cols) >= 2 else ""
-            if "Episode" in meta or "Podcast" in meta:
-                continue
-            # Never allow random nursery rhymes / Release - Topic mismatches
-            if "Release - Topic" in meta or "Lights on the Ceiling" in meta:
-                continue
-            if vid not in matched_vids:
-                matched_vids.append(vid)
-                dur_val = ""
-                if fixed and re.match(r"^\d{1,2}:\d{2}(:\d{2})?$", fixed[0]):
-                    dur_val = fixed[0]
-                else:
-                    dur_match = re.search(r"\b((?:\d{1,2}:)?\d{1,2}:\d{2})\b", " ".join(cols + fixed))
-                    if dur_match:
-                        dur_val = dur_match.group(1)
-                if dur_val:
-                    matched_durs.append(dur_val)
-
-        if not matched_vids:
-            text = resp.text
-            matched_vids = list(dict.fromkeys(re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})"', text)))
-            matched_durs = re.findall(r'"(?:text|simpleText)":"((?:\d{1,2}:)?\d{1,2}:\d{2})"', text)
-
-        if not matched_vids:
-            return None
-
-        video_id = matched_vids[0]
-        fallback_ids = matched_vids[1:4]
-        duration_text = matched_durs[0] if matched_durs else ""
         if not duration_text or duration_text in ("3:42", "3:30", "--:--"):
             duration_text = get_video_duration(video_id)
 
@@ -359,17 +524,29 @@ def resolve_tracks_batch(tracks: List[Dict]) -> List[Dict]:
 
     def _resolve_one(track: Dict) -> Dict:
         vid = track.get("video_id", "")
-        has_valid_dur = bool(track.get("duration_text")) and track.get("duration_text") not in ("--:--", "3:30", "3:42", "3:00", "8:29", "8:08")
-        if vid and len(vid) == 11 and track.get("thumbnail"):
+        dur_text = track.get("duration_text", "")
+        title_lower = (track.get("title") or "").lower()
+        is_hour_title = any(h in title_lower for h in ("1 hour", "1hour", "1hr", "2 hour", "3 hour"))
+        dur_sec = _duration_to_seconds(dur_text) if dur_text else 0
+        is_dur_mismatch = is_hour_title and 0 < dur_sec < 1200
+
+        has_valid_dur = bool(dur_text) and dur_text not in ("--:--", "3:30", "3:42", "3:00", "8:29", "8:08") and not is_dur_mismatch
+
+        if vid and len(vid) == 11 and not is_dur_mismatch:
             if not has_valid_dur:
                 real_d = get_video_duration(vid)
                 if real_d:
                     track["duration_text"] = real_d
-            track["url"] = f"https://www.youtube.com/watch?v={vid}"
-            track["embed_url"] = f"https://www.youtube.com/embed/{vid}?autoplay=1&enablejsapi=1"
-            if "fallback_ids" not in track:
-                track["fallback_ids"] = []
-            return track
+                    dur_sec = _duration_to_seconds(real_d)
+                    is_dur_mismatch = is_hour_title and 0 < dur_sec < 1200
+            if not is_dur_mismatch:
+                if not track.get("thumbnail"):
+                    track["thumbnail"] = f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg"
+                track["url"] = f"https://www.youtube.com/watch?v={vid}"
+                track["embed_url"] = f"https://www.youtube.com/embed/{vid}?autoplay=1&enablejsapi=1"
+                if "fallback_ids" not in track:
+                    track["fallback_ids"] = []
+                return track
 
         search_q = track.get("search_query") or f"{track.get('title', '')} {track.get('artist', '')}"
         matched = search_youtube_single(search_q)
@@ -539,141 +716,6 @@ def browse_youtube_music_playlist(
     except Exception as e:
         print(f"Playlist browse error for '{browse_id}': {e}")
         return []
-
-
-_YT_WEB_CONTEXT = {
-    "client": {
-        "clientName": "WEB",
-        "clientVersion": "2.20260918.01.00",
-        "hl": "en",
-        "gl": "IN",
-    }
-}
-_YTM_SEARCH_CONTEXT = {
-    "client": {
-        "clientName": "WEB_REMIX",
-        "clientVersion": "1.20260918.01.00",
-        "hl": "en",
-        "gl": "IN",
-    }
-}
-_YTM_SONGS_PARAM = "EgWKAQIIAWoKEAkQBRAKEAMQBA=="
-_STOPWORDS = {"songs", "song", "music", "the", "a", "an", "of", "and", "best", "top", "new", "latest", "playlist", "mix", "for", "to", "in"}
-
-
-def _runs_text(obj: Any) -> str:
-    if not isinstance(obj, dict):
-        return ""
-    if "simpleText" in obj:
-        return obj.get("simpleText", "")
-    return "".join(r.get("text", "") for r in obj.get("runs", []))
-
-
-def _query_tokens(q: str) -> List[str]:
-    toks = re.findall(r"[a-z0-9]+", q.lower())
-    core = [t for t in toks if t not in _STOPWORDS]
-    return core or toks
-
-
-def _relevance(text: str, tokens: List[str]) -> float:
-    if not tokens:
-        return 0.0
-    t = text.lower()
-    return sum(1 for tok in tokens if tok in t) / len(tokens)
-
-
-def _duration_to_seconds(d: str) -> int:
-    try:
-        parts = [int(p) for p in d.split(":")]
-    except ValueError:
-        return 0
-    secs = 0
-    for p in parts:
-        secs = secs * 60 + p
-    return secs
-
-
-def _yt_web_search(query: str, pages: int = 2) -> Dict[str, Any]:
-    """Exact same results (and order) as typing the query on youtube.com."""
-    url = "https://www.youtube.com/youtubei/v1/search?prettyPrint=false"
-    videos: List[Dict[str, Any]] = []
-    playlists: List[Dict[str, Any]] = []
-    seen_v, seen_p = set(), set()
-    payload: Dict[str, Any] = {"context": _YT_WEB_CONTEXT, "query": query}
-
-    for _ in range(max(1, pages)):
-        try:
-            r = _SESSION.post(url, json=payload, timeout=5.0)
-            if r.status_code != 200:
-                break
-            data = r.json()
-        except Exception:
-            break
-
-        for v in _find_nodes(data, "videoRenderer"):
-            vid = v.get("videoId", "")
-            dur = _runs_text(v.get("lengthText", {}))
-            # Skip live streams / premieres (no fixed duration, not streamable as a track)
-            if not vid or len(vid) != 11 or vid in seen_v or not dur:
-                continue
-            seen_v.add(vid)
-            title = _runs_text(v.get("title", {}))
-            channel = _runs_text(v.get("ownerText", {})) or _runs_text(v.get("longBylineText", {}))
-            views = _runs_text(v.get("shortViewCountText", {})) or _runs_text(v.get("viewCountText", {}))
-            published = _runs_text(v.get("publishedTimeText", {}))
-            meta = " • ".join(x for x in (views, published) if x)
-            videos.append(
-                {
-                    "title": title,
-                    "artist": channel or "YouTube",
-                    "video_id": vid,
-                    "fallback_ids": [],
-                    "duration_text": dur,
-                    "thumbnail": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
-                    "url": f"https://www.youtube.com/watch?v={vid}",
-                    "embed_url": f"https://www.youtube.com/embed/{vid}?autoplay=1&enablejsapi=1",
-                    "match_tier": "Direct Match",
-                    "reason": meta or "YouTube search result",
-                    "why_it_fits": meta or "YouTube search result",
-                    "vibe": "YouTube",
-                    "duration_sec": _duration_to_seconds(dur),
-                }
-            )
-
-        for lk in _find_nodes(data, "lockupViewModel"):
-            if lk.get("contentType") != "LOCKUP_CONTENT_TYPE_PLAYLIST":
-                continue
-            pid = lk.get("contentId", "")
-            # Radio mixes (RD...) are generated per-user and can't be browsed
-            if not pid or pid.startswith("RD") or pid in seen_p:
-                continue
-            seen_p.add(pid)
-            md = lk.get("metadata", {}).get("lockupMetadataViewModel", {})
-            title = md.get("title", {}).get("content", "")
-            owner = ""
-            for row in md.get("metadata", {}).get("contentMetadataViewModel", {}).get("metadataRows", []):
-                for part in row.get("metadataParts", []):
-                    txt = part.get("text", {}).get("content", "")
-                    if txt and txt != "Playlist" and not owner:
-                        owner = txt
-            if title:
-                playlists.append(
-                    {
-                        "browse_id": f"VL{pid}",
-                        "title": title,
-                        "subtitle": f"YouTube Playlist • {owner}" if owner else "YouTube Playlist",
-                        "thumbnail": "",
-                        "is_editorial": False,
-                        "source": "youtube",
-                    }
-                )
-
-        tokens = [c.get("token") for c in _find_nodes(data, "continuationCommand") if c.get("token")]
-        if not tokens:
-            break
-        payload = {"context": _YT_WEB_CONTEXT, "continuation": tokens[0]}
-
-    return {"videos": videos, "playlists": playlists}
 
 
 def _ytm_search(query: str, songs_only: bool) -> Dict[str, Any]:

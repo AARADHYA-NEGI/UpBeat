@@ -222,6 +222,45 @@ export default function PlayerBar({
 
     let cancelled = false
     ;(async () => {
+      const isHourTitle = /1\s*h(?:ou)?r|2\s*h(?:ou)?r/i.test(track?.title || '')
+      const isMismatchedShortDur = isHourTitle && initialDur > 0 && initialDur < 1200
+
+      // If track already has a valid video_id and is not a 1-hour/short duration mismatch, NEVER re-search!
+      if (track.video_id && !isMismatchedShortDur) {
+        if (initialDur <= 0 && hasBackend()) {
+          try {
+            const r = await fetch(`${getApiBase()}/audio-info/${track.video_id}`)
+            if (r.ok) {
+              const info = await r.json()
+              const durSec = Number(info?.duration || 0)
+              if (!cancelled && durSec > 0) {
+                authoritativeDurationRef.current = durSec
+                setDuration(durSec)
+                if (window.UpBeatNative?.updatePlayback) {
+                  window.UpBeatNative.updatePlayback(
+                    Boolean(isPlayingRef.current),
+                    track.title || 'UpBeat',
+                    track.artist || '',
+                    immediateThumb,
+                    durSec,
+                    0
+                  )
+                }
+                if (onTrackResolved) {
+                  onTrackResolved(track, {
+                    video_id: track.video_id,
+                    duration: durSec,
+                    duration_text: formatTime(durSec)
+                  })
+                }
+              }
+            }
+          } catch {}
+        }
+        return
+      }
+
+      // Track lacks video_id OR has a mismatched short duration (e.g. 3:50 on a 1-hour mix):
       const q = `${track.title} ${track.artist}`
       let data = null
       if (hasBackend()) {
