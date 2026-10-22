@@ -60,6 +60,52 @@ def _get_ydl() -> yt_dlp.YoutubeDL:
     return ydl
 
 
+def format_seconds(sec: int) -> str:
+    if not sec or sec <= 0:
+        return ""
+    h = sec // 3600
+    m = (sec % 3600) // 60
+    s = sec % 60
+    if h > 0:
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m}:{s:02d}"
+
+
+def get_video_duration(video_id: str) -> str:
+    """Fetches real video duration via fast Innertube player endpoint (0.3s) without heavy scraping."""
+    if not video_id or len(video_id) != 11:
+        return ""
+    if video_id in _STREAM_CACHE and _STREAM_CACHE[video_id].get("duration"):
+        return format_seconds(int(_STREAM_CACHE[video_id]["duration"]))
+    try:
+        payload = {
+            "context": {
+                "client": {
+                    "clientName": "ANDROID",
+                    "clientVersion": "20.10.38",
+                    "osName": "Android",
+                    "osVersion": "14",
+                    "androidSdkVersion": 34,
+                    "hl": "en",
+                    "gl": "US",
+                }
+            },
+            "videoId": video_id,
+        }
+        resp = _SESSION.post(
+            "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
+            json=payload,
+            timeout=2.5,
+        )
+        if resp.status_code == 200:
+            sec = int(resp.json().get("videoDetails", {}).get("lengthSeconds") or 0)
+            if sec > 0:
+                return format_seconds(sec)
+    except Exception:
+        pass
+    return ""
+
+
 def get_audio_stream_url(video_id: str) -> Optional[Dict[str, Any]]:
     """
     Resolves the direct high-quality m4a audio stream URL for any YouTube video_id
@@ -172,7 +218,7 @@ def search_youtube_music_catalog(query: str, max_items: int = 12) -> List[Dict[s
                     continue
                 parts = [p.strip() for p in meta.split("•") if p.strip()]
                 artist = parts[1] if len(parts) >= 2 else meta
-                dur_match = re.search(r"\b([0-9]{1,2}:[0-9]{2})\b", meta)
+                dur_match = re.search(r"\b((?:\d{1,2}:)?\d{1,2}:\d{2})\b", meta)
                 out.append(
                     {
                         "title": title,
@@ -239,6 +285,15 @@ def search_youtube_single(query: str) -> Optional[Dict]:
                     .get("runs", [])
                 )
                 cols.append("".join(x.get("text", "") for x in runs).strip())
+            fixed = []
+            for c in item.get("fixedColumns", []):
+                runs = (
+                    c.get("musicResponsiveListItemFixedColumnRenderer", {})
+                    .get("text", {})
+                    .get("runs", [])
+                )
+                fixed.append("".join(x.get("text", "") for x in runs).strip())
+
             meta = cols[1] if len(cols) >= 2 else ""
             if "Episode" in meta or "Podcast" in meta:
                 continue
@@ -247,21 +302,29 @@ def search_youtube_single(query: str) -> Optional[Dict]:
                 continue
             if vid not in matched_vids:
                 matched_vids.append(vid)
-                dur_match = re.search(r"\b([0-9]{1,2}:[0-9]{2})\b", " ".join(cols))
-                if dur_match:
-                    matched_durs.append(dur_match.group(1))
+                dur_val = ""
+                if fixed and re.match(r"^\d{1,2}:\d{2}(:\d{2})?$", fixed[0]):
+                    dur_val = fixed[0]
+                else:
+                    dur_match = re.search(r"\b((?:\d{1,2}:)?\d{1,2}:\d{2})\b", " ".join(cols + fixed))
+                    if dur_match:
+                        dur_val = dur_match.group(1)
+                if dur_val:
+                    matched_durs.append(dur_val)
 
         if not matched_vids:
             text = resp.text
             matched_vids = list(dict.fromkeys(re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})"', text)))
-            matched_durs = re.findall(r'"text":"([0-9]{1,2}:[0-9]{2})"', text)
+            matched_durs = re.findall(r'"(?:text|simpleText)":"((?:\d{1,2}:)?\d{1,2}:\d{2})"', text)
 
         if not matched_vids:
             return None
 
         video_id = matched_vids[0]
         fallback_ids = matched_vids[1:4]
-        duration_text = matched_durs[0] if matched_durs else "3:42"
+        duration_text = matched_durs[0] if matched_durs else ""
+        if not duration_text or duration_text in ("3:42", "3:30", "--:--"):
+            duration_text = get_video_duration(video_id)
 
         result = {
             "video_id": video_id,
@@ -283,7 +346,7 @@ def resolve_tracks_batch(tracks: List[Dict]) -> List[Dict]:
 
     def _resolve_one(track: Dict) -> Dict:
         vid = track.get("video_id", "")
-        has_valid_dur = bool(track.get("duration_text")) and track.get("duration_text") not in ("--:--", "3:30")
+        has_valid_dur = bool(track.get("duration_text")) and track.get("duration_text") not in ("--:--", "3:30", "3:42")
         if vid and len(vid) == 11 and has_valid_dur and track.get("thumbnail") and track.get("fallback_ids"):
             track["url"] = f"https://www.youtube.com/watch?v={vid}"
             track["embed_url"] = f"https://www.youtube.com/embed/{vid}?autoplay=1&enablejsapi=1"
@@ -306,6 +369,9 @@ def resolve_tracks_batch(tracks: List[Dict]) -> List[Dict]:
             track["duration_text"] = ""
             track["url"] = f"https://www.youtube.com/results?search_query={q_enc}"
             track["embed_url"] = ""
+
+        if (not track.get("duration_text") or track.get("duration_text") in ("--:--", "3:30", "3:42")) and track.get("video_id"):
+            track["duration_text"] = get_video_duration(track["video_id"])
         return track
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
@@ -415,10 +481,10 @@ def browse_youtube_music_playlist(
                 continue
 
             dur = ""
-            if fixed and re.match(r"^\d{1,2}:\d{2}$", fixed[0]):
+            if fixed and re.match(r"^\d{1,2}:\d{2}(:\d{2})?$", fixed[0]):
                 dur = fixed[0]
             else:
-                dur_m = re.search(r"\b(\d{1,2}:\d{2})\b", " ".join(cols + fixed))
+                dur_m = re.search(r"\b((?:\d{1,2}:)?\d{1,2}:\d{2})\b", " ".join(cols + fixed))
                 if dur_m:
                     dur = dur_m.group(1)
 

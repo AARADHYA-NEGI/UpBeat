@@ -14,7 +14,8 @@ import {
   hasBackend,
   isNativeApp,
   isConfigured,
-  getStoredApiKey
+  getStoredApiKey,
+  formatDurationSeconds
 } from './standaloneApi'
 
 const DEFAULT_SEEDS = [
@@ -281,7 +282,7 @@ export default function App() {
   useEffect(() => {
     if (!hasBackend() || !playlist?.tracks?.length) return
     const needsResolve = playlist.tracks.some(
-      (t) => !t.video_id || !t.thumbnail || !t.duration_text || t.duration_text === '--:--' || t.duration_text === '3:30'
+      (t) => !t.video_id || !t.thumbnail || !t.duration_text || t.duration_text === '--:--' || t.duration_text === '3:30' || t.duration_text === '3:42'
     )
     if (!needsResolve) return
 
@@ -692,21 +693,43 @@ export default function App() {
   }
 
   const handleTrackResolved = (track, resolvedData) => {
+    if (!track || !resolvedData) return
+    const resolvedDurText =
+      resolvedData.duration_text && resolvedData.duration_text !== '3:42' && resolvedData.duration_text !== '--:--'
+        ? resolvedData.duration_text
+        : (resolvedData.duration ? formatDurationSeconds(resolvedData.duration) : '')
+
     setPlaylist((prev) => {
       if (!prev || !prev.tracks) return prev
       return {
         ...prev,
-        tracks: prev.tracks.map((t) =>
-          t.title === track.title && t.artist === track.artist
-            ? {
-                ...t,
-                video_id: resolvedData.video_id,
-                fallback_ids: resolvedData.fallback_ids || [],
-                thumbnail: resolvedData.thumbnail,
-                duration_text: resolvedData.duration_text || t.duration_text
-              }
-            : t
-        )
+        tracks: prev.tracks.map((t) => {
+          const isMatch =
+            (t.video_id && t.video_id === (resolvedData.video_id || track.video_id)) ||
+            (t.title === track.title && t.artist === track.artist)
+          if (!isMatch) return t
+          return {
+            ...t,
+            video_id: resolvedData.video_id || t.video_id,
+            fallback_ids: resolvedData.fallback_ids?.length ? resolvedData.fallback_ids : t.fallback_ids,
+            thumbnail: resolvedData.thumbnail || t.thumbnail,
+            duration_text: resolvedDurText || t.duration_text
+          }
+        })
+      }
+    })
+    setCurrentTrack((cur) => {
+      if (!cur) return cur
+      const isMatch =
+        (cur.video_id && cur.video_id === (resolvedData.video_id || track.video_id)) ||
+        (cur.title === track.title && cur.artist === track.artist)
+      if (!isMatch) return cur
+      return {
+        ...cur,
+        video_id: resolvedData.video_id || cur.video_id,
+        fallback_ids: resolvedData.fallback_ids?.length ? resolvedData.fallback_ids : cur.fallback_ids,
+        thumbnail: resolvedData.thumbnail || cur.thumbnail,
+        duration_text: resolvedDurText || cur.duration_text
       }
     })
   }

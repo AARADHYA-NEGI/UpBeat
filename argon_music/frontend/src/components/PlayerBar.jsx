@@ -7,9 +7,14 @@ import { getApiBase, hasBackend, getAudioSource, searchYouTubeStandalone } from 
 
 function formatTime(sec) {
   if (!sec || isNaN(sec) || sec < 0) return '0:00'
-  const m = Math.floor(sec / 60)
-  const s = Math.floor(sec % 60)
-  return `${m}:${s.toString().padStart(2, '0')}`
+  const s = Math.round(sec)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const remSec = s % 60
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${remSec.toString().padStart(2, '0')}`
+  }
+  return `${m}:${remSec.toString().padStart(2, '0')}`
 }
 
 function parseDurationText(str) {
@@ -81,7 +86,13 @@ export default function PlayerBar({
         setDuration(authDur)
         return
       }
-      // If browser duration is significantly longer (> 25%) than canonical YouTube track duration
+      // If authoritative duration was the stale 3:42 fallback or drastically smaller than actual stream
+      if (ratio > 2.4) {
+        authoritativeDurationRef.current = Math.round(rawDur)
+        setDuration(Math.round(rawDur))
+        return
+      }
+      // If browser duration is significantly longer (> 25% but <= 240%) than canonical YouTube track duration
       if (ratio > 1.25) {
         setDuration(authDur)
         return
@@ -235,7 +246,7 @@ export default function PlayerBar({
       if (!cancelled && data?.video_id) {
         setResolvedVid(data.video_id)
         let resolvedDur = initialDur
-        if (data.duration_text) {
+        if (data.duration_text && data.duration_text !== '3:42' && data.duration_text !== '--:--') {
           const parsed = parseDurationText(data.duration_text)
           if (parsed > 0) {
             resolvedDur = parsed
@@ -288,6 +299,13 @@ export default function PlayerBar({
           if (authoritativeDurationRef.current <= 0 || Math.abs(authoritativeDurationRef.current - streamDur) > 3) {
             authoritativeDurationRef.current = streamDur
             setDuration(streamDur)
+          }
+          if (onTrackResolved) {
+            onTrackResolved(track, {
+              video_id: resolvedVid,
+              duration: streamDur,
+              duration_text: formatTime(streamDur)
+            })
           }
         }
 
@@ -621,7 +639,24 @@ export default function PlayerBar({
         }}
         onLoadedMetadata={(e) => {
           setIsLoadingStream(false)
-          sanitizeDuration(e.currentTarget.duration)
+          const raw = e.currentTarget.duration
+          if (raw && isFinite(raw) && raw > 0) {
+            sanitizeDuration(raw)
+            const realDur = Math.round(raw)
+            if (
+              onTrackResolved &&
+              (!track?.duration_text ||
+                track.duration_text === '3:42' ||
+                track.duration_text === '--:--' ||
+                Math.abs(parseDurationText(track.duration_text) - realDur) > 8)
+            ) {
+              onTrackResolved(track, {
+                video_id: resolvedVid,
+                duration: realDur,
+                duration_text: formatTime(realDur)
+              })
+            }
+          }
           if (isPlayingRef.current && e.currentTarget.paused) {
             e.currentTarget.play().catch(() => {})
           }

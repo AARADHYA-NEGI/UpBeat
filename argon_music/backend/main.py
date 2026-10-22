@@ -21,6 +21,7 @@ from argon_music.backend.youtube_search import (
     get_audio_stream_url,
     direct_search_youtube_music,
     browse_youtube_music_playlist,
+    format_seconds,
 )
 from argon_music.backend.favorites_store import get_favorites, toggle_favorite
 
@@ -211,10 +212,12 @@ def toggle_favorite_endpoint(req: FavoriteTrackRequest):
 def audio_info_endpoint(video_id: str):
     info = get_audio_stream_url(video_id)
     if not info:
-        return {"video_id": video_id, "duration": 0, "url": f"/api/audio/{video_id}"}
+        return {"video_id": video_id, "duration": 0, "duration_text": "", "url": f"/api/audio/{video_id}"}
+    dur_sec = int(info.get("duration") or 0)
     return {
         "video_id": video_id,
-        "duration": int(info.get("duration") or 0),
+        "duration": dur_sec,
+        "duration_text": format_seconds(dur_sec),
         "url": f"/api/audio/{video_id}",
         "title": info.get("title", ""),
         "artist": info.get("uploader", ""),

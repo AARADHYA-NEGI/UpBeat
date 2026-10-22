@@ -235,10 +235,10 @@ export async function browsePlaylistStandalone(browseId, playlistTitle = '', pla
       if (!title || BLOCKED_META.some((b) => artist.includes(b))) continue
 
       let dur = ''
-      if (fixed[0] && /^\d{1,2}:\d{2}$/.test(fixed[0])) {
+      if (fixed[0] && /^\d{1,2}:\d{2}(:\d{2})?$/.test(fixed[0])) {
         dur = fixed[0]
       } else {
-        const m = [...cols, ...fixed].join(' ').match(/\b(\d{1,2}:\d{2})\b/)
+        const m = [...cols, ...fixed].join(' ').match(/\b((?:\d{1,2}:)?\d{1,2}:\d{2})\b/)
         if (m) dur = m[1]
       }
 
@@ -560,7 +560,7 @@ async function ytmSearchItems(query) {
     if (fixed[0] && /^\d{1,2}:\d{2}(:\d{2})?$/.test(fixed[0])) {
       dur = fixed[0]
     } else {
-      const m = [...cols, ...fixed].join(' ').match(/\b(\d{1,2}:\d{2}(:\d{2})?)\b/)
+      const m = [...cols, ...fixed].join(' ').match(/\b((?:\d{1,2}:)?\d{1,2}:\d{2})\b/)
       if (m) dur = m[1]
     }
     if (!out.some((o) => o.video_id === vid)) {
@@ -775,4 +775,16 @@ Return ONLY a valid JSON object:
 
   resolved.sort((a, b) => (tierOrder[a.match_tier] ?? 0) - (tierOrder[b.match_tier] ?? 0))
   return { ...res, tracks: resolved }
+}
+
+export function formatDurationSeconds(sec) {
+  if (!sec || isNaN(sec) || sec <= 0) return ''
+  const s = Math.round(sec)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const remSec = s % 60
+  if (h > 0) {
+    return `${h}:${m.toString().padStart(2, '0')}:${remSec.toString().padStart(2, '0')}`
+  }
+  return `${m}:${remSec.toString().padStart(2, '0')}`
 }
