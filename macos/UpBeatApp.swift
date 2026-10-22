@@ -324,8 +324,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDe
     func startBackendProcess() {
         let proc = Process()
         let venvPython = "\(workspacePath)/.venv/bin/python"
-        proc.executableURL = URL(fileURLWithPath: venvPython)
-        proc.arguments = ["-m", "uvicorn", "argon_music.backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+        let venvUvicorn = "\(workspacePath)/.venv/bin/uvicorn"
+
+        var env = ProcessInfo.processInfo.environment
+        env["VIRTUAL_ENV"] = "\(workspacePath)/.venv"
+        env["PATH"] = "\(workspacePath)/.venv/bin:/usr/local/bin:/usr/bin:/bin:\(env["PATH"] ?? "")"
+        env["PYTHONPATH"] = workspacePath
+        proc.environment = env
+
+        if FileManager.default.fileExists(atPath: venvUvicorn) {
+            proc.executableURL = URL(fileURLWithPath: venvUvicorn)
+            proc.arguments = ["argon_music.backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+        } else {
+            proc.executableURL = URL(fileURLWithPath: venvPython)
+            proc.arguments = ["-m", "uvicorn", "argon_music.backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+        }
         proc.currentDirectoryURL = URL(fileURLWithPath: workspacePath)
 
         do {
@@ -335,7 +348,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDe
             print("Failed to launch backend: \(error)")
         }
 
-        pollBackend(attemptsLeft: 25)
+        pollBackend(attemptsLeft: 30)
     }
 
     func pollBackend(attemptsLeft: Int) {

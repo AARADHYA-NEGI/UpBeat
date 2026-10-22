@@ -120,6 +120,53 @@ export default function PlayerBar({
     url: safariNowPlaying.url || ''
   } : null)
 
+  const isSafariMode = playbackMode === 'safari'
+  const effectiveDuration =
+    duration > 0
+      ? duration
+      : (authoritativeDurationRef.current > 0
+          ? authoritativeDurationRef.current
+          : parseDurationText(track?.duration_text))
+  const thumbUrl = track?.thumbnail || (resolvedVid ? `https://i.ytimg.com/vi/${resolvedVid}/hqdefault.jpg` : '')
+  const displayTime = Math.min(
+    isScrubbing ? scrubTime : currentTime,
+    effectiveDuration > 0 ? effectiveDuration : Infinity
+  )
+  const progressPct = effectiveDuration > 0 ? Math.min(100, (displayTime / effectiveDuration) * 100) : 0
+  const volumeVal = isMuted ? 0 : volume
+  const isFav = track && isTrackFavorite ? isTrackFavorite(track) : false
+
+  const commitSeek = (targetSec) => {
+    const sec = Math.max(0, Number(targetSec) || 0)
+    setCurrentTime(sec)
+    lastCurPosRef.current = sec
+    lastCurChangeTimeRef.current = Date.now()
+    endedTriggeredRef.current = false
+    lastNativeReportSecRef.current = sec
+    if (window.UpBeatNative?.updatePlayback && track) {
+      window.UpBeatNative.updatePlayback(
+        Boolean(isPlayingRef.current),
+        track.title || 'UpBeat',
+        track.artist || '',
+        thumbUrl || '',
+        Math.round(effectiveDuration || 0),
+        Math.round(sec)
+      )
+    }
+    if (!useIframeFallback && audioRef.current) {
+      try {
+        audioRef.current.currentTime = sec
+      } catch {}
+      return
+    }
+    const p = playerRef.current
+    if (p && typeof p.seekTo === 'function') {
+      try {
+        p.seekTo(sec, true)
+      } catch {}
+    }
+  }
+
   // Resolve video_id if track lacks one
   useEffect(() => {
     endedTriggeredRef.current = false
@@ -541,37 +588,6 @@ export default function PlayerBar({
     return () => window.removeEventListener('upbeat-car-seek', onCarSeek)
   }, [duration, useIframeFallback])
 
-  const commitSeek = (targetSec) => {
-    const sec = Math.max(0, Number(targetSec) || 0)
-    setCurrentTime(sec)
-    lastCurPosRef.current = sec
-    lastCurChangeTimeRef.current = Date.now()
-    endedTriggeredRef.current = false
-    lastNativeReportSecRef.current = sec
-    if (window.UpBeatNative?.updatePlayback && track) {
-      window.UpBeatNative.updatePlayback(
-        Boolean(isPlayingRef.current),
-        track.title || 'UpBeat',
-        track.artist || '',
-        thumbUrl || '',
-        Math.round(effectiveDuration || 0),
-        Math.round(sec)
-      )
-    }
-    if (!useIframeFallback && audioRef.current) {
-      try {
-        audioRef.current.currentTime = sec
-      } catch {}
-      return
-    }
-    const p = playerRef.current
-    if (p && typeof p.seekTo === 'function') {
-      try {
-        p.seekTo(sec, true)
-      } catch {}
-    }
-  }
-
   const handleScrubStart = () => {
     setIsScrubbing(true)
     setScrubTime(currentTime)
@@ -592,22 +608,6 @@ export default function PlayerBar({
     setIsScrubbing(false)
     commitSeek(val)
   }
-
-  const isSafariMode = playbackMode === 'safari'
-  const effectiveDuration =
-    duration > 0
-      ? duration
-      : (authoritativeDurationRef.current > 0
-          ? authoritativeDurationRef.current
-          : parseDurationText(track?.duration_text))
-  const displayTime = Math.min(
-    isScrubbing ? scrubTime : currentTime,
-    effectiveDuration > 0 ? effectiveDuration : Infinity
-  )
-  const progressPct = effectiveDuration > 0 ? Math.min(100, (displayTime / effectiveDuration) * 100) : 0
-  const thumbUrl = track?.thumbnail || (resolvedVid ? `https://i.ytimg.com/vi/${resolvedVid}/hqdefault.jpg` : '')
-  const volumeVal = isMuted ? 0 : volume
-  const isFav = track && isTrackFavorite ? isTrackFavorite(track) : false
 
   return (
     <>
