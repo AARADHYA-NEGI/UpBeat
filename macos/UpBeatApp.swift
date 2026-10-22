@@ -1,7 +1,8 @@
 import Cocoa
 import WebKit
+import MediaPlayer
 
-class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDelegate {
+class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
     var window: NSWindow!
     var webView: WKWebView!
     var backendProcess: Process?
@@ -12,11 +13,28 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDe
 
     var updateTimer: Timer?
     var isUpdating = false
+    var backgroundActivity: NSObjectProtocol?
+
+    var statusItem: NSStatusItem!
+    var playPauseMenuItem: NSMenuItem!
+    var trackTitleMenuItem: NSMenuItem!
+    var currentTrackTitle = "UpBeat"
+    var currentArtist = ""
+    var isPlayingAudio = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         NSApp.appearance = NSAppearance(named: .darkAqua)
+
+        // Prevent macOS App Nap from throttling or suspending background playback
+        backgroundActivity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical],
+            reason: "UpBeat Background Music Playback"
+        )
+
         setupMenu()
+        setupStatusBarItem()
+        setupRemoteCommands()
 
         let screenRect = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1360, height: 860)
         let width: CGFloat = min(1380, screenRect.width * 0.92)
@@ -38,10 +56,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDe
         window.titlebarAppearsTransparent = true
         window.backgroundColor = NSColor(calibratedRed: 0.051, green: 0.051, blue: 0.059, alpha: 1.0)
         window.minSize = NSSize(width: 900, height: 600)
+        window.delegate = self
 
         let config = WKWebViewConfiguration()
         config.mediaTypesRequiringUserActionForPlayback = []
+        if #available(macOS 10.15, *) {
+            config.allowsAirPlayForMediaPlayback = true
+        }
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        config.userContentController.add(self, name: "upbeatNative")
 
         webView = WKWebView(frame: window.contentView!.bounds, configuration: config)
         webView.autoresizingMask = [.width, .height]
@@ -63,6 +86,163 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDe
         updateTimer = Timer.scheduledTimer(withTimeInterval: 10800, repeats: true) { [weak self] _ in
             self?.checkForUpdates(silent: true)
         }
+    }
+
+    func setupStatusBarItem() {
+        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if let button = statusItem.button {
+            button.title = "♫"
+            button.toolTip = "UpBeat Music Studio"
+        }
+
+        let menu = NSMenu()
+        trackTitleMenuItem = NSMenuItem(title: "UpBeat: Ready", action: nil, keyEquivalent: "")
+        trackTitleMenuItem.isEnabled = false
+        menu.addItem(trackTitleMenuItem)
+        menu.addItem(NSMenuItem.separator())
+
+        playPauseMenuItem = NSMenuItem(title: "Play", action: #selector(togglePlayFromMenu), keyEquivalent: " ")
+        menu.addItem(playPauseMenuItem)
+
+        menu.addItem(NSMenuItem(title: "Next Track", action: #selector(nextTrackFromMenu), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: "Previous Track", action: #selector(prevTrackFromMenu), keyEquivalent: ""))
+
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(withTitle: "Open UpBeat Window", action: #selector(showMainWindow), keyEquivalent: "o")
+        menu.addItem(withTitle: "Quit UpBeat", action: #selector(quitApp), keyEquivalent: "q")
+
+        statusItem.menu = menu
+    }
+
+    @objc func togglePlayFromMenu() {
+        webView.evaluateJavaScript("window.UpBeatControls?.togglePlay?.()")
+    }
+
+    @objc func nextTrackFromMenu() {
+        webView.evaluateJavaScript("window.UpBeatControls?.next?.()")
+    }
+
+    @objc func prevTrackFromMenu() {
+        webView.evaluateJavaScript("window.UpBeatControls?.prev?.()")
+    }
+
+    @objc func showMainWindow() {
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc func quitApp() {
+        NSApplication.shared.terminate(nil)
+    }
+
+    func setupRemoteCommands() {
+        let commandCenter = MPRemoteCommandCenter.shared()
+
+        commandCenter.playCommand.isEnabled = true
+        commandCenter.playCommand.addTarget { [weak self] _ in
+            self?.webView.evaluateJavaScript("window.UpBeatControls?.play?.()")
+            return .success
+        }
+
+        commandCenter.pauseCommand.isEnabled = true
+        commandCenter.pauseCommand.addTarget { [weak self] _ in
+            self?.webView.evaluateJavaScript("window.UpBeatControls?.pause?.()")
+            return .success
+        }
+
+        commandCenter.togglePlayPauseCommand.isEnabled = true
+        commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
+            self?.webView.evaluateJavaScript("window.UpBeatControls?.togglePlay?.()")
+            return .success
+        }
+
+        commandCenter.nextTrackCommand.isEnabled = true
+        commandCenter.nextTrackCommand.addTarget { [weak self] _ in
+            self?.webView.evaluateJavaScript("window.UpBeatControls?.next?.()")
+            return .success
+        }
+
+        commandCenter.previousTrackCommand.isEnabled = true
+        commandCenter.previousTrackCommand.addTarget { [weak self] _ in
+            self?.webView.evaluateJavaScript("window.UpBeatControls?.prev?.()")
+            return .success
+        }
+
+        commandCenter.changePlaybackPositionCommand.isEnabled = true
+        commandCenter.changePlaybackPositionCommand.addTarget { [weak self] event in
+            if let pos = event as? MPChangePlaybackPositionCommandEvent {
+                self?.webView.evaluateJavaScript("window.UpBeatControls?.seekTo?.(\(pos.positionTime))")
+                return .success
+            }
+            return .commandFailed
+        }
+    }
+
+    func updateNowPlayingInfo(title: String, artist: String, duration: Double, currentTime: Double, isPlaying: Bool) {
+        var info = [String: Any]()
+        info[MPMediaItemPropertyTitle] = title
+        info[MPMediaItemPropertyArtist] = artist.isEmpty ? "UpBeat" : artist
+        info[MPMediaItemPropertyAlbumTitle] = "UpBeat"
+        if duration > 0 {
+            info[MPMediaItemPropertyPlaybackDuration] = duration
+            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
+        }
+        info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "upbeatNative",
+              let body = message.body as? [String: Any] else { return }
+
+        let isPlaying = (body["isPlaying"] as? Bool) ?? false
+        let title = (body["title"] as? String) ?? "UpBeat"
+        let artist = (body["artist"] as? String) ?? ""
+        let duration = (body["duration"] as? Double) ?? 0
+        let currentTime = (body["currentTime"] as? Double) ?? 0
+
+        self.isPlayingAudio = isPlaying
+        self.currentTrackTitle = title
+        self.currentArtist = artist
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if let button = self.statusItem?.button {
+                if isPlaying {
+                    let cleanTitle = title.count > 18 ? String(title.prefix(18)) + "…" : title
+                    button.title = "▶ \(cleanTitle)"
+                } else {
+                    button.title = "♫"
+                }
+            }
+            self.trackTitleMenuItem?.title = artist.isEmpty ? title : "\(title) — \(artist)"
+            self.playPauseMenuItem?.title = isPlaying ? "Pause" : "Play"
+
+            self.updateNowPlayingInfo(
+                title: title,
+                artist: artist,
+                duration: duration,
+                currentTime: currentTime,
+                isPlaying: isPlaying
+            )
+        }
+    }
+
+    // Keep app running in background when window is closed (like Spotify / Apple Music)
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        sender.orderOut(nil)
+        return false
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return false
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        return true
     }
 
     func setupMenu() {
@@ -113,7 +293,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDe
     @objc func showAboutPanel() {
         let alert = NSAlert()
         alert.messageText = "UpBeat Studio"
-        alert.informativeText = "Version \(appVersion) (Direct Search & AI Studio)\nCreated for modern music curation with zero-token search, YouTube Music streaming, and Safari sync."
+        alert.informativeText = "Version \(appVersion) (Direct Search & AI Studio)\nCreated for modern music curation with zero-token search, YouTube Music streaming, background playback, and Safari sync."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "Check for Updates")
@@ -199,38 +379,42 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDe
 
             let sem = DispatchSemaphore(value: 0)
             var releaseTag = ""
-            var releaseTitle = ""
+
             URLSession.shared.dataTask(with: req) { data, _, _ in
-                if let data = data,
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    releaseTag = (json["tag_name"] as? String) ?? ""
-                    releaseTitle = (json["name"] as? String) ?? ""
+                if let d = data,
+                   let json = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+                   let tag = json["tag_name"] as? String {
+                    releaseTag = tag
                 }
                 sem.signal()
             }.resume()
             _ = sem.wait(timeout: .now() + 4.5)
 
+            let hasReleaseUpdate = !releaseTag.isEmpty && !releaseTag.contains(self.appVersion) && releaseTag > "v\(self.appVersion)"
+
             DispatchQueue.main.async {
-                let hasReleaseUpdate = !releaseTag.isEmpty && !releaseTag.contains(self.appVersion) && releaseTag > "v\(self.appVersion)"
                 if hasGitUpdate || hasReleaseUpdate {
                     let alert = NSAlert()
-                    alert.messageText = "Update Available for UpBeat"
-                    let msg = hasGitUpdate
-                        ? "New commits are available on GitHub:\n\n\(latestGitMsg)\n\nWould you like to update and reload UpBeat now?"
-                        : "A new release (\(releaseTitle.isEmpty ? releaseTag : releaseTitle)) is available on GitHub.\n\nWould you like to update and reload UpBeat now?"
-                    alert.informativeText = msg
-                    alert.alertStyle = .informational
+                    alert.messageText = "New UpBeat Update Available"
+                    var detail = "A newer version of UpBeat is ready to install.\n\n"
+                    if !latestGitMsg.isEmpty {
+                        detail += "Latest changes:\n\(latestGitMsg)\n\n"
+                    } else if !releaseTag.isEmpty {
+                        detail += "Release: \(releaseTag)\n\n"
+                    }
+                    detail += "Would you like to recompile and update now?"
+                    alert.informativeText = detail
                     alert.addButton(withTitle: "Update Now")
                     alert.addButton(withTitle: "Later")
-                    let res = alert.runModal()
-                    if res == .alertFirstButtonReturn {
+
+                    let response = alert.runModal()
+                    if response == .alertFirstButtonReturn {
                         self.runSelfUpdate(userTriggered: true)
                     }
                 } else if !silent {
                     let alert = NSAlert()
                     alert.messageText = "UpBeat is Up to Date"
                     alert.informativeText = "You are running UpBeat v\(self.appVersion).\n\nNo newer updates found on GitHub (\(releaseTag.isEmpty ? "latest" : releaseTag))."
-                    alert.alertStyle = .informational
                     alert.addButton(withTitle: "OK")
                     alert.runModal()
                 }
@@ -239,23 +423,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDe
     }
 
     func runSelfUpdate(userTriggered: Bool) {
-        guard !isUpdating else { return }
+        if isUpdating { return }
         isUpdating = true
 
         let scriptPath = "\(workspacePath)/macos/update.sh"
         guard FileManager.default.fileExists(atPath: scriptPath) else {
-            let alert = NSAlert()
-            alert.messageText = "Update Script Not Found"
-            alert.informativeText = "Could not find \(scriptPath)."
-            alert.runModal()
             isUpdating = false
+            let errAlert = NSAlert()
+            errAlert.messageText = "Update Script Missing"
+            errAlert.informativeText = "Could not find \(scriptPath)"
+            errAlert.runModal()
             return
         }
-
-        let hud = NSAlert()
-        hud.messageText = "Updating UpBeat..."
-        hud.informativeText = "Pulling latest code, rebuilding frontend bundle, and refreshing studio. Please wait..."
-        hud.alertStyle = .informational
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
@@ -378,12 +557,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDe
         return nil
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        return true
-    }
-
     func applicationWillTerminate(_ notification: Notification) {
         updateTimer?.invalidate()
+        if let act = backgroundActivity {
+            ProcessInfo.processInfo.endActivity(act)
+        }
         if let proc = backendProcess, proc.isRunning {
             proc.terminate()
         }
