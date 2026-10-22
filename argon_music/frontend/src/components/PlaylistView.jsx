@@ -25,14 +25,46 @@ function extraDetail(track) {
   return parts.length > 1 ? parts.slice(1).join(' ') : ''
 }
 
-function getTierBadgeStyle(tier) {
+function getTierBadgeStyle(tier, source = 'youtube') {
   if (tier === 'Close Fit') {
     return 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
   }
   if (tier === 'Exploratory') {
     return 'bg-amber-500/10 text-amber-300 border-amber-500/30'
   }
-  return 'bg-sky-500/15 text-sky-300 border-sky-500/35'
+  if (source === 'youtube') {
+    return 'bg-rose-500/15 text-rose-300 border-rose-500/35'
+  }
+  if (source === 'songs') {
+    return 'bg-purple-500/15 text-purple-300 border-purple-500/35'
+  }
+  if (source === 'playlist') {
+    return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/35'
+  }
+  return 'bg-rose-500/15 text-rose-300 border-rose-500/35'
+}
+
+function getActiveRowStyle(isSelected, source = 'youtube') {
+  if (!isSelected) return 'hover:bg-[#121217] border-l-2 border-l-transparent'
+  if (source === 'youtube') return 'bg-rose-500/[0.08] border-l-2 border-l-rose-500'
+  if (source === 'songs') return 'bg-purple-500/[0.08] border-l-2 border-l-purple-500'
+  if (source === 'playlist') return 'bg-emerald-500/[0.08] border-l-2 border-l-emerald-500'
+  return 'bg-emerald-500/[0.08] border-l-2 border-l-emerald-500'
+}
+
+function getActiveTextStyle(isSelected, source = 'youtube') {
+  if (!isSelected) return 'text-[#f4f4f5]'
+  if (source === 'youtube') return 'text-rose-200'
+  if (source === 'songs') return 'text-purple-200'
+  if (source === 'playlist') return 'text-emerald-200'
+  return 'text-emerald-200'
+}
+
+function getActiveAccentColor(source = 'youtube') {
+  if (source === 'youtube') return 'text-rose-400'
+  if (source === 'songs') return 'text-purple-400'
+  if (source === 'playlist') return 'text-emerald-400'
+  return 'text-emerald-400'
 }
 
 export default function PlaylistView({
@@ -212,9 +244,9 @@ export default function PlaylistView({
             </span>
             <button
               onClick={() => onPlayTrack(tracks[0], 0)}
-              className="px-3 py-1.5 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 border border-sky-500/40 text-sky-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-95"
+              className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-95"
             >
-              <Play className="w-3.5 h-3.5 fill-current text-sky-400" />
+              <Play className="w-3.5 h-3.5 fill-current text-emerald-400" />
               <span>Play All</span>
             </button>
           </div>
@@ -332,21 +364,24 @@ export default function PlaylistView({
             const thumbUrl = track.thumbnail || (track.video_id ? `https://i.ytimg.com/vi/${track.video_id}/hqdefault.jpg` : '')
             const isFav = isTrackFavorite ? isTrackFavorite(track) : false
             const matchTier = track.match_tier || 'Direct Match'
+            const trackSource = track.source || (isDirectSearch ? activeSource : 'youtube')
 
             return (
               <div
                 key={idx}
                 onClick={() => onPlayTrack(track, idx)}
-                className={`px-3.5 py-2.5 transition-colors active:bg-[#14141a] ${
-                  isSelected
-                    ? 'bg-sky-500/[0.08] border-l-2 border-l-sky-400'
-                    : 'border-l-2 border-l-transparent'
-                }`}
+                className={`px-3.5 py-2.5 transition-colors active:bg-[#14141a] ${getActiveRowStyle(isSelected, trackSource)}`}
               >
                 <div className="flex items-center gap-3">
                   {/* Artwork with overlay play state */}
                   <div className={`w-11 h-11 rounded-md bg-[#14141a] border overflow-hidden flex-shrink-0 relative ${
-                    isSelected ? 'border-sky-500/60' : 'border-[#22222a]'
+                    isSelected
+                      ? trackSource === 'youtube'
+                        ? 'border-rose-500/60 shadow-xs shadow-rose-500/20'
+                        : trackSource === 'songs'
+                        ? 'border-purple-500/60 shadow-xs shadow-purple-500/20'
+                        : 'border-emerald-500/60 shadow-xs shadow-emerald-500/20'
+                      : 'border-[#22222a]'
                   }`}>
                     {thumbUrl ? (
                       <img src={thumbUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
@@ -368,9 +403,7 @@ export default function PlaylistView({
 
                   {/* Title, Artist, Badge & Duration */}
                   <div className="min-w-0 flex-1">
-                    <div className={`text-[13.5px] font-semibold truncate ${
-                      isSelected ? 'text-sky-200' : 'text-[#f4f4f5]'
-                    }`}>
+                    <div className={`text-[13.5px] font-semibold truncate ${getActiveTextStyle(isSelected, trackSource)}`}>
                       {track.title}
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5 text-xs text-[#8e8e96]">
@@ -383,7 +416,7 @@ export default function PlaylistView({
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 mt-1">
-                      <span className={`inline-block text-[9.5px] font-mono px-1.5 py-0.2 rounded border ${getTierBadgeStyle(matchTier)}`}>
+                      <span className={`inline-block text-[9.5px] font-mono px-1.5 py-0.2 rounded border ${getTierBadgeStyle(matchTier, trackSource)}`}>
                         {matchTier}
                       </span>
                       {track.vibe && (
@@ -450,24 +483,21 @@ export default function PlaylistView({
               const thumbUrl = track.thumbnail || (track.video_id ? `https://i.ytimg.com/vi/${track.video_id}/hqdefault.jpg` : '')
               const isFav = isTrackFavorite ? isTrackFavorite(track) : false
               const matchTier = track.match_tier || 'Direct Match'
+              const trackSource = track.source || (isDirectSearch ? activeSource : 'youtube')
 
               return (
                 <React.Fragment key={idx}>
                   <tr
                     onClick={() => onPlayTrack(track, idx)}
-                    className={`group transition-colors cursor-pointer ${
-                      isSelected
-                        ? 'bg-sky-500/[0.08] border-l-2 border-l-sky-400'
-                        : 'hover:bg-[#121217] border-l-2 border-l-transparent'
-                    }`}
+                    className={`group transition-colors cursor-pointer ${getActiveRowStyle(isSelected, trackSource)}`}
                   >
                     <td className="py-3 pl-5 pr-2 font-mono text-xs text-[#71717a] w-11">
                       <div className="w-6 h-6 flex items-center justify-center">
                         {isThisPlaying ? (
-                          <Pause className="w-4 h-4 text-sky-400 fill-current" />
+                          <Pause className={`w-4 h-4 fill-current ${getActiveAccentColor(trackSource)}`} />
                         ) : (
                           <>
-                            <span className={isSelected ? 'text-sky-300 font-semibold group-hover:hidden' : 'group-hover:hidden'}>
+                            <span className={isSelected ? `${getActiveAccentColor(trackSource)} font-semibold group-hover:hidden` : 'group-hover:hidden'}>
                               {(idx + 1).toString().padStart(2, '0')}
                             </span>
                             <Play className="w-4 h-4 text-white fill-current hidden group-hover:block" />
@@ -479,7 +509,13 @@ export default function PlaylistView({
                     <td className="py-3 px-3 max-w-[290px]">
                       <div className="flex items-center gap-3.5 min-w-0">
                         <div className={`w-10 h-10 rounded-md bg-[#14141a] border overflow-hidden flex-shrink-0 ${
-                          isSelected ? 'border-sky-500/50 shadow-xs shadow-sky-500/20' : 'border-[#22222a]'
+                          isSelected
+                            ? trackSource === 'youtube'
+                              ? 'border-rose-500/60 shadow-xs shadow-rose-500/20'
+                              : trackSource === 'songs'
+                              ? 'border-purple-500/60 shadow-xs shadow-purple-500/20'
+                              : 'border-emerald-500/60 shadow-xs shadow-emerald-500/20'
+                            : 'border-[#22222a]'
                         }`}>
                           {thumbUrl ? (
                             <img src={thumbUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
@@ -490,9 +526,7 @@ export default function PlaylistView({
                           )}
                         </div>
                         <div className="min-w-0">
-                          <div className={`text-[13.5px] font-semibold truncate ${
-                            isSelected ? 'text-sky-200' : 'text-[#f4f4f5] group-hover:text-white'
-                          }`}>
+                          <div className={`text-[13.5px] font-semibold truncate ${getActiveTextStyle(isSelected, trackSource)} group-hover:text-white`}>
                             {track.title}
                           </div>
                           <div className="text-xs text-[#8e8e96] truncate mt-0.5">
@@ -507,7 +541,7 @@ export default function PlaylistView({
                         {shortNote}
                       </p>
                       {isExpanded && moreNote && (
-                        <p className="text-[11px] text-sky-300/90 mt-1 leading-relaxed">
+                        <p className={`text-[11px] mt-1 leading-relaxed ${getActiveAccentColor(trackSource)}`}>
                           {moreNote}
                         </p>
                       )}
@@ -515,7 +549,7 @@ export default function PlaylistView({
 
                     <td className="py-3 px-3">
                       <div className="flex flex-col items-start gap-1">
-                        <span className={`inline-block text-[10px] font-mono px-2 py-0.5 rounded border font-medium ${getTierBadgeStyle(matchTier)}`}>
+                        <span className={`inline-block text-[10px] font-mono px-2 py-0.5 rounded border font-medium ${getTierBadgeStyle(matchTier, trackSource)}`}>
                           {matchTier}
                         </span>
                         {track.vibe && (

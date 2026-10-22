@@ -51,9 +51,9 @@ export default function CuratorPrompt({
           <div className="flex items-center gap-2.5">
             <div className="flex-shrink-0">
               {searchMode === 'direct' ? (
-                <Search className="w-4 h-4 text-sky-400" />
+                <Search className="w-4 h-4 text-emerald-400" />
               ) : (
-                <Sparkles className="w-4 h-4 text-indigo-400" />
+                <Sparkles className="w-4 h-4 text-purple-400" />
               )}
             </div>
             <input
@@ -105,12 +105,12 @@ export default function CuratorPrompt({
                     onClick={() => setSearchMode('direct')}
                     className={`px-2 sm:px-2.5 py-1 rounded-md flex items-center gap-1.5 transition-all cursor-pointer ${
                       searchMode === 'direct'
-                        ? 'bg-sky-500/15 text-sky-300 border border-sky-500/30 font-medium shadow-xs'
+                        ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 font-semibold shadow-xs'
                         : 'text-[#8e8e96] hover:text-[#e4e4e7]'
                     }`}
                     title="Instant YouTube & YT Music search (0 AI tokens)"
                   >
-                    <Search className="w-3 h-3" />
+                    <Search className="w-3 h-3 text-emerald-400" />
                     <span>Search (0 Tok)</span>
                   </button>
                   <button
@@ -131,7 +131,7 @@ export default function CuratorPrompt({
 
               {/* Engine / Model Indicator Pill */}
               <span className="hidden md:inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 rounded-md bg-[#0e0e13] border border-[#202028] text-[#8e8e96]">
-                <span className={`w-1.5 h-1.5 rounded-full ${searchMode === 'direct' ? 'bg-sky-400' : 'bg-purple-400'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${searchMode === 'direct' ? 'bg-emerald-400' : 'bg-purple-400'}`} />
                 <span>{searchMode === 'direct' ? 'Direct Match • 0 Tok' : (selectedModel || 'Gemini 3.8 Flash')}</span>
               </span>
             </div>
@@ -148,7 +148,7 @@ export default function CuratorPrompt({
                 title={searchMode === 'direct' ? 'Execute Direct Search' : 'Execute AI Curation'}
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
                   searchMode === 'direct'
-                    ? 'bg-sky-500 hover:bg-sky-400 active:scale-95 text-white shadow-md shadow-sky-500/30'
+                    ? 'bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-white shadow-md shadow-emerald-500/30'
                     : 'bg-gradient-to-tr from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-95 text-white shadow-md shadow-purple-500/30'
                 }`}
               >
@@ -168,13 +168,13 @@ export default function CuratorPrompt({
         <span className="text-[10px] font-mono uppercase tracking-wider text-[#71717a] mr-1 flex items-center gap-1 flex-shrink-0">
           {searchMode === 'direct' ? (
             <>
-              <ListMusic className="w-3 h-3 text-sky-400" />
-              <span className="text-sky-400/90">Instant (0 Tok):</span>
+              <ListMusic className="w-3 h-3 text-emerald-400" />
+              <span className="text-emerald-400/90 font-medium">Instant (0 Tok):</span>
             </>
           ) : (
             <>
-              <Sparkles className="w-3 h-3 text-indigo-400" />
-              <span className="text-indigo-400/90">AI Prompts:</span>
+              <Sparkles className="w-3 h-3 text-purple-400" />
+              <span className="text-purple-400/90 font-medium">AI Prompts:</span>
             </>
           )}
         </span>
@@ -196,8 +196,8 @@ export default function CuratorPrompt({
               className={`px-2.5 py-1 rounded-md border text-[11px] whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${
                 isCurrent
                   ? searchMode === 'direct'
-                    ? 'bg-sky-500/15 border-sky-500/40 text-sky-200 font-medium'
-                    : 'bg-indigo-500/15 border-indigo-500/40 text-indigo-200 font-medium'
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200 font-semibold'
+                    : 'bg-purple-500/15 border-purple-500/40 text-purple-200 font-semibold'
                   : 'bg-[#121217] hover:bg-[#1a1a22] border-[#22222a] hover:border-[#2e2e38] text-[#a1a1aa] hover:text-[#f4f4f5]'
               }`}
             >

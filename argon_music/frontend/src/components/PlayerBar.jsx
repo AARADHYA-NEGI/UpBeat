@@ -717,7 +717,7 @@ export default function PlayerBar({
         {/* Top progress bar */}
         {track && effectiveDuration > 0 && (
           <div
-            className="absolute top-0 left-0 h-[2px] bg-gradient-to-r from-sky-500 to-indigo-500 transition-all duration-150 pointer-events-none"
+            className="absolute top-0 left-0 h-[2px] bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-150 pointer-events-none"
             style={{ width: `${progressPct}%` }}
           />
         )}
@@ -729,7 +729,7 @@ export default function PlayerBar({
             {track ? (
               <>
                 <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-md bg-[#14141a] border overflow-hidden flex-shrink-0 relative ${
-                  isPlaying ? 'border-sky-500/60 shadow-xs shadow-sky-500/20' : 'border-[#22222a]'
+                  isPlaying ? 'border-emerald-500/60 shadow-xs shadow-emerald-500/20' : 'border-[#22222a]'
                 }`}>
                   {thumbUrl ? (
                     <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
@@ -742,7 +742,7 @@ export default function PlayerBar({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                      isPlaying ? 'bg-sky-400 animate-pulse' : 'bg-[#52525b]'
+                      isPlaying ? 'bg-emerald-400 animate-pulse' : 'bg-[#52525b]'
                     }`} />
                     <div className="text-xs sm:text-[13px] font-semibold text-[#f4f4f5] truncate">
                       {track.title}
@@ -785,7 +785,7 @@ export default function PlayerBar({
             <button
               onClick={isSafariMode ? () => onSafariControl('play_pause') : onTogglePlay}
               disabled={!track}
-              className="w-9 h-9 rounded-full bg-sky-500 active:bg-sky-400 text-white flex items-center justify-center disabled:opacity-30 shadow-md shadow-sky-500/25"
+              className="w-9 h-9 rounded-full bg-emerald-500 active:bg-emerald-400 text-white flex items-center justify-center disabled:opacity-30 shadow-md shadow-emerald-500/25"
               aria-label={isPlaying ? 'Pause' : 'Play'}
             >
               {isLoadingStream ? (
@@ -821,7 +821,7 @@ export default function PlayerBar({
               <button
                 onClick={isSafariMode ? () => onSafariControl('play_pause') : onTogglePlay}
                 disabled={!track}
-                className="w-8 h-8 rounded-full bg-sky-500 hover:bg-sky-400 text-white flex items-center justify-center disabled:opacity-30 transition-all shadow-md shadow-sky-500/25 active:scale-95 cursor-pointer"
+                className="w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center disabled:opacity-30 transition-all shadow-md shadow-emerald-500/25 active:scale-95 cursor-pointer"
                 title={isPlaying ? 'Pause' : 'Play'}
               >
                 {isLoadingStream ? (
@@ -861,7 +861,7 @@ export default function PlayerBar({
                 onMouseUp={handleScrubEnd}
                 disabled={!track || isSafariMode}
                 style={{
-                  background: `linear-gradient(to right, #0284c7 0%, #38bdf8 ${progressPct}%, #202028 ${progressPct}%, #202028 100%)`
+                  background: `linear-gradient(to right, #10b981 0%, #34d399 ${progressPct}%, #202028 ${progressPct}%, #202028 100%)`
                 }}
                 className="flex-1 argon-slider cursor-pointer disabled:opacity-40"
               />
@@ -879,7 +879,7 @@ export default function PlayerBar({
                   onClick={() => setPlaybackMode('app')}
                   className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
                     playbackMode === 'app'
-                      ? 'bg-sky-500/20 text-sky-200 border border-sky-500/40 font-medium'
+                      ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 font-medium'
                       : 'text-[#8e8e96] hover:text-[#e4e4e7]'
                   }`}
                 >
@@ -889,7 +889,7 @@ export default function PlayerBar({
                   onClick={() => setPlaybackMode('safari')}
                   className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
                     playbackMode === 'safari'
-                      ? 'bg-sky-500/20 text-sky-200 border border-sky-500/40 font-medium'
+                      ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 font-medium'
                       : 'text-[#8e8e96] hover:text-[#e4e4e7]'
                   }`}
                 >
@@ -908,7 +908,7 @@ export default function PlayerBar({
               title="Toggle Video Preview"
               className={`p-1.5 rounded-md border text-xs transition-colors cursor-pointer disabled:opacity-30 ${
                 showVideo
-                  ? 'bg-sky-500/20 border-sky-500/40 text-sky-300'
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
                   : 'bg-transparent border-transparent text-[#8e8e96] hover:text-white'
               }`}
             >
@@ -946,7 +946,7 @@ export default function PlayerBar({
                   setIsMuted(false)
                 }}
                 style={{
-                  background: `linear-gradient(to right, #0284c7 0%, #38bdf8 ${volumeVal}%, #202028 ${volumeVal}%, #202028 100%)`
+                  background: `linear-gradient(to right, #10b981 0%, #34d399 ${volumeVal}%, #202028 ${volumeVal}%, #202028 100%)`
                 }}
                 className="w-16 argon-slider cursor-pointer"
               />
@@ -974,7 +974,7 @@ export default function PlayerBar({
               onMouseUp={handleScrubEnd}
               disabled={!track || isSafariMode}
               style={{
-                background: `linear-gradient(to right, #0284c7 0%, #38bdf8 ${progressPct}%, #202028 ${progressPct}%, #202028 100%)`
+                background: `linear-gradient(to right, #10b981 0%, #34d399 ${progressPct}%, #202028 ${progressPct}%, #202028 100%)`
               }}
               className="flex-1 argon-slider"
             />
