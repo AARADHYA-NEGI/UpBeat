@@ -229,7 +229,7 @@ _STREAM_HTTP_SESSION.mount(
     "https://",
     ext_requests.adapters.HTTPAdapter(pool_connections=16, pool_maxsize=16, max_retries=2),
 )
-_STREAM_CHUNK_BYTES = 2 * 1024 * 1024  # 2 MB bounded ranges prevent googlevideo.com 128 KB throttling on open-ended ranges
+_STREAM_CHUNK_BYTES = 1024 * 1024  # 1 MB bounded ranges for stable streaming
 
 
 @app.api_route("/api/audio/{video_id}", methods=["GET", "HEAD"])

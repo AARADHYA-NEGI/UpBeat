@@ -175,13 +175,7 @@ def get_audio_stream_url(video_id: str) -> Optional[Dict[str, Any]]:
     if cached and (now - cached.get("ts", 0)) < 1500:
         return cached
 
-    # 1. Fast Innertube Player Resolution (0.35s)
-    fast_info = _fast_innertube_audio(video_id)
-    if fast_info and fast_info.get("url"):
-        _STREAM_CACHE[video_id] = fast_info
-        return fast_info
-
-    # 2. Robust fallback via persistent thread-local yt-dlp
+    # Robust resolution via persistent thread-local yt-dlp with full JS signature solving
     try:
         ydl = _get_ydl()
         info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)

@@ -165,28 +165,6 @@ export default function PlayerBar({
     }
   }, [track, thumbUrl, resolvedVid, effectiveDuration, currentTime])
 
-  // Web Audio keepalive: Keeps background audio pipeline active in Safari & Chrome
-  const keepAliveCtxRef = useRef(null)
-  const enableAudioKeepAlive = useCallback(() => {
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext
-      if (!AudioCtx) return
-      if (!keepAliveCtxRef.current) {
-        const ctx = new AudioCtx()
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        gain.gain.value = 0.00001 // Inaudible keep-alive
-        osc.connect(gain)
-        gain.connect(ctx.destination)
-        osc.start()
-        keepAliveCtxRef.current = ctx
-      }
-      if (keepAliveCtxRef.current.state === 'suspended') {
-        keepAliveCtxRef.current.resume()
-      }
-    } catch {}
-  }, [])
-
   // Prime both audio decks on first user interaction so Safari never blocks background transitions
   const primedRef = useRef(false)
   const primeAudioEngines = useCallback(() => {
@@ -203,8 +181,7 @@ export default function PlayerBar({
         }).catch(() => {})
       }
     })
-    enableAudioKeepAlive()
-  }, [enableAudioKeepAlive])
+  }, [])
 
   useEffect(() => {
     const handleGesture = () => primeAudioEngines()
@@ -244,14 +221,8 @@ export default function PlayerBar({
   // Expose global controls for macOS menu bar, media keys, and external extensions
   useEffect(() => {
     window.UpBeatControls = {
-      togglePlay: () => {
-        enableAudioKeepAlive()
-        setIsPlaying((p) => !p)
-      },
-      play: () => {
-        enableAudioKeepAlive()
-        setIsPlaying(true)
-      },
+      togglePlay: () => setIsPlaying((p) => !p),
+      play: () => setIsPlaying(true),
       pause: () => setIsPlaying(false),
       next: () => onNextRef.current(),
       prev: () => onPrev(),
@@ -260,7 +231,7 @@ export default function PlayerBar({
     return () => {
       delete window.UpBeatControls
     }
-  }, [onPrev, enableAudioKeepAlive, setIsPlaying])
+  }, [onPrev, setIsPlaying])
 
   // Resolve video_id if track lacks one
   useEffect(() => {
@@ -412,7 +383,9 @@ export default function PlayerBar({
           setResolvedVid(nextVid)
           return
         }
-        setUseIframeFallback(true)
+        if (!hasBackend()) {
+          setUseIframeFallback(true)
+        }
         return
       }
 
@@ -538,7 +511,6 @@ export default function PlayerBar({
     const activeAudio = getActiveAudio()
     if (!useIframeFallback && activeAudio && resolvedVid) {
       if (isPlaying) {
-        enableAudioKeepAlive()
         if (activeAudio.src) {
           activeAudio.play().catch(() => {})
         }
@@ -910,7 +882,7 @@ export default function PlayerBar({
             if (fallbackQueueRef.current.length > 0) {
               const nextAlt = fallbackQueueRef.current.shift()
               setResolvedVid(nextAlt)
-            } else if (!useIframeFallback) {
+            } else if (!hasBackend() && !useIframeFallback) {
               setUseIframeFallback(true)
             }
           }}
