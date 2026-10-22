@@ -220,7 +220,7 @@ export default function PlaylistView({
           </div>
         </div>
 
-        {/* Direct Search: YouTube Results, YT Music Songs & Playlists Switcher Strip */}
+        {/* Direct Search: YouTube Results (Red), YT Music Songs (Purple) & Playlists (Emerald) Switcher Strip */}
         {isDirectSearch && (youtubeResults.length > 0 || songResults.length > 0 || matchedPlaylists.length > 0) && (
           <div className="flex items-center gap-1.5 mt-1.5 overflow-x-auto no-scrollbar pb-0.5">
             {youtubeResults.length > 0 && (
@@ -228,13 +228,13 @@ export default function PlaylistView({
                 type="button"
                 onClick={() => onSelectYoutubeResults && onSelectYoutubeResults()}
                 disabled={isLoadingPlaylistBrowse}
-                className={`px-2.5 py-1 rounded-md border text-[11px] font-medium flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer flex-shrink-0 ${
+                className={`px-2.5 py-1 rounded-md border text-[11px] font-medium flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${
                   activeSource === 'youtube'
-                    ? 'bg-sky-500/20 border-sky-500/50 text-sky-200 font-semibold'
-                    : 'bg-[#121217] hover:bg-[#1a1a22] border-[#22222a] text-[#8e8e96] hover:text-[#f4f4f5]'
+                    ? 'bg-rose-500/20 border-rose-500/60 text-rose-200 font-semibold shadow-xs'
+                    : 'bg-[#121217] hover:bg-[#1a1a22] border-[#22222a] hover:border-rose-500/40 text-[#8e8e96] hover:text-rose-200'
                 }`}
               >
-                <Play className="w-3 h-3 text-sky-400 fill-sky-400" />
+                <Play className="w-3 h-3 text-rose-500 fill-rose-500" />
                 <span>YouTube Results ({youtubeResults.length})</span>
               </button>
             )}
@@ -244,13 +244,13 @@ export default function PlaylistView({
                 type="button"
                 onClick={() => onSelectDirectSongs && onSelectDirectSongs()}
                 disabled={isLoadingPlaylistBrowse}
-                className={`px-2.5 py-1 rounded-md border text-[11px] font-medium flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer flex-shrink-0 ${
+                className={`px-2.5 py-1 rounded-md border text-[11px] font-medium flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${
                   activeSource === 'songs'
-                    ? 'bg-sky-500/20 border-sky-500/50 text-sky-200 font-semibold'
-                    : 'bg-[#121217] hover:bg-[#1a1a22] border-[#22222a] text-[#8e8e96] hover:text-[#f4f4f5]'
+                    ? 'bg-purple-500/20 border-purple-500/60 text-purple-200 font-semibold shadow-xs'
+                    : 'bg-[#121217] hover:bg-[#1a1a22] border-[#22222a] hover:border-purple-500/40 text-[#8e8e96] hover:text-purple-200'
                 }`}
               >
-                <Disc className="w-3 h-3 text-sky-400" />
+                <Disc className="w-3 h-3 text-purple-400" />
                 <span>YT Music Songs ({songResults.length})</span>
               </button>
             )}
@@ -263,20 +263,20 @@ export default function PlaylistView({
                   type="button"
                   onClick={() => onSelectMatchedPlaylist && onSelectMatchedPlaylist(pl)}
                   disabled={isLoadingPlaylistBrowse}
-                  className={`px-2.5 py-1 rounded-md border text-[11px] flex items-center gap-1.5 whitespace-nowrap transition-colors cursor-pointer flex-shrink-0 ${
+                  className={`px-2.5 py-1 rounded-md border text-[11px] flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${
                     isActivePl
-                      ? 'bg-sky-500/20 border-sky-500/50 text-sky-200 font-semibold'
-                      : 'bg-[#121217] hover:bg-[#1a1a22] border-[#22222a] text-[#8e8e96] hover:text-[#f4f4f5]'
+                      ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-200 font-semibold shadow-xs'
+                      : 'bg-[#121217] hover:bg-[#1a1a22] border-[#22222a] hover:border-emerald-500/40 text-[#8e8e96] hover:text-emerald-200'
                   }`}
                 >
                   {isLoadingPlaylistBrowse && isActivePl ? (
-                    <Loader2 className="w-3 h-3 animate-spin text-sky-400" />
+                    <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />
                   ) : (
-                    <ListMusic className="w-3 h-3 text-sky-400 flex-shrink-0" />
+                    <ListMusic className="w-3 h-3 text-emerald-400 flex-shrink-0" />
                   )}
                   <span className="truncate max-w-[200px]">{pl.title}</span>
                   {pl.is_editorial && (
-                    <span className="text-[9px] font-mono px-1 rounded bg-sky-500/15 text-sky-300">
+                    <span className="text-[9px] font-mono px-1 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                       Official
                     </span>
                   )}

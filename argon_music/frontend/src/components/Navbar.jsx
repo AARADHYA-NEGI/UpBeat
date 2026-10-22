@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import {
-  RefreshCw, ExternalLink, SlidersHorizontal, Heart, KeyRound,
+  RefreshCw, ExternalLink, PanelLeft, Heart, KeyRound,
   X, Check, Settings, Sparkles, Layers, Fingerprint, ChevronDown
 } from 'lucide-react'
 import { getStoredApiKey, setStoredApiKey, getStoredServerUrl, setStoredServerUrl, hasBackend } from '../standaloneApi'
@@ -18,6 +18,7 @@ export default function Navbar({
   setActiveTab,
   extractedCount = 0,
   favoritesCount = 0,
+  isSidebarOpen = true,
   onToggleSidebar,
   showKeyModal: controlledShowModal,
   setShowKeyModal: setControlledShowModal
@@ -60,11 +61,15 @@ export default function Navbar({
           <div className="flex items-center gap-2.5 min-w-0">
             <button
               onClick={onToggleSidebar}
-              className="p-1.5 rounded-lg bg-[#141418] border border-[#24242c] text-[#a1a1aa] hover:text-[#f4f4f5] hover:border-[#32323c] transition-colors cursor-pointer"
-              title="Toggle Modes & Intensity"
-              aria-label="Toggle Modes & Intensity"
+              className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                isSidebarOpen
+                  ? 'bg-[#181822] border-[#2c2c38] text-sky-400 shadow-xs'
+                  : 'bg-[#141418] border-[#24242c] text-[#8e8e96] hover:text-[#f4f4f5] hover:border-[#32323c]'
+              }`}
+              title={isSidebarOpen ? "Collapse sidebar (Cmd+B)" : "Expand sidebar (Cmd+B)"}
+              aria-label="Toggle sidebar"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-sky-400" />
+              <PanelLeft className="w-4 h-4" />
             </button>
 
             {/* Breadcrumb Navigation */}

@@ -76,11 +76,28 @@ export default function App() {
   const [isLoadingPlaylistBrowse, setIsLoadingPlaylistBrowse] = useState(false)
   const [isResolvingBatch, setIsResolvingBatch] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024
+    }
+    return true
+  })
   const [showKeyModal, setShowKeyModal] = useState(false)
   const [notification, setNotification] = useState(null)
 
   const initialBootRef = useRef(false)
+
+  // Global shortcut: Cmd+B / Ctrl+B to slide toggle sidebar
+  useEffect(() => {
+    const handleKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault()
+        setIsSidebarOpen((prev) => !prev)
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [])
 
   const showNotify = (msg, type = 'info') => {
     setNotification({ msg, type })
@@ -768,6 +785,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         extractedCount={extractedTracks.length}
         favoritesCount={favorites.length}
+        isSidebarOpen={isSidebarOpen}
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         showKeyModal={showKeyModal}
         setShowKeyModal={setShowKeyModal}
@@ -794,6 +812,7 @@ export default function App() {
           onSyncSafari={() => handleSyncSafari(false)}
           isSyncing={isSyncing}
           onOpenSafari={handleOpenSafari}
+          isOpenDesktop={isSidebarOpen}
           isOpenMobile={isSidebarOpen}
           onCloseMobile={() => setIsSidebarOpen(false)}
         />

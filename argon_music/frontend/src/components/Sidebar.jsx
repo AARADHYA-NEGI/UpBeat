@@ -7,6 +7,7 @@ export const PRESET_MODES = [
     label: 'Deep Focus / Terminal',
     character: 'Minimal Synth • Instrumental',
     energy: 60,
+    theme: 'emerald',
     prompt: 'Focused instrumental electronic, minimal synth, and atmospheric OSTs for deep programming sessions'
   },
   {
@@ -14,6 +15,7 @@ export const PRESET_MODES = [
     label: 'Cinematic & Anime OST',
     character: 'Orchestral Rock • Sawano',
     energy: 78,
+    theme: 'amber',
     prompt: 'High-impact orchestral rock, Hiroyuki Sawano style soundtracks, and Monogatari / anime openings'
   },
   {
@@ -21,6 +23,7 @@ export const PRESET_MODES = [
     label: 'High-Velocity Flow',
     character: 'Liquid DnB • Dark Synth',
     energy: 88,
+    theme: 'cyan',
     prompt: 'Fast-paced drum & bass, dark synthwave, and driving electronic rhythm for high-speed execution'
   },
   {
@@ -28,6 +31,7 @@ export const PRESET_MODES = [
     label: 'Late Night / Downtempo',
     character: 'Nocturnal Lo-Fi • Ambient',
     energy: 42,
+    theme: 'violet',
     prompt: 'Nocturnal lo-fi, ambient textures, and understated melodic pieces for late-night work'
   },
   {
@@ -35,9 +39,63 @@ export const PRESET_MODES = [
     label: 'Alt / Math Rock & J-Rock',
     character: 'Intricate Guitar • Melodic',
     energy: 72,
+    theme: 'rose',
     prompt: 'Intricate guitar work, math rock, Japanese alternative rock, and crisp melodic arrangements'
   }
 ]
+
+const MODE_THEMES = {
+  emerald: {
+    selected: 'bg-[#101b15] border-emerald-500/50 border-l-2 border-l-emerald-400 text-white shadow-xs',
+    hover: 'hover:border-emerald-500/30 hover:bg-[#121614]',
+    tag: 'bg-emerald-500/20 text-emerald-300',
+    percent: 'text-emerald-300 font-semibold',
+    character: 'text-emerald-200/80',
+    barActive: 'bg-emerald-400',
+    barInactive: 'bg-emerald-500/30',
+    sliderHex: '#10b981'
+  },
+  amber: {
+    selected: 'bg-[#1b1710] border-amber-500/50 border-l-2 border-l-amber-400 text-white shadow-xs',
+    hover: 'hover:border-amber-500/30 hover:bg-[#161411]',
+    tag: 'bg-amber-500/20 text-amber-300',
+    percent: 'text-amber-300 font-semibold',
+    character: 'text-amber-200/80',
+    barActive: 'bg-amber-400',
+    barInactive: 'bg-amber-500/30',
+    sliderHex: '#f59e0b'
+  },
+  cyan: {
+    selected: 'bg-[#10191f] border-cyan-500/50 border-l-2 border-l-cyan-400 text-white shadow-xs',
+    hover: 'hover:border-cyan-500/30 hover:bg-[#11161a]',
+    tag: 'bg-cyan-500/20 text-cyan-300',
+    percent: 'text-cyan-300 font-semibold',
+    character: 'text-cyan-200/80',
+    barActive: 'bg-cyan-400',
+    barInactive: 'bg-cyan-500/30',
+    sliderHex: '#06b6d4'
+  },
+  violet: {
+    selected: 'bg-[#171222] border-violet-500/50 border-l-2 border-l-violet-400 text-white shadow-xs',
+    hover: 'hover:border-violet-500/30 hover:bg-[#14111c]',
+    tag: 'bg-violet-500/20 text-violet-300',
+    percent: 'text-violet-300 font-semibold',
+    character: 'text-violet-200/80',
+    barActive: 'bg-violet-400',
+    barInactive: 'bg-violet-500/30',
+    sliderHex: '#a855f7'
+  },
+  rose: {
+    selected: 'bg-[#1d1217] border-rose-500/50 border-l-2 border-l-rose-400 text-white shadow-xs',
+    hover: 'hover:border-rose-500/30 hover:bg-[#191115]',
+    tag: 'bg-rose-500/20 text-rose-300',
+    percent: 'text-rose-300 font-semibold',
+    character: 'text-rose-200/80',
+    barActive: 'bg-rose-400',
+    barInactive: 'bg-rose-500/30',
+    sliderHex: '#f43f5e'
+  }
+}
 
 export default function Sidebar({
   tasteDna,
@@ -54,6 +112,7 @@ export default function Sidebar({
   onSyncSafari,
   isSyncing,
   onOpenSafari,
+  isOpenDesktop = true,
   isOpenMobile,
   onCloseMobile
 }) {
@@ -158,6 +217,7 @@ export default function Sidebar({
               const isSelected = activePresetId === p.id
               const displayedEnergy = isSelected ? energyLevel : p.energy
               const isModified = isSelected && energyLevel !== p.energy
+              const theme = MODE_THEMES[p.theme] || MODE_THEMES.cyan
 
               return (
                 <button
@@ -169,8 +229,8 @@ export default function Sidebar({
                   title={`Curate "${p.label}" (Default intensity: ${p.energy}%)`}
                   className={`w-full px-3 py-2 rounded-lg text-left transition-all cursor-pointer border ${
                     isSelected
-                      ? 'bg-[#161622] border-sky-500/40 border-l-2 border-l-sky-400 text-white shadow-xs'
-                      : 'bg-[#111116]/80 hover:bg-[#17171e] border-[#1e1e26] text-[#d4d4d8] hover:text-white'
+                      ? theme.selected
+                      : `bg-[#111116]/80 ${theme.hover} border-[#1e1e26] text-[#d4d4d8] hover:text-white`
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -180,25 +240,25 @@ export default function Sidebar({
                     <div className="flex items-center gap-1 flex-shrink-0">
                       {isModified && (
                         <span
-                          className="text-[9px] font-mono px-1 py-0.2 rounded bg-sky-500/20 text-sky-300"
+                          className={`text-[9px] font-mono px-1 py-0.2 rounded ${theme.tag}`}
                           title={`Preset default is ${p.energy}%, currently customized to ${energyLevel}%`}
                         >
                           custom
                         </span>
                       )}
-                      <span className={`text-[10px] font-mono ${isSelected ? 'text-sky-300 font-semibold' : 'text-[#71717a]'}`}>
+                      <span className={`text-[10px] font-mono ${isSelected ? theme.percent : 'text-[#71717a]'}`}>
                         {displayedEnergy}%
                       </span>
                     </div>
                   </div>
 
                   <div className="flex items-center justify-between gap-2 mt-1">
-                    <span className={`text-[10px] truncate ${isSelected ? 'text-sky-200/80' : 'text-[#8e8e96]'}`}>
+                    <span className={`text-[10px] truncate ${isSelected ? theme.character : 'text-[#8e8e96]'}`}>
                       {p.character}
                     </span>
                     <div className="w-10 h-1 rounded-full bg-[#1e1e28] overflow-hidden flex-shrink-0">
                       <div
-                        className={`h-full rounded-full transition-all ${isSelected ? 'bg-sky-400' : 'bg-[#38bdf8]/50'}`}
+                        className={`h-full rounded-full transition-all ${isSelected ? theme.barActive : theme.barInactive}`}
                         style={{ width: `${displayedEnergy}%` }}
                       />
                     </div>
@@ -228,14 +288,18 @@ export default function Sidebar({
                   <button
                     onClick={() => setEnergyLevel(activePreset.energy)}
                     title={`Reset intensity to ${activePreset.label} default (${activePreset.energy}%)`}
-                    className="text-[10px] font-mono text-sky-400 hover:text-sky-300 flex items-center gap-0.5 cursor-pointer"
+                    className={`text-[10px] font-mono ${
+                      (activePreset && MODE_THEMES[activePreset.theme]?.percent) || 'text-sky-400'
+                    } hover:opacity-80 flex items-center gap-0.5 cursor-pointer`}
                   >
                     <RotateCcw className="w-2.5 h-2.5" />
                     <span>reset ({activePreset.energy}%)</span>
                   </button>
                 )}
               </div>
-              <span className="font-mono text-xs font-semibold text-sky-300">
+              <span className={`font-mono text-xs font-semibold ${
+                (activePreset && MODE_THEMES[activePreset.theme]?.percent) || 'text-sky-300'
+              }`}>
                 {energyLevel}%
               </span>
             </div>
@@ -246,7 +310,11 @@ export default function Sidebar({
               value={energyLevel}
               onChange={(e) => setEnergyLevel(Number(e.target.value))}
               style={{
-                background: `linear-gradient(to right, #0284c7 0%, #38bdf8 ${energyLevel}%, #22222a ${energyLevel}%, #22222a 100%)`
+                background: `linear-gradient(to right, ${
+                  (activePreset && MODE_THEMES[activePreset.theme]?.sliderHex) || '#0284c7'
+                } 0%, ${
+                  (activePreset && MODE_THEMES[activePreset.theme]?.sliderHex) || '#38bdf8'
+                } ${energyLevel}%, #22222a ${energyLevel}%, #22222a 100%)`
               }}
               className="w-full argon-slider cursor-pointer"
             />
@@ -307,10 +375,14 @@ export default function Sidebar({
 
   return (
     <>
-      <div className="hidden lg:flex h-full">
+      {/* Desktop Sliding Collapsible Sidebar */}
+      <div className={`hidden lg:flex h-full transition-all duration-200 ease-in-out overflow-hidden flex-shrink-0 ${
+        isOpenDesktop ? 'w-72 opacity-100' : 'w-0 opacity-0 pointer-events-none'
+      }`}>
         {sidebarContent}
       </div>
 
+      {/* Mobile Overlay Drawer */}
       {isOpenMobile && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
           <div

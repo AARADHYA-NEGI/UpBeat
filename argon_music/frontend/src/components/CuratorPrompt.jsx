@@ -118,12 +118,12 @@ export default function CuratorPrompt({
                     onClick={() => setSearchMode('ai')}
                     className={`px-2 sm:px-2.5 py-1 rounded-md flex items-center gap-1.5 transition-all cursor-pointer ${
                       searchMode === 'ai'
-                        ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-medium shadow-xs'
+                        ? 'bg-purple-500/20 text-purple-200 border border-purple-500/40 font-semibold shadow-xs'
                         : 'text-[#8e8e96] hover:text-[#e4e4e7]'
                     }`}
                     title="Custom AI playlist curation via Gemini"
                   >
-                    <Sparkles className="w-3 h-3" />
+                    <Sparkles className="w-3 h-3 text-purple-400" />
                     <span>AI Curate</span>
                   </button>
                 </div>
@@ -131,7 +131,7 @@ export default function CuratorPrompt({
 
               {/* Engine / Model Indicator Pill */}
               <span className="hidden md:inline-flex items-center gap-1.5 text-[10px] font-mono px-2 py-1 rounded-md bg-[#0e0e13] border border-[#202028] text-[#8e8e96]">
-                <span className={`w-1.5 h-1.5 rounded-full ${searchMode === 'direct' ? 'bg-sky-400' : 'bg-indigo-400'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full ${searchMode === 'direct' ? 'bg-sky-400' : 'bg-purple-400'}`} />
                 <span>{searchMode === 'direct' ? 'Direct Match • 0 Tok' : (selectedModel || 'Gemini 3.8 Flash')}</span>
               </span>
             </div>
@@ -149,7 +149,7 @@ export default function CuratorPrompt({
                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
                   searchMode === 'direct'
                     ? 'bg-sky-500 hover:bg-sky-400 active:scale-95 text-white shadow-md shadow-sky-500/30'
-                    : 'bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white shadow-md shadow-indigo-500/30'
+                    : 'bg-gradient-to-tr from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-95 text-white shadow-md shadow-purple-500/30'
                 }`}
               >
                 {busy ? (
