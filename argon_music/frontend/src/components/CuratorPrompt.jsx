@@ -1,5 +1,5 @@
 import React from 'react'
-import { Loader2, ArrowRight, Sparkles, Search, ListMusic, X } from 'lucide-react'
+import { Loader2, ArrowRight, Sparkles, Search, X } from 'lucide-react'
 
 export default function CuratorPrompt({
   prompt,
@@ -12,25 +12,7 @@ export default function CuratorPrompt({
   isSearching,
   selectedModel
 }) {
-  const aiSuggestions = [
-    'Monogatari Series / Japanese math-pop & jazz-rock',
-    'Hiroyuki Sawano / Attack on Titan orchestral intensity',
-    'Focused late-night coding with minimal electronic & OSTs',
-    'Dark synthwave & industrial midtempo',
-    'Ambient downtempo for deep problem solving'
-  ]
-
-  const directSuggestions = [
-    'New Hindi Songs',
-    'Hindi Hits 2025',
-    'Monogatari Songs',
-    'Arijit Singh Best Songs',
-    'Bollywood Dance Hitlist',
-    'Daft Punk'
-  ]
-
   const busy = isGenerating || isSearching
-  const activeSuggestions = searchMode === 'direct' ? directSuggestions : aiSuggestions
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault()
@@ -162,50 +144,6 @@ export default function CuratorPrompt({
           </div>
         </div>
       </form>
-
-      {/* Quick Prompt Chips */}
-      <div className="flex items-center gap-1.5 mt-2.5 overflow-x-auto no-scrollbar sm:flex-wrap pb-0.5">
-        <span className="text-[10px] font-mono uppercase tracking-wider text-[#71717a] mr-1 flex items-center gap-1 flex-shrink-0">
-          {searchMode === 'direct' ? (
-            <>
-              <ListMusic className="w-3 h-3 text-emerald-400" />
-              <span className="text-emerald-400/90 font-medium">Instant (0 Tok):</span>
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-3 h-3 text-purple-400" />
-              <span className="text-purple-400/90 font-medium">AI Prompts:</span>
-            </>
-          )}
-        </span>
-        {activeSuggestions.map((s, idx) => {
-          const isCurrent = prompt.toLowerCase() === s.toLowerCase()
-          return (
-            <button
-              key={idx}
-              type="button"
-              onClick={() => {
-                setPrompt(s)
-                if (searchMode === 'direct' && onDirectSearch) {
-                  onDirectSearch(s)
-                } else {
-                  onGenerate(s)
-                }
-              }}
-              disabled={busy}
-              className={`px-2.5 py-1 rounded-md border text-[11px] whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${
-                isCurrent
-                  ? searchMode === 'direct'
-                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-200 font-semibold'
-                    : 'bg-purple-500/15 border-purple-500/40 text-purple-200 font-semibold'
-                  : 'bg-[#121217] hover:bg-[#1a1a22] border-[#22222a] hover:border-[#2e2e38] text-[#a1a1aa] hover:text-[#f4f4f5]'
-              }`}
-            >
-              {s}
-            </button>
-          )
-        })}
-      </div>
     </div>
   )
 }
