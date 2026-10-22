@@ -234,7 +234,9 @@ export default function PlaylistView({
             </div>
 
             <p className="text-[11px] text-[#8e8e96] mt-0.5 line-clamp-1 max-w-2xl font-mono">
-              {playlist.subtitle || playlist.vibe_description}
+              {isDirectSearch && tracks.length > 0
+                ? `YouTube results : ${tracks.length} videos`
+                : (playlist.subtitle || playlist.vibe_description)}
             </p>
           </div>
 

@@ -491,12 +491,12 @@ export async function directSearchStandalone(query, mode = 'auto') {
   let activeBrowseId = ''
   let tracks = youtubeResults
   let playlistTitle = `"${qClean}"`
-  let vibe = `YouTube results • ${youtubeResults.length} videos • same order as youtube.com (0 AI tokens)`
+  let vibe = `YouTube results : ${youtubeResults.length} videos`
 
   if (mode === 'songs' && ytmSongs.length) {
     activeSource = 'songs'
     tracks = ytmSongs
-    vibe = `YouTube Music songs • ${ytmSongs.length} results (0 AI tokens)`
+    vibe = `YouTube results : ${ytmSongs.length} videos`
   } else if (wantsPlaylist && matchedPlaylists.length) {
     const top = matchedPlaylists[0]
     const plTracks = await browsePlaylistStandalone(top.browse_id, top.title, top.subtitle)
@@ -505,7 +505,7 @@ export async function directSearchStandalone(query, mode = 'auto') {
       activeSource = 'playlist'
       activeBrowseId = top.browse_id
       playlistTitle = top.title
-      vibe = `${top.subtitle} • playlist for "${qClean}" (0 AI tokens)`
+      vibe = `YouTube results : ${plTracks.length} videos`
     }
   }
 

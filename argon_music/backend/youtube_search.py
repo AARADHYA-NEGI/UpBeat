@@ -869,12 +869,12 @@ def direct_search_youtube_music(query: str, mode: str = "auto") -> Dict[str, Any
     active_browse_id = ""
     tracks = youtube_results
     playlist_title = f'"{q_clean}"'
-    vibe = f"YouTube results • {len(youtube_results)} videos • same order as youtube.com (0 AI tokens)"
+    vibe = f"YouTube results : {len(youtube_results)} videos"
 
     if wants_ytm and ytm_songs:
         active_source = "songs"
         tracks = ytm_songs
-        vibe = f"YouTube Music songs • {len(ytm_songs)} results (0 AI tokens)"
+        vibe = f"YouTube results : {len(ytm_songs)} videos"
     elif wants_playlist and matched_playlists:
         top = matched_playlists[0]
         pl_tracks = browse_youtube_music_playlist(top["browse_id"], top["title"], top["subtitle"])
@@ -883,7 +883,7 @@ def direct_search_youtube_music(query: str, mode: str = "auto") -> Dict[str, Any
             active_source = "playlist"
             active_browse_id = top["browse_id"]
             playlist_title = top["title"]
-            vibe = f"{top['subtitle']} • playlist for \"{q_clean}\" (0 AI tokens)"
+            vibe = f"YouTube results : {len(pl_tracks)} videos"
 
     if not tracks:
         # Fall back gracefully if YouTube web search was blocked
