@@ -7,7 +7,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKUIDe
     var backendProcess: Process?
     let serverURL = URL(string: "http://127.0.0.1:8000")!
     let workspacePath = "/Users/aaradhya/Documents/Programming/random"
-    let appVersion = "2.12.0"
+    let appVersion = "3.0.0"
     let githubRepo = "AARADHYA-NEGI/UpBeat"
 
     var updateTimer: Timer?

@@ -25,7 +25,7 @@ from argon_music.backend.youtube_search import (
 )
 from argon_music.backend.favorites_store import get_favorites, toggle_favorite
 
-app = FastAPI(title="UpBeat Music API", version="2.0.0")
+app = FastAPI(title="UpBeat Music API", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,
