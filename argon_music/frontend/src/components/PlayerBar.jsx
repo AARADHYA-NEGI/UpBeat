@@ -128,6 +128,7 @@ export default function PlayerBar({
     setIsScrubbing(false)
     lastCurPosRef.current = 0
     lastCurChangeTimeRef.current = Date.now()
+    lastNativeReportSecRef.current = 0
     setUseIframeFallback(false)
 
     const initialDur =
@@ -140,12 +141,35 @@ export default function PlayerBar({
     if (!track) {
       setResolvedVid('')
       fallbackQueueRef.current = []
+      if (window.UpBeatNative?.updatePlayback) {
+        window.UpBeatNative.updatePlayback(false, 'UpBeat', '', '', 0, 0)
+      }
       return
     }
+
+    // Instantly isolate videoId so previous song's thumbnail NEVER leaks into track B
     if (track.video_id) {
       setResolvedVid(track.video_id)
       fallbackQueueRef.current = [...(track.fallback_ids || [])]
-      return
+    } else {
+      setResolvedVid('')
+      fallbackQueueRef.current = []
+    }
+
+    const immediateThumb =
+      track.thumbnail ||
+      (track.video_id ? `https://i.ytimg.com/vi/${track.video_id}/hqdefault.jpg` : '')
+
+    // ZERO-LATENCY INSTANT SYNC: Send the new song to Android top bar & lock screen immediately!
+    if (window.UpBeatNative?.updatePlayback) {
+      window.UpBeatNative.updatePlayback(
+        Boolean(isPlayingRef.current),
+        track.title || 'UpBeat',
+        track.artist || '',
+        immediateThumb,
+        Math.round(initialDur || 0),
+        0
+      )
     }
 
     let cancelled = false
@@ -163,14 +187,27 @@ export default function PlayerBar({
       }
       if (!cancelled && data?.video_id) {
         setResolvedVid(data.video_id)
+        let resolvedDur = initialDur
         if (data.duration_text) {
           const parsed = parseDurationText(data.duration_text)
           if (parsed > 0) {
+            resolvedDur = parsed
             authoritativeDurationRef.current = parsed
             setDuration(parsed)
           }
         }
         fallbackQueueRef.current = [...(data.fallback_ids || [])]
+        const resolvedThumb = data.thumbnail || `https://i.ytimg.com/vi/${data.video_id}/hqdefault.jpg`
+        if (window.UpBeatNative?.updatePlayback) {
+          window.UpBeatNative.updatePlayback(
+            Boolean(isPlayingRef.current),
+            track.title || 'UpBeat',
+            track.artist || '',
+            resolvedThumb,
+            Math.round(resolvedDur || 0),
+            0
+          )
+        }
         if (onTrackResolved) onTrackResolved(track, data)
       }
     })()
@@ -456,11 +493,11 @@ export default function PlayerBar({
   // Sync Android Foreground Media Service + Android Auto + Lock Screen MediaSession
   useEffect(() => {
     try {
-      if (window.UpBeatNative && typeof window.UpBeatNative.updatePlayback === 'function') {
+      if (window.UpBeatNative && typeof window.UpBeatNative.updatePlayback === 'function' && track) {
         window.UpBeatNative.updatePlayback(
-          Boolean(isPlaying && track),
-          track?.title || 'UpBeat',
-          track?.artist || '',
+          Boolean(isPlaying),
+          track.title || 'UpBeat',
+          track.artist || '',
           thumbUrl || '',
           Math.round(effectiveDuration || 0),
           Math.round(currentTime || 0)
@@ -491,7 +528,7 @@ export default function PlayerBar({
         })
       } catch {}
     }
-  }, [isPlaying, track?.title, track?.artist, resolvedVid])
+  }, [isPlaying, track?.title, track?.artist, track?.thumbnail, resolvedVid, thumbUrl, effectiveDuration])
 
   // Listen for in-car seek commands from Android Auto
   useEffect(() => {
@@ -603,10 +640,30 @@ export default function PlayerBar({
           endedTriggeredRef.current = false
           setIsPlaying(true)
           lastCurChangeTimeRef.current = Date.now()
+          if (window.UpBeatNative?.updatePlayback && track) {
+            window.UpBeatNative.updatePlayback(
+              true,
+              track.title || 'UpBeat',
+              track.artist || '',
+              thumbUrl || '',
+              Math.round(effectiveDuration || 0),
+              Math.round(audioRef.current?.currentTime || 0)
+            )
+          }
         }}
         onPause={() => {
           if (audioRef.current && !audioRef.current.ended) {
             setIsPlaying(false)
+            if (window.UpBeatNative?.updatePlayback && track) {
+              window.UpBeatNative.updatePlayback(
+                false,
+                track.title || 'UpBeat',
+                track.artist || '',
+                thumbUrl || '',
+                Math.round(effectiveDuration || 0),
+                Math.round(audioRef.current?.currentTime || 0)
+              )
+            }
           }
         }}
         onWaiting={(e) => {

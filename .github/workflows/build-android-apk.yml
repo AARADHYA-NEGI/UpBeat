@@ -61,7 +61,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v2.0.0
-          name: "UpBeat v2.10 — Global Fix for Duration Desync & Playback Freeze (HE-AAC/SBR Bug)"
+          name: "UpBeat v2.11 — Spotify-Style Media Notification Bar & Zero-Lag Auto Track Sync"
           files: |
             argon_music/frontend/android/app/build/outputs/apk/debug/UpBeat.apk
             UpBeat-macOS.zip

@@ -10,6 +10,11 @@ import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.LinearGradient;
+import android.graphics.Paint;
+import android.graphics.Shader;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Build;
@@ -17,6 +22,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.PowerManager;
+import android.os.SystemClock;
 import android.support.v4.media.MediaBrowserCompat;
 import android.support.v4.media.MediaDescriptionCompat;
 import android.support.v4.media.MediaMetadataCompat;
@@ -41,8 +47,8 @@ import java.util.List;
 /**
  * Android Notification Media Controls & Android Auto In-Car Browser Service for UpBeat.
  * Implements MediaBrowserServiceCompat + MediaSessionCompat + MediaStyle notification controls
- * so UpBeat displays the native interactive playback bar (Play, Pause, Forward, Backward, Scrubber)
- * in the Android notification shade, Quick Settings, lock screen, and car display (Spotify/YT Music style).
+ * with Spotify-style rich interactive media card (Play/Pause, Prev, Next, Rewind 10s, Forward 10s,
+ * real-time elapsed progress bar, dynamic album art, and instant zero-lag track synchronization).
  */
 public class UpBeatMediaService extends MediaBrowserServiceCompat {
 
@@ -66,7 +72,7 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
     public static final String MEDIA_ID_FAVORITES = "folder_favorites";
     public static final String MEDIA_ID_PRESETS = "folder_presets";
 
-    public static UpBeatMediaService sInstance = null;
+    public static volatile UpBeatMediaService sInstance = null;
 
     private MediaSessionCompat mMediaSession;
     private PowerManager.WakeLock wakeLock;
@@ -109,7 +115,7 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
         mMediaSession.setActive(true);
         setSessionToken(mMediaSession.getSessionToken());
 
-        updatePlaybackState(PlaybackStateCompat.STATE_NONE, 0);
+        updatePlaybackState(PlaybackStateCompat.STATE_NONE, 0, false);
     }
 
     private class MediaSessionCallback extends MediaSessionCompat.Callback {
@@ -292,31 +298,14 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
             }
         }
 
-        if (intent != null) {
+        if (intent != null && intent.hasExtra("title")) {
             String t = intent.getStringExtra("title");
             String a = intent.getStringExtra("artist");
             String art = intent.getStringExtra("artUrl");
             long dur = intent.getLongExtra("durationSec", 0);
             long pos = intent.getLongExtra("positionSec", 0);
             boolean playing = intent.getBooleanExtra("isPlaying", false);
-
-            if (t != null && !t.isEmpty()) currentTitle = t;
-            if (a != null && !a.isEmpty()) currentArtist = a;
-            if (art != null) currentArtUrl = art;
-            if (dur > 0) currentDurationMs = dur * 1000;
-            currentPositionMs = pos * 1000;
-            isCurrentlyPlaying = playing;
-
-            mMediaSession.setActive(true);
-            applyMediaMetadata();
-            updatePlaybackState(
-                playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED,
-                currentPositionMs
-            );
-
-            if (currentArtUrl != null && !currentArtUrl.isEmpty() && !currentArtUrl.equals(cachedArtworkUrl)) {
-                loadArtworkBitmapAsync(currentArtUrl);
-            }
+            handlePlaybackUpdate(playing, t, a, art, dur, pos);
         }
 
         Notification notification = buildNotification(currentTitle, currentArtist, isCurrentlyPlaying);
@@ -332,11 +321,56 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
             }
         } catch (Exception ignored) {}
 
+        notifyNotification();
         acquireLocks();
         return START_STICKY;
     }
 
-    private void updatePlaybackState(int state, long positionMs) {
+    /**
+     * Direct zero-latency handler called whenever song or playback state changes.
+     * Instantly purges old track artwork, updates MediaSession metadata, animates the progress bar,
+     * and forces an immediate NotificationManager.notify() update in the Android status bar.
+     */
+    public synchronized void handlePlaybackUpdate(boolean isPlaying, String title, String artist, String artUrl, long durationSec, long positionSec) {
+        String cleanTitle = (title != null && !title.trim().isEmpty()) ? title.trim() : "UpBeat";
+        String cleanArtist = (artist != null && !artist.trim().isEmpty()) ? artist.trim() : "";
+        String cleanArt = (artUrl != null) ? artUrl.trim() : "";
+
+        boolean trackChanged = !cleanTitle.equals(currentTitle)
+            || (!cleanArt.isEmpty() && !cleanArt.equals(currentArtUrl));
+
+        currentTitle = cleanTitle;
+        currentArtist = cleanArtist;
+        isCurrentlyPlaying = isPlaying;
+        currentPositionMs = Math.max(0, positionSec * 1000);
+        if (durationSec > 0) {
+            currentDurationMs = durationSec * 1000;
+        }
+
+        if (trackChanged) {
+            // ZERO-LATENCY PURGE: Immediately destroy previous track's artwork
+            // so track A NEVER lingers when track B starts playing!
+            cachedArtworkBitmap = createDefaultArtwork(currentTitle);
+            cachedArtworkUrl = "";
+            currentArtUrl = cleanArt;
+
+            if (!cleanArt.isEmpty()) {
+                loadArtworkBitmapAsync(cleanArt);
+            }
+        }
+
+        mMediaSession.setActive(true);
+        applyMediaMetadata();
+        updatePlaybackState(
+            isCurrentlyPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED,
+            currentPositionMs,
+            isCurrentlyPlaying
+        );
+
+        notifyNotification();
+    }
+
+    private void updatePlaybackState(int state, long positionMs, boolean isPlaying) {
         long actions = PlaybackStateCompat.ACTION_PLAY
             | PlaybackStateCompat.ACTION_PAUSE
             | PlaybackStateCompat.ACTION_PLAY_PAUSE
@@ -347,9 +381,11 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
             | PlaybackStateCompat.ACTION_FAST_FORWARD
             | PlaybackStateCompat.ACTION_REWIND;
 
+        // Passing SystemClock.elapsedRealtime() enables Android OS to smoothly animate
+        // the notification scrubber and live playback timer in real time (Spotify style)
         PlaybackStateCompat.Builder stateBuilder = new PlaybackStateCompat.Builder()
             .setActions(actions)
-            .setState(state, positionMs, 1.0f);
+            .setState(state, positionMs, isPlaying ? 1.0f : 0.0f, SystemClock.elapsedRealtime());
 
         mMediaSession.setPlaybackState(stateBuilder.build());
     }
@@ -361,9 +397,10 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
             .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, "UpBeat")
             .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, currentDurationMs);
 
-        if (cachedArtworkBitmap != null) {
-            metaBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, cachedArtworkBitmap);
-            metaBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, cachedArtworkBitmap);
+        Bitmap artToUse = cachedArtworkBitmap != null ? cachedArtworkBitmap : createDefaultArtwork(currentTitle);
+        if (artToUse != null) {
+            metaBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, artToUse);
+            metaBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ART, artToUse);
         }
         if (currentArtUrl != null && !currentArtUrl.isEmpty()) {
             metaBuilder.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, currentArtUrl);
@@ -373,42 +410,108 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
         mMediaSession.setMetadata(metaBuilder.build());
     }
 
+    /**
+     * Generates a sleek, modern Spotify-style dark indigo gradient album art tile
+     * with vinyl concentric rings and the track's capitalized initial for zero-latency instant display.
+     */
+    private Bitmap createDefaultArtwork(String title) {
+        try {
+            int size = 512;
+            Bitmap bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+            Canvas canvas = new Canvas(bitmap);
+
+            // Deep modern dark-indigo gradient
+            Paint bgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            Shader gradient = new LinearGradient(
+                0, 0, size, size,
+                new int[]{Color.parseColor("#141522"), Color.parseColor("#262844"), Color.parseColor("#0e0f18")},
+                new float[]{0f, 0.6f, 1f},
+                Shader.TileMode.CLAMP
+            );
+            bgPaint.setShader(gradient);
+            canvas.drawRect(0, 0, size, size, bgPaint);
+
+            // Vinyl concentric rings
+            Paint ringPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            ringPaint.setStyle(Paint.Style.STROKE);
+            ringPaint.setStrokeWidth(3f);
+            ringPaint.setColor(Color.argb(35, 99, 102, 241));
+            canvas.drawCircle(size / 2f, size / 2f, size * 0.42f, ringPaint);
+            canvas.drawCircle(size / 2f, size / 2f, size * 0.30f, ringPaint);
+            canvas.drawCircle(size / 2f, size / 2f, size * 0.18f, ringPaint);
+
+            // Central disc
+            Paint centerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            centerPaint.setColor(Color.parseColor("#4F46E5"));
+            centerPaint.setShadowLayer(16f, 0, 4f, Color.argb(120, 0, 0, 0));
+            canvas.drawCircle(size / 2f, size / 2f, size * 0.14f, centerPaint);
+
+            // Central initial/symbol
+            Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            textPaint.setColor(Color.WHITE);
+            textPaint.setTextSize(size * 0.14f);
+            textPaint.setTextAlign(Paint.Align.CENTER);
+            textPaint.setFakeBoldText(true);
+
+            String initial = (title != null && !title.trim().isEmpty())
+                ? title.trim().substring(0, 1).toUpperCase()
+                : "♫";
+            float yPos = (size / 2f) - ((textPaint.descent() + textPaint.ascent()) / 2f);
+            canvas.drawText(initial, size / 2f, yPos, textPaint);
+
+            return bitmap;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private void loadArtworkBitmapAsync(final String urlString) {
         if (urlString == null || urlString.isEmpty()) {
-            cachedArtworkBitmap = null;
-            cachedArtworkUrl = "";
-            applyMediaMetadata();
-            notifyNotification();
             return;
         }
 
+        final String targetTitle = currentTitle;
         new Thread(() -> {
+            Bitmap bmp = null;
             try {
                 URL url = new URL(urlString);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setDoInput(true);
-                conn.setConnectTimeout(4000);
-                conn.setReadTimeout(4000);
+                conn.setInstanceFollowRedirects(true);
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 UpBeat/2.10");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
                 conn.connect();
-                InputStream input = conn.getInputStream();
-                Bitmap bmp = BitmapFactory.decodeStream(input);
-                if (bmp != null) {
-                    cachedArtworkBitmap = bmp;
-                    cachedArtworkUrl = urlString;
-                    new Handler(Looper.getMainLooper()).post(() -> {
+                if (conn.getResponseCode() == 200) {
+                    InputStream input = conn.getInputStream();
+                    bmp = BitmapFactory.decodeStream(input);
+                    input.close();
+                }
+            } catch (Exception ignored) {
+                bmp = null;
+            }
+
+            final Bitmap finalBmp = bmp;
+            new Handler(Looper.getMainLooper()).post(() -> {
+                // Confirm the user hasn't switched songs while the image was downloading
+                if (currentTitle.equals(targetTitle)) {
+                    if (finalBmp != null) {
+                        cachedArtworkBitmap = finalBmp;
+                        cachedArtworkUrl = urlString;
                         applyMediaMetadata();
                         notifyNotification();
-                    });
+                    }
                 }
-            } catch (Exception ignored) {}
+            });
         }).start();
     }
 
     private void notifyNotification() {
-        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        if (manager != null) {
-            manager.notify(NOTIFICATION_ID, buildNotification(currentTitle, currentArtist, isCurrentlyPlaying));
-        }
+        try {
+            NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (manager != null) {
+                manager.notify(NOTIFICATION_ID, buildNotification(currentTitle, currentArtist, isCurrentlyPlaying));
+            }
+        } catch (Exception ignored) {}
     }
 
     private PendingIntent createActionIntent(String action) {
@@ -421,6 +524,11 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
         return PendingIntent.getService(this, action.hashCode(), intent, pFlags);
     }
 
+    /**
+     * Builds a Spotify-style rich media card for Android notification shade & Quick Settings.
+     * Uses vector icons, accent coloring, real-time scrubber metadata, and 5-action expanded layout
+     * (Previous, Rewind 10s, Play/Pause, Forward 10s, Next), with compact mode displaying (Prev, Play/Pause, Next).
+     */
     private Notification buildNotification(String title, String artist, boolean isPlaying) {
         Intent openIntent = new Intent(this, MainActivity.class);
         openIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -435,30 +543,39 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
             .setContentTitle(title)
             .setContentText(artist)
             .setSubText("UpBeat")
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_upbeat_status)
             .setContentIntent(contentIntent)
             .setOngoing(isPlaying)
             .setSilent(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setColor(Color.parseColor("#6366F1"))
+            .setColorized(true)
             .setCategory(NotificationCompat.CATEGORY_TRANSPORT);
 
-        if (cachedArtworkBitmap != null) {
-            builder.setLargeIcon(cachedArtworkBitmap);
+        Bitmap artToUse = cachedArtworkBitmap != null ? cachedArtworkBitmap : createDefaultArtwork(title);
+        if (artToUse != null) {
+            builder.setLargeIcon(artToUse);
         }
 
+        // Spotify-style 5 action transport layout
         builder
             .addAction(new NotificationCompat.Action(
-                android.R.drawable.ic_media_previous, "Previous", createActionIntent(ACTION_PREV)))
+                R.drawable.ic_skip_previous, "Previous", createActionIntent(ACTION_PREV)))
             .addAction(new NotificationCompat.Action(
-                isPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,
+                R.drawable.ic_fast_rewind_10, "Rewind 10s", createActionIntent(ACTION_REWIND)))
+            .addAction(new NotificationCompat.Action(
+                isPlaying ? R.drawable.ic_pause : R.drawable.ic_play_arrow,
                 isPlaying ? "Pause" : "Play",
                 createActionIntent(ACTION_TOGGLE_PLAY)))
             .addAction(new NotificationCompat.Action(
-                android.R.drawable.ic_media_next, "Next", createActionIntent(ACTION_NEXT)))
+                R.drawable.ic_fast_forward_10, "Forward 10s", createActionIntent(ACTION_FORWARD)))
+            .addAction(new NotificationCompat.Action(
+                R.drawable.ic_skip_next, "Next", createActionIntent(ACTION_NEXT)))
             .setStyle(new androidx.media.app.NotificationCompat.MediaStyle()
                 .setMediaSession(mMediaSession.getSessionToken())
-                .setShowActionsInCompactView(0, 1, 2)
+                // Compact view shows action 0 (Previous), action 2 (Play/Pause), action 4 (Next)
+                .setShowActionsInCompactView(0, 2, 4)
                 .setShowCancelButton(true)
                 .setCancelButtonIntent(createActionIntent(ACTION_STOP)));
 
@@ -502,6 +619,17 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
 
     public static void updatePlayback(Context context, boolean isPlaying, String title, String artist, String artUrl, long durationSec, long positionSec) {
         if (context == null) return;
+
+        // If the service instance is active in memory, immediately dispatch on the main looper
+        // for instant 0ms latency in updating the top notification bar without waiting for intent queues!
+        if (sInstance != null) {
+            new Handler(Looper.getMainLooper()).post(() -> {
+                if (sInstance != null) {
+                    sInstance.handlePlaybackUpdate(isPlaying, title, artist, artUrl, durationSec, positionSec);
+                }
+            });
+        }
+
         try {
             Intent serviceIntent = new Intent(context, UpBeatMediaService.class);
             serviceIntent.putExtra("isPlaying", isPlaying);
