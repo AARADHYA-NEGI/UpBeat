@@ -356,7 +356,13 @@ export default function PlayerBar({
       targetAudio.load()
 
       const targetVol = isMuted ? 0 : volume / 100
-      const isPrevPlaying = currentActive && !currentActive.paused && currentActive.currentTime > 0
+      const isPrevPlaying =
+        currentActive &&
+        !currentActive.paused &&
+        currentActive.currentTime > 0.5 &&
+        !currentActive.ended &&
+        currentActive.dataset.vid &&
+        currentActive.dataset.vid !== resolvedVid
 
       if (isPrevPlaying && isPlayingRef.current) {
         // Smooth ~1 sec seamless transition: target audio starts at 0 volume and fades in,
@@ -535,7 +541,7 @@ export default function PlayerBar({
             },
             onStateChange: (e) => {
               if (e.data === 0) {
-                if (!endedTriggeredRef.current) {
+                if (useIframeFallback && currentVidRef.current === resolvedVid && !endedTriggeredRef.current) {
                   endedTriggeredRef.current = true
                   onNextRef.current()
                 }
@@ -549,7 +555,9 @@ export default function PlayerBar({
               }
             },
             onError: () => {
-              onNextRef.current()
+              if (useIframeFallback && currentVidRef.current === resolvedVid) {
+                onNextRef.current()
+              }
             }
           }
         })
@@ -581,7 +589,7 @@ export default function PlayerBar({
 
       if (!useIframeFallback) {
         const audio = getActiveAudio()
-        if (!audio) return
+        if (!audio || !resolvedVid || audio.dataset.vid !== resolvedVid) return
         const cur = audio.currentTime
         const rawDur = audio.duration
         const targetDur =
@@ -621,21 +629,20 @@ export default function PlayerBar({
         }
 
         // Multi-tier End-of-Track and Freeze Protection:
-        // 1. Audio element fired ended
-        // 2. Playback reached real target duration (within 0.4s)
-        // 3. Audio stalled near the true end (within 2s) and hasn't advanced for >= 1.2s
-        // 4. Fallback 2x SBR freeze detection: stopped at half of raw browser duration for >= 1.8s
+        // Must be currently playing the resolvedVid, cur must have progressed (> 0.5s),
+        // and targetDur must be established (> 5s).
         const timeSinceAdvance = Date.now() - (lastCurChangeTimeRef.current || Date.now())
         const isEnded = Boolean(audio.ended)
         const reachedTargetEnd = targetDur > 5 && cur >= targetDur - 0.4
-        const stalledNearEnd = targetDur > 5 && cur >= targetDur - 2.0 && timeSinceAdvance >= 1200
+        const stalledNearEnd = targetDur > 5 && cur >= targetDur - 2.0 && cur > 5 && timeSinceAdvance >= 1500
         const isSbr2xFreeze =
           typeof rawDur === 'number' &&
           rawDur > 20 &&
+          cur > 5 &&
           Math.abs(cur - rawDur / 2) <= 3.0 &&
           timeSinceAdvance >= 1800
 
-        if ((isEnded || reachedTargetEnd || stalledNearEnd || isSbr2xFreeze) && !endedTriggeredRef.current) {
+        if ((isEnded || reachedTargetEnd || stalledNearEnd || isSbr2xFreeze) && !endedTriggeredRef.current && cur > 0.5) {
           endedTriggeredRef.current = true
           onNextRef.current()
         }
@@ -770,7 +777,7 @@ export default function PlayerBar({
           }}
           onPlay={(e) => {
             setIsLoadingStream(false)
-            if (activeDeckRef.current === deck) {
+            if (activeDeckRef.current === deck || e.currentTarget.dataset.vid === resolvedVid) {
               endedTriggeredRef.current = false
               setIsPlaying(true)
               lastCurChangeTimeRef.current = Date.now()
@@ -787,7 +794,7 @@ export default function PlayerBar({
             }
           }}
           onPause={(e) => {
-            if (activeDeckRef.current === deck && !fadeIntervalRef.current) {
+            if (activeDeckRef.current === deck && !fadeIntervalRef.current && e.currentTarget.dataset.vid === resolvedVid) {
               const audio = e.currentTarget
               if (audio && !audio.ended) {
                 setIsPlaying(false)
@@ -805,32 +812,33 @@ export default function PlayerBar({
             }
           }}
           onWaiting={(e) => {
-            if (activeDeckRef.current === deck) {
+            if (activeDeckRef.current === deck && e.currentTarget.dataset.vid === resolvedVid) {
               const cur = e.currentTarget.currentTime || 0
               const targetDur = duration > 0 ? duration : (authoritativeDurationRef.current || parseDurationText(track?.duration_text))
-              if (targetDur > 5 && cur >= targetDur - 2.0 && !endedTriggeredRef.current) {
+              if (targetDur > 5 && cur > 5 && cur >= targetDur - 2.0 && !endedTriggeredRef.current) {
                 endedTriggeredRef.current = true
                 onNextRef.current()
               }
             }
           }}
           onStalled={(e) => {
-            if (activeDeckRef.current === deck) {
+            if (activeDeckRef.current === deck && e.currentTarget.dataset.vid === resolvedVid) {
               const cur = e.currentTarget.currentTime || 0
               const targetDur = duration > 0 ? duration : (authoritativeDurationRef.current || parseDurationText(track?.duration_text))
-              if (targetDur > 5 && cur >= targetDur - 2.0 && !endedTriggeredRef.current) {
+              if (targetDur > 5 && cur > 5 && cur >= targetDur - 2.0 && !endedTriggeredRef.current) {
                 endedTriggeredRef.current = true
                 onNextRef.current()
               }
             }
           }}
-          onEnded={() => {
-            if (activeDeckRef.current === deck && !endedTriggeredRef.current) {
+          onEnded={(e) => {
+            if (activeDeckRef.current === deck && e.currentTarget.dataset.vid === resolvedVid && !endedTriggeredRef.current) {
               endedTriggeredRef.current = true
               onNextRef.current()
             }
           }}
-          onError={() => {
+          onError={(e) => {
+            if (e.currentTarget.dataset.vid !== resolvedVid) return
             setIsLoadingStream(false)
             if (fallbackQueueRef.current.length > 0) {
               const nextAlt = fallbackQueueRef.current.shift()
