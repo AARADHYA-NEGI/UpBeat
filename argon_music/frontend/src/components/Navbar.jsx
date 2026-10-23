@@ -79,8 +79,12 @@ export default function Navbar({
               <span
                 onClick={() => setActiveTab('curator')}
                 className="text-[#71717a] hover:text-[#e4e4e7] transition-colors cursor-pointer truncate hidden sm:inline"
+                title="UpBeat v3.0+1.0 :|| Thrice Upon a Time"
               >
                 UpBeat
+              </span>
+              <span className="hidden sm:inline-block text-[9px] font-mono px-1 py-0.2 rounded bg-[#181820] text-[#71717a] border border-[#24242e]" title="Evangelion: 3.0+1.0 Thrice Upon a Time">
+                3.0+1.0 :||
               </span>
               <span className="text-[#3f3f46] hidden sm:inline">/</span>
               <div className="flex items-center gap-1.5 truncate">

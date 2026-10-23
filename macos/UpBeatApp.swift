@@ -8,7 +8,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     var backendProcess: Process?
     let serverURL = URL(string: "http://127.0.0.1:8000")!
     let workspacePath = "/Users/aaradhya/Documents/Programming/random"
-    let appVersion = "3.0.0"
+    let appVersion = "3.0+1.0"
     let githubRepo = "AARADHYA-NEGI/UpBeat"
 
     var updateTimer: Timer?
@@ -292,8 +292,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
     @objc func showAboutPanel() {
         let alert = NSAlert()
-        alert.messageText = "UpBeat Studio"
-        alert.informativeText = "Version \(appVersion) (Direct Search & AI Studio)\nCreated for modern music curation with zero-token search, YouTube Music streaming, background playback, and Safari sync."
+        alert.messageText = "UpBeat 3.0+1.0 :||"
+        alert.informativeText = "Version \(appVersion) (Thrice Upon a Time)\nCreated for modern music curation with zero-token search, offline playback on Mac & Android, YouTube Music streaming, and Safari sync."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "Check for Updates")

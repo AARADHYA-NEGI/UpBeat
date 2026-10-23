@@ -373,6 +373,16 @@ export default function Sidebar({
             </div>
           </div>
         </div>
+        {/* Antigravity Release Tag: Eva 3.0+1.0 */}
+        <div className="px-4 py-3 border-t border-[#1c1c24] flex items-center justify-between text-[10px] font-mono text-[#52525b]">
+          <span className="flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400/80 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+            <span className="text-[#a1a1aa] font-medium">UpBeat v3.0+1.0</span>
+          </span>
+          <span className="text-[#71717a] tracking-wider" title="Evangelion: 3.0+1.0 Thrice Upon a Time">
+            :|| THRICE UPON A TIME
+          </span>
+        </div>
       </div>
 
       {/* Bottom Profile Snapshot */}
