@@ -1008,7 +1008,7 @@ export default function App() {
     : null
 
   return (
-    <div className="h-[100dvh] w-screen bg-[#0a0a0d] text-[#f4f4f5] flex flex-col overflow-hidden">
+    <div className="h-[100dvh] w-screen ytm-atmosphere text-[#f4f4f5] flex flex-col overflow-hidden">
       {/* Subtle Antigravity Status Notification */}
       {notification && (
         <div className="fixed bottom-36 sm:bottom-20 left-4 right-4 sm:left-6 sm:right-auto z-50">
@@ -1044,8 +1044,14 @@ export default function App() {
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         showKeyModal={showKeyModal}
         setShowKeyModal={setShowKeyModal}
-        isSearchOpen={isSearchOpen}
-        onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
+        prompt={prompt}
+        setPrompt={handlePromptChange}
+        onDirectSearch={(q) => handleDirectSearch(q, 'auto')}
+        onGenerate={(p) => handleGenerate(p)}
+        searchMode={searchMode}
+        setSearchMode={setSearchMode}
+        isGenerating={isGenerating}
+        isSearching={isSearching}
         googleUser={googleUser}
         onOpenGoogleModal={() => setShowGoogleModal(true)}
       />
@@ -1069,6 +1075,8 @@ export default function App() {
           favoritesCount={favorites.length}
           offlineCount={offlineStats.count}
           offlineStorageSize={offlineStats.formattedSize}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
           onOpenFavoritesTab={() => setActiveTab('favorites')}
           onOpenOfflineTab={() => setActiveTab('offline')}
           onSyncSafari={() => handleSyncSafari(false)}
@@ -1077,11 +1085,12 @@ export default function App() {
           isOpenDesktop={isSidebarOpen}
           isOpenMobile={isSidebarOpen}
           onCloseMobile={() => setIsSidebarOpen(false)}
+          onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         />
 
-        <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#0a0a0d]">
+        <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-transparent">
           {activeTab === 'curator' ? (
-            <div className="flex-1 overflow-y-auto min-h-0 flex flex-col bg-[#0a0a0d] scroll-smooth">
+            <div className="flex-1 overflow-y-auto min-h-0 flex flex-col bg-transparent scroll-smooth">
               <CuratorPrompt
                 prompt={prompt}
                 setPrompt={handlePromptChange}
@@ -1092,9 +1101,6 @@ export default function App() {
                 isGenerating={isGenerating}
                 isSearching={isSearching}
                 selectedModel={selectedModel}
-                isOpen={isSearchOpen}
-                onClose={() => setIsSearchOpen(false)}
-                onOpen={() => setIsSearchOpen(true)}
               />
               <PlaylistView
                 playlist={playlist}
@@ -1121,6 +1127,7 @@ export default function App() {
                 }}
                 needsSetup={!isConfigured()}
                 onOpenSettings={() => setShowKeyModal(true)}
+                googleUser={googleUser}
               />
             </div>
           ) : activeTab === 'offline' ? (

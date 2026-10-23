@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import {
-  RefreshCw, ExternalLink, PanelLeft, Heart, KeyRound,
-  X, Check, Settings, Sparkles, Layers, Fingerprint, ChevronDown, DownloadCloud, Search
+  RefreshCw, ExternalLink, Menu, Heart, KeyRound,
+  X, Check, Settings, Sparkles, Layers, Fingerprint, ChevronDown, DownloadCloud, Search, Play, Loader2
 } from 'lucide-react'
 import { getStoredApiKey, setStoredApiKey, getStoredServerUrl, setStoredServerUrl, hasBackend } from '../standaloneApi'
 import { GoogleIcon } from './GoogleAuthModal'
@@ -24,8 +24,14 @@ export default function Navbar({
   onToggleSidebar,
   showKeyModal: controlledShowModal,
   setShowKeyModal: setControlledShowModal,
-  isSearchOpen = false,
-  onToggleSearch,
+  prompt = '',
+  setPrompt,
+  onDirectSearch,
+  onGenerate,
+  searchMode = 'direct',
+  setSearchMode,
+  isGenerating = false,
+  isSearching = false,
   googleUser,
   onOpenGoogleModal
 }) {
@@ -36,10 +42,12 @@ export default function Navbar({
   const [apiKeyInput, setApiKeyInput] = useState(() => getStoredApiKey())
   const [serverUrlInput, setServerUrlInput] = useState(() => getStoredServerUrl())
   const [savedBanner, setSavedBanner] = useState(false)
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
 
   const hasYT = safariStatus?.has_yt
   const isFallback = lastModelStatus?.isFallback
   const hasKeyOrServer = Boolean(getStoredApiKey()) || hasBackend()
+  const busy = isGenerating || isSearching
 
   const handleSaveSettings = (e) => {
     e.preventDefault()
@@ -52,201 +60,149 @@ export default function Navbar({
     }, 550)
   }
 
-  const getBreadcrumbTitle = () => {
-    if (activeTab === 'favorites') return 'Liked Favorites'
-    if (activeTab === 'library') return 'Seed Library'
-    if (activeTab === 'dna') return 'Taste Profile'
-    if (activeTab === 'offline') return 'Offline Downloads'
-    return 'Curator Studio'
+  const handleSearchSubmit = (e) => {
+    if (e) e.preventDefault()
+    if (!prompt || !prompt.trim() || busy) return
+    if (searchMode === 'direct' && onDirectSearch) {
+      onDirectSearch(prompt)
+    } else if (onGenerate) {
+      onGenerate(prompt)
+    }
   }
 
   return (
     <>
-      <header className="pt-safe bg-[#0d0d10] border-b border-[#202026] select-none flex-shrink-0 z-30">
-        <div className="h-12 px-3 sm:px-4 flex items-center justify-between gap-3">
-          {/* Left: Antigravity Breadcrumbs & Sidebar Toggle */}
-          <div className="flex items-center gap-2.5 min-w-0">
+      <header className="pt-safe bg-[#030305]/90 backdrop-blur-xl border-b border-white/[0.06] select-none flex-shrink-0 z-30 sticky top-0 transition-colors">
+        <div className="h-14 px-3 sm:px-5 flex items-center justify-between gap-3">
+          
+          {/* Left: YouTube Music Hamburger & UpBeat Brand Logo */}
+          <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={onToggleSidebar}
-              className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
-                isSidebarOpen
-                  ? 'bg-[#181822] border-[#2c2c38] text-sky-400 shadow-xs'
-                  : 'bg-[#141418] border-[#24242c] text-[#8e8e96] hover:text-[#f4f4f5] hover:border-[#32323c]'
-              }`}
-              title={isSidebarOpen ? "Collapse sidebar (Cmd+B)" : "Expand sidebar (Cmd+B)"}
-              aria-label="Toggle sidebar"
+              className="p-2 rounded-full hover:bg-white/[0.08] active:bg-white/[0.12] text-zinc-300 hover:text-white transition-all cursor-pointer"
+              title="Toggle sidebar"
+              aria-label="Toggle navigation drawer"
             >
-              <PanelLeft className="w-4 h-4" />
+              <Menu className="w-5 h-5" />
             </button>
 
-            {/* Breadcrumb Navigation */}
-            <div className="flex items-center gap-1.5 text-xs font-mono min-w-0">
-              <span
-                onClick={() => setActiveTab('curator')}
-                className="text-[#71717a] hover:text-[#e4e4e7] transition-colors cursor-pointer truncate hidden sm:inline"
-                title="UpBeat v3.0+1.0 :|| Thrice Upon a Time"
-              >
-                UpBeat
-              </span>
-              <span className="hidden sm:inline-block text-[9px] font-mono px-1 py-0.2 rounded bg-[#181820] text-[#71717a] border border-[#24242e]" title="Evangelion: 3.0+1.0 Thrice Upon a Time">
-                3.0+1.0 :||
-              </span>
-              <span className="text-[#3f3f46] hidden sm:inline">/</span>
-              <div className="flex items-center gap-1.5 truncate">
-                <span className="text-[#f4f4f5] font-medium tracking-tight truncate">
-                  {getBreadcrumbTitle()}
+            {/* Logo: YouTube Music Style Red Play Badge + UpBeat Music */}
+            <div
+              onClick={() => setActiveTab && setActiveTab('curator')}
+              className="flex items-center gap-2 cursor-pointer group"
+              title="UpBeat Music v3.0+1.0 :||"
+            >
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-[#ff0033] flex items-center justify-center text-white shadow-md shadow-red-600/30 group-hover:scale-105 transition-transform">
+                <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-white ml-0.5" />
+              </div>
+              <div className="flex items-baseline tracking-tight">
+                <span className="font-bold text-white text-base sm:text-lg tracking-tight">UpBeat</span>
+                <span className="text-zinc-400 font-medium text-xs sm:text-sm ml-1">Music</span>
+                <span className="hidden xl:inline-block text-[9px] font-mono px-1 rounded bg-white/[0.06] text-zinc-500 border border-white/[0.06] ml-1.5" title="Evangelion: 3.0+1.0">
+                  3.0+1.0 :||
                 </span>
-                <span
-                  className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)] flex-shrink-0"
-                  title="Engine Online"
-                />
               </div>
             </div>
           </div>
 
-          {/* Center: Desktop Antigravity View Switcher */}
-          <nav className="hidden lg:flex items-center gap-1 bg-[#121216] border border-[#22222a] p-0.5 rounded-lg text-xs font-mono">
-            <button
-              onClick={() => setActiveTab('curator')}
-              className={`px-3 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'curator'
-                  ? 'bg-[#1e1e26] text-[#f4f4f5] font-medium shadow-xs border border-[#2c2c38]'
-                  : 'text-[#8e8e96] hover:text-[#e4e4e7]'
+          {/* Center: Signature YouTube Music Elongated Search Capsule Pill */}
+          <div className="flex-1 max-w-xl mx-2 sm:mx-4 flex items-center justify-center">
+            <form
+              onSubmit={handleSearchSubmit}
+              className={`w-full h-10 rounded-full flex items-center gap-2.5 px-3.5 sm:px-4 transition-all ${
+                isSearchFocused
+                  ? 'bg-[#18181b] border border-white/30 shadow-lg shadow-black/50 ring-1 ring-white/20'
+                  : 'bg-white/[0.08] hover:bg-white/[0.12] border border-white/[0.08]'
               }`}
             >
-              <Sparkles className="w-3 h-3 text-sky-400" />
-              <span>Curator</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('favorites')}
-              className={`px-3 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'favorites'
-                  ? 'bg-[#1e1e26] text-[#f4f4f5] font-medium shadow-xs border border-[#2c2c38]'
-                  : 'text-[#8e8e96] hover:text-[#e4e4e7]'
-              }`}
-            >
-              <Heart className={`w-3 h-3 ${favoritesCount > 0 ? 'text-rose-400 fill-rose-400' : 'text-[#8e8e96]'}`} />
-              <span>Favorites</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#181820] text-[#a1a1aa] border border-[#262632]">
-                {favoritesCount}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('library')}
-              className={`px-3 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'library'
-                  ? 'bg-[#1e1e26] text-[#f4f4f5] font-medium shadow-xs border border-[#2c2c38]'
-                  : 'text-[#8e8e96] hover:text-[#e4e4e7]'
-              }`}
-            >
-              <Layers className="w-3 h-3 text-indigo-400" />
-              <span>Seeds</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#181820] text-[#a1a1aa] border border-[#262632]">
-                {extractedCount}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('dna')}
-              className={`px-3 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'dna'
-                  ? 'bg-[#1e1e26] text-[#f4f4f5] font-medium shadow-xs border border-[#2c2c38]'
-                  : 'text-[#8e8e96] hover:text-[#e4e4e7]'
-              }`}
-            >
-              <Fingerprint className="w-3 h-3 text-emerald-400" />
-              <span>Taste DNA</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('offline')}
-              className={`px-3 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'offline'
-                  ? 'bg-[#1e1e26] text-[#f4f4f5] font-medium shadow-xs border border-emerald-500/30'
-                  : 'text-[#8e8e96] hover:text-[#e4e4e7]'
-              }`}
-            >
-              <DownloadCloud className="w-3 h-3 text-emerald-400" />
-              <span>Offline</span>
-              {offlineCount > 0 && (
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                  {offlineCount}
-                </span>
-              )}
-            </button>
-          </nav>
-
-          {/* Right: Search Toggle, Google Account, Desktop Model Pill, Safari & Settings */}
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-            {/* Top Search Button: Toggles the search / AI curator bar */}
-            {onToggleSearch && (
               <button
-                onClick={onToggleSearch}
-                title={isSearchOpen ? 'Hide Search & AI Curator' : 'Open Search & AI Curator'}
-                className={`p-1.5 rounded-lg border text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer ${
-                  isSearchOpen
-                    ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-xs'
-                    : 'bg-[#141418] hover:bg-[#1a1a20] border-[#24242c] text-[#a1a1aa] hover:text-white'
-                }`}
-                aria-label="Toggle Search"
+                type="submit"
+                disabled={busy}
+                className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                title="Search"
               >
-                <Search className="w-4 h-4" />
-                <span className="hidden md:inline text-xs font-medium">Search</span>
+                {busy ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
               </button>
-            )}
 
-            {/* Google / YouTube Account Button */}
-            {onOpenGoogleModal && (
-              googleUser ? (
+              <input
+                type="text"
+                value={prompt}
+                onChange={(e) => setPrompt && setPrompt(e.target.value)}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
+                placeholder={
+                  searchMode === 'direct'
+                    ? 'Search songs, albums, artists, podcasts...'
+                    : 'Describe mood, anime, soundtrack, or vibe for Gemini AI...'
+                }
+                className="w-full bg-transparent text-xs sm:text-sm text-white placeholder:text-zinc-400 focus:outline-none min-w-0"
+              />
+
+              {/* Clear button if text present */}
+              {Boolean(prompt) && !busy && (
                 <button
-                  onClick={onOpenGoogleModal}
-                  title={`Google Connected: ${googleUser.name || googleUser.email}`}
-                  className="p-1 rounded-lg border border-[#24242c] bg-[#141418] hover:bg-[#1a1a20] flex items-center gap-1.5 transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => setPrompt && setPrompt('')}
+                  className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                  title="Clear search"
                 >
-                  {googleUser.picture ? (
-                    <img src={googleUser.picture} alt="" className="w-5 h-5 rounded-full object-cover" />
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              {/* Mode Switcher Pill inside Search capsule (Direct 0-token vs AI Vibe) */}
+              {setSearchMode && (
+                <button
+                  type="button"
+                  onClick={() => setSearchMode(searchMode === 'direct' ? 'curator' : 'direct')}
+                  className={`hidden sm:flex items-center gap-1 text-[10px] font-mono font-medium px-2 py-0.5 rounded-full border transition-all shrink-0 cursor-pointer ${
+                    searchMode === 'direct'
+                      ? 'bg-white/10 text-zinc-300 border-white/10 hover:border-white/30'
+                      : 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-xs'
+                  }`}
+                  title={searchMode === 'direct' ? 'Switch to AI Vibe Curator' : 'Switch to Direct Instant Search'}
+                >
+                  {searchMode === 'direct' ? (
+                    <>
+                      <Search className="w-2.5 h-2.5 text-zinc-400" />
+                      <span>Direct</span>
+                    </>
                   ) : (
-                    <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
-                      {(googleUser.name || 'G')[0].toUpperCase()}
-                    </div>
+                    <>
+                      <Sparkles className="w-2.5 h-2.5 text-purple-300" />
+                      <span>AI Vibe</span>
+                    </>
                   )}
-                  <span className="hidden lg:inline text-xs font-mono text-[#e4e4e7] max-w-[90px] truncate">
-                    {googleUser.name?.split(' ')[0] || 'Google'}
-                  </span>
                 </button>
-              ) : (
-                <button
-                  onClick={onOpenGoogleModal}
-                  title="Connect Google / YouTube Account"
-                  className="p-1.5 rounded-lg border border-[#24242c] bg-[#141418] hover:bg-[#1a1a20] text-[#a1a1aa] hover:text-white flex items-center gap-1.5 text-xs font-mono transition-colors cursor-pointer"
-                >
-                  <GoogleIcon className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">Sign In</span>
-                </button>
-              )
-            )}
+              )}
+            </form>
+          </div>
 
-            {/* Desktop Model Pill (Hidden on mobile to keep top bar clean and spacious!) */}
-            <div className="hidden sm:flex items-center gap-1.5 bg-[#141418] hover:bg-[#181820] border border-[#24242c] hover:border-[#2f2f3a] px-2.5 py-1 rounded-lg text-xs font-mono transition-colors">
+          {/* Right: Safari Sync, Gemini Model, Google Profile Avatar & Settings */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Desktop Model Selector (Clean, hidden on mobile for minimalism) */}
+            <div className="hidden xl:flex items-center gap-1.5 bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] px-2.5 py-1 rounded-full text-xs font-mono transition-colors">
               <span
-                className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                  isFallback ? 'bg-amber-400' : 'bg-sky-400'
+                className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                  isFallback ? 'bg-amber-400' : 'bg-emerald-400'
                 }`}
               />
               <select
                 value={selectedModel}
-                onChange={(e) => onSelectModel(e.target.value)}
-                className="bg-transparent text-[#e4e4e7] focus:outline-none cursor-pointer max-w-[130px] sm:max-w-[190px] truncate"
+                onChange={(e) => onSelectModel && onSelectModel(e.target.value)}
+                className="bg-transparent text-zinc-300 hover:text-white focus:outline-none cursor-pointer max-w-[140px] truncate"
               >
                 {models.map((m) => (
-                  <option key={m.id} value={m.id} className="bg-[#141418] text-[#f4f4f5]">
+                  <option key={m.id} value={m.id} className="bg-[#141418] text-white">
                     {m.name || m.id}
                   </option>
                 ))}
               </select>
-              <ChevronDown className="w-3 h-3 text-[#71717a] pointer-events-none -ml-0.5" />
+              <ChevronDown className="w-3 h-3 text-zinc-500 pointer-events-none -ml-0.5" />
             </div>
 
             {/* Desktop Safari Sync Button */}
@@ -257,16 +213,16 @@ export default function Navbar({
                     onClick={onSyncSafari}
                     disabled={isSyncing}
                     title="Sync actively playing YouTube tabs from Safari"
-                    className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#141418] hover:bg-[#1a1a20] border border-[#24242c] text-xs font-mono text-[#e4e4e7] transition-colors cursor-pointer disabled:opacity-50"
+                    className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-xs font-mono text-zinc-300 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
                   >
                     <RefreshCw className={`w-3 h-3 text-sky-400 ${isSyncing ? 'animate-spin' : ''}`} />
                     <span>{isSyncing ? 'Syncing...' : 'Safari'}</span>
                   </button>
                 ) : (
                   <button
-                    onClick={() => onOpenSafari('yt_liked')}
+                    onClick={() => onOpenSafari && onOpenSafari('yt_liked')}
                     title="Open YouTube Music in Safari"
-                    className="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#141418] hover:bg-[#1a1a20] border border-[#24242c] text-xs font-mono text-[#a1a1aa] hover:text-[#f4f4f5] transition-colors cursor-pointer"
+                    className="hidden lg:flex items-center gap-1 px-3 py-1 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-xs font-mono text-zinc-400 hover:text-white transition-colors cursor-pointer"
                   >
                     <span>Safari</span>
                     <ExternalLink className="w-3 h-3" />
@@ -283,14 +239,45 @@ export default function Navbar({
                 setShowKeyModal(true)
               }}
               title="Settings & Gemini API Key Setup"
-              className={`p-1.5 rounded-lg border text-xs font-mono flex items-center justify-center transition-colors cursor-pointer ${
+              className={`p-2 rounded-full border text-xs flex items-center justify-center transition-colors cursor-pointer ${
                 !hasKeyOrServer
-                  ? 'bg-sky-500/20 border-sky-400 text-sky-300 animate-pulse'
-                  : 'bg-[#141418] hover:bg-[#1a1a20] border-[#24242c] hover:border-[#32323c] text-[#a1a1aa] hover:text-white'
+                  ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 animate-pulse'
+                  : 'bg-white/[0.06] hover:bg-white/[0.12] border-white/[0.08] text-zinc-400 hover:text-white'
               }`}
             >
-              <Settings className="w-3.5 h-3.5" />
+              <Settings className="w-4 h-4" />
             </button>
+
+            {/* Circular Google Account Profile Avatar (Matches Screenshot Right Icon!) */}
+            {onOpenGoogleModal && (
+              googleUser ? (
+                <button
+                  onClick={onOpenGoogleModal}
+                  title={`Google Account: ${googleUser.name || googleUser.email} (Synced)`}
+                  className="relative p-0.5 rounded-full border border-white/20 hover:border-white/50 transition-all cursor-pointer group"
+                >
+                  {googleUser.picture ? (
+                    <img src={googleUser.picture} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-rose-500 via-purple-600 to-indigo-600 text-white text-xs font-bold flex items-center justify-center">
+                      {(googleUser.name || 'G')[0].toUpperCase()}
+                    </div>
+                  )}
+                  {/* Active Green Sync Dot */}
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#030305]" />
+                </button>
+              ) : (
+                <button
+                  onClick={onOpenGoogleModal}
+                  title="Sign In with Google"
+                  className="p-1.5 sm:px-3 sm:py-1 rounded-full border border-white/[0.15] bg-white/[0.08] hover:bg-white/[0.15] text-zinc-200 hover:text-white flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer"
+                >
+                  <GoogleIcon className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Sign In</span>
+                </button>
+              )
+            )}
+
           </div>
         </div>
       </header>
@@ -301,7 +288,7 @@ export default function Navbar({
           <div className="w-full max-w-md bg-[#131317] border border-[#262630] rounded-2xl p-5 shadow-2xl">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <Settings className="w-4 h-4 text-sky-400" />
+                <Settings className="w-4 h-4 text-rose-400" />
                 <h3 className="text-sm font-semibold text-[#f4f4f5]">Studio Settings & Engine Setup</h3>
               </div>
               <button
@@ -326,7 +313,7 @@ export default function Navbar({
                   value={apiKeyInput}
                   onChange={(e) => setApiKeyInput(e.target.value)}
                   placeholder="AIzaSy..."
-                  className="w-full bg-[#0d0d10] border border-[#262630] focus:border-sky-500 rounded-xl px-3 py-2.5 text-xs font-mono text-[#f4f4f5] focus:outline-none"
+                  className="w-full bg-[#0d0d10] border border-[#262630] focus:border-rose-500 rounded-xl px-3 py-2.5 text-xs font-mono text-[#f4f4f5] focus:outline-none"
                 />
               </div>
 
@@ -339,7 +326,7 @@ export default function Navbar({
                   value={serverUrlInput}
                   onChange={(e) => setServerUrlInput(e.target.value)}
                   placeholder="http://192.168.1.4:8000"
-                  className="w-full bg-[#0d0d10] border border-[#262630] focus:border-sky-500 rounded-xl px-3 py-2.5 text-xs font-mono text-[#f4f4f5] focus:outline-none"
+                  className="w-full bg-[#0d0d10] border border-[#262630] focus:border-rose-500 rounded-xl px-3 py-2.5 text-xs font-mono text-[#f4f4f5] focus:outline-none"
                 />
               </div>
 
@@ -353,7 +340,7 @@ export default function Navbar({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 active:scale-95 text-xs font-mono font-medium text-white flex items-center gap-1.5 cursor-pointer shadow-md"
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-xs font-mono font-medium text-white flex items-center gap-1.5 cursor-pointer shadow-md"
                 >
                   {savedBanner ? <Check className="w-3.5 h-3.5" /> : null}
                   <span>{savedBanner ? 'Saved' : 'Save Changes'}</span>

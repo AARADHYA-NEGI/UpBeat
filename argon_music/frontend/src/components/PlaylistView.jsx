@@ -1,10 +1,54 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Play, Pause, ExternalLink, Loader2, Music,
-  ChevronDown, ChevronUp, Heart, Info, KeyRound, ListMusic, ListPlus, Disc, Sparkles, Download, Check
+  ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Heart, Info, KeyRound,
+  ListMusic, ListPlus, Disc, Sparkles, Download, Check, MoreVertical, Radio, Volume2, LayoutGrid, Table
 } from 'lucide-react'
 import { getTrackDownloadUrl, getAudioSource } from '../standaloneApi'
 import { saveTrackOffline, getDownloadedVideoIds, subscribeOfflineChanges } from '../offlineStorage'
+
+const CURATED_STATIONS = [
+  {
+    id: 'sawano_radio',
+    title: 'Hiroyuki Sawano & Epic OST',
+    subtitle: 'Orchestral Rock • Anime Anthems',
+    query: 'Hiroyuki Sawano best epic soundtrack orchestral anime openings',
+    thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80',
+    color: 'from-amber-600/40 to-black'
+  },
+  {
+    id: 'focus_radio',
+    title: 'Deep Focus & Cyber Terminal',
+    subtitle: 'Minimal Synth • Dark Ambient',
+    query: 'Deep focus instrumental ambient electronic beats for programming',
+    thumbnail: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
+    color: 'from-emerald-600/40 to-black'
+  },
+  {
+    id: 'velocity_radio',
+    title: 'High-Velocity DnB Flow',
+    subtitle: 'Fast Drum & Bass • Driving Rhythm',
+    query: 'Fast paced drum and bass dark synthwave driving electronic',
+    thumbnail: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?auto=format&fit=crop&w=600&q=80',
+    color: 'from-cyan-600/40 to-black'
+  },
+  {
+    id: 'nocturne_radio',
+    title: 'Nocturnal Lo-Fi & Monogatari',
+    subtitle: 'Chill Aesthetic • Melodic Beats',
+    query: 'Nocturnal lofi ambient Monogatari anime aesthetics late night',
+    thumbnail: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=600&q=80',
+    color: 'from-purple-600/40 to-black'
+  },
+  {
+    id: 'hindi_radio',
+    title: 'New Hindi Songs & Chart Hits',
+    subtitle: 'Latest Trending • Bollywood Beats',
+    query: 'New Hindi songs latest releases 2025 chartbusters',
+    thumbnail: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=600&q=80',
+    color: 'from-rose-600/40 to-black'
+  }
+]
 
 function cleanMusicalRationale(text) {
   if (!text) return 'Selected for its harmonic and rhythmic alignment.'
@@ -25,48 +69,6 @@ function extraDetail(track) {
   if (!track.reason) return ''
   const parts = track.reason.split(/(?<=[.!?])\s+/)
   return parts.length > 1 ? parts.slice(1).join(' ') : ''
-}
-
-function getTierBadgeStyle(tier, source = 'youtube') {
-  if (tier === 'Close Fit') {
-    return 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
-  }
-  if (tier === 'Exploratory') {
-    return 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-  }
-  if (source === 'youtube') {
-    return 'bg-rose-500/15 text-rose-300 border-rose-500/35'
-  }
-  if (source === 'songs') {
-    return 'bg-purple-500/15 text-purple-300 border-purple-500/35'
-  }
-  if (source === 'playlist') {
-    return 'bg-emerald-500/15 text-emerald-300 border-emerald-500/35'
-  }
-  return 'bg-rose-500/15 text-rose-300 border-rose-500/35'
-}
-
-function getActiveRowStyle(isSelected, source = 'youtube') {
-  if (!isSelected) return 'hover:bg-[#121217] border-l-2 border-l-transparent'
-  if (source === 'youtube') return 'bg-rose-500/[0.08] border-l-2 border-l-rose-500'
-  if (source === 'songs') return 'bg-purple-500/[0.08] border-l-2 border-l-purple-500'
-  if (source === 'playlist') return 'bg-emerald-500/[0.08] border-l-2 border-l-emerald-500'
-  return 'bg-emerald-500/[0.08] border-l-2 border-l-emerald-500'
-}
-
-function getActiveTextStyle(isSelected, source = 'youtube') {
-  if (!isSelected) return 'text-[#f4f4f5]'
-  if (source === 'youtube') return 'text-rose-200'
-  if (source === 'songs') return 'text-purple-200'
-  if (source === 'playlist') return 'text-emerald-200'
-  return 'text-emerald-200'
-}
-
-function getActiveAccentColor(source = 'youtube') {
-  if (source === 'youtube') return 'text-rose-400'
-  if (source === 'songs') return 'text-purple-400'
-  if (source === 'playlist') return 'text-emerald-400'
-  return 'text-emerald-400'
 }
 
 export default function PlaylistView({
@@ -90,14 +92,17 @@ export default function PlaylistView({
   onGenerateDefault,
   onSelectStarter,
   needsSetup,
-  onOpenSettings
+  onOpenSettings,
+  googleUser
 }) {
+  const [viewMode, setViewMode] = useState('grid') // 'grid' (YouTube Music Quick picks) vs 'table'
   const [expandedIdx, setExpandedIdx] = useState(null)
   const [showModelDetails, setShowModelDetails] = useState(false)
   const [downloadingVid, setDownloadingVid] = useState(null)
   const [downloadedVid, setDownloadedVid] = useState(null)
   const [downloadedSet, setDownloadedSet] = useState(new Set())
-  const [queueMenuIdx, setQueueMenuIdx] = useState(null)
+  const [activeMenuIdx, setActiveMenuIdx] = useState(null)
+  const gridScrollRef = useRef(null)
 
   useEffect(() => {
     let active = true
@@ -114,17 +119,15 @@ export default function PlaylistView({
   }, [])
 
   const handleDownloadTrack = async (track, e) => {
-    e.stopPropagation()
+    if (e) e.stopPropagation()
     if (!track) return
     const vid = track.video_id
     if (!vid) return
 
     setDownloadingVid(vid)
     try {
-      // 1. Save directly into client IndexedDB offline storage
       await saveTrackOffline(track)
 
-      // 2. Also trigger native file download
       const title = (track.title || 'Track').replace(/[\\/*?:"<>|]/g, '').trim()
       const artist = (track.artist || '').replace(/[\\/*?:"<>|]/g, '').trim()
       const cleanFileName = artist && !title.toLowerCase().includes(artist.toLowerCase())
@@ -157,77 +160,101 @@ export default function PlaylistView({
     }
   }
 
+  const scrollGrid = (direction) => {
+    if (gridScrollRef.current) {
+      const scrollAmount = gridScrollRef.current.clientWidth * 0.8
+      gridScrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      })
+    }
+  }
+
+  // Loading Skeleton State
   if (isGenerating || isSearching) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 sm:p-12 text-center select-none bg-[#0a0a0d]">
-        <div className="w-12 h-12 rounded-2xl bg-[#131318] border border-[#24242e] flex items-center justify-center mb-4 shadow-lg">
-          <Loader2 className={`w-5 h-5 animate-spin ${isSearching ? 'text-sky-400' : 'text-indigo-400'}`} />
+      <div className="flex-1 flex flex-col items-center justify-center p-8 sm:p-12 text-center select-none bg-transparent min-h-[400px]">
+        <div className="w-14 h-14 rounded-2xl bg-white/[0.06] border border-white/10 flex items-center justify-center mb-4 shadow-xl">
+          <Loader2 className={`w-6 h-6 animate-spin ${isSearching ? 'text-rose-400' : 'text-purple-400'}`} />
         </div>
-        <p className="text-sm font-semibold text-[#f4f4f5]">
-          {isSearching
-            ? 'Searching YouTube & YT Music...'
-            : 'Curating playlist & resolving streams...'}
+        <p className="text-base font-semibold text-white tracking-tight">
+          {isSearching ? 'Searching YouTube & YT Music...' : 'Curating Sonic Profile & Stream Resolution...'}
         </p>
-        <p className="text-xs font-mono text-[#8e8e96] mt-1.5">
+        <p className="text-xs font-mono text-zinc-400 mt-1.5">
           {isSearching ? 'Direct Stream Match • 0 AI Tokens' : `Model Engine: ${selectedModel}`}
         </p>
       </div>
     )
   }
 
+  // Empty State / Starter Station Grid
   if (!playlist || !playlist.tracks || playlist.tracks.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-8 sm:p-12 text-center select-none bg-[#0a0a0d]">
-        <div className="w-12 h-12 rounded-2xl border border-[#22222a] bg-[#121217] flex items-center justify-center mb-4 shadow-lg shadow-black/40">
-          <Music className="w-5 h-5 text-sky-400" />
-        </div>
-        <p className="text-sm font-semibold text-[#f4f4f5]">
-          Ready to search or curate
-        </p>
-        <p className="text-xs text-[#8e8e96] mt-1 max-w-sm">
-          Search any song, artist, or YouTube playlist (0 tokens), or tap a starter genre below.
-        </p>
-
-        {onSelectStarter && (
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-5 max-w-lg">
-            {[
-              { label: 'Trending Hits', query: 'Trending music hits 2025' },
-              { label: 'Lofi & Chill', query: 'Lofi hip hop beats to relax' },
-              { label: 'New Hindi Songs', query: 'New Hindi Songs' },
-              { label: 'Hip-Hop / Rap', query: 'Hip-Hop and Rap hits' },
-              { label: 'Gym Motivation', query: 'Gym workout motivation music' },
-              { label: 'Anime Vibes', query: 'Anime opening songs best' }
-            ].map((s) => (
-              <button
-                key={s.label}
-                onClick={() => onSelectStarter(s.query)}
-                className="px-3 py-1.5 rounded-full bg-[#121217] hover:bg-[#1a1a22] border border-[#22222a] hover:border-[#2e2e38] text-[11px] font-medium text-[#d4d4dc] hover:text-white transition-all cursor-pointer shadow-xs"
-              >
-                {s.label}
-              </button>
-            ))}
+      <div className="flex-1 flex flex-col p-4 sm:p-8 select-none bg-transparent">
+        {/* Quick picks Header for Starter Recommendations */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-rose-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold shadow-md shadow-rose-600/20">
+              {googleUser?.name ? googleUser.name[0].toUpperCase() : 'U'}
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Quick picks</h2>
+              <p className="text-xs text-zinc-400">Start radio from any vibe or genre below</p>
+            </div>
           </div>
-        )}
+        </div>
 
-        <div className="flex items-center gap-2.5 mt-5">
-          {needsSetup && onOpenSettings && (
+        {/* Curated Stations Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+          {CURATED_STATIONS.map((station) => (
+            <div
+              key={station.id}
+              onClick={() => onSelectStarter && onSelectStarter(station.query)}
+              className="group relative h-40 rounded-2xl overflow-hidden cursor-pointer border border-white/[0.08] hover:border-white/30 transition-all shadow-lg"
+            >
+              <img
+                src={station.thumbnail}
+                alt=""
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-60"
+              />
+              <div className={`absolute inset-0 bg-gradient-to-t ${station.color} via-black/40`} />
+              
+              <div className="absolute inset-0 p-4 flex flex-col justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-rose-300 font-bold px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/30 w-fit">
+                  Radio Station
+                </span>
+                
+                <div className="flex items-end justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-white group-hover:text-rose-300 transition-colors">
+                      {station.title}
+                    </h3>
+                    <p className="text-xs text-zinc-300 mt-0.5">{station.subtitle}</p>
+                  </div>
+
+                  <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all shadow-md shadow-white/30 shrink-0 ml-2">
+                    <Play className="w-4 h-4 fill-black ml-0.5" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {needsSetup && onOpenSettings && (
+          <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-between gap-3 max-w-xl">
+            <div>
+              <p className="text-xs font-semibold text-white">Direct Search is enabled with 0 tokens.</p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">Enter your Gemini API key only if you want custom prompt curation.</p>
+            </div>
             <button
               onClick={onOpenSettings}
-              className="px-3.5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-medium text-white shrink-0 cursor-pointer"
             >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>Set Gemini API Key</span>
+              Configure
             </button>
-          )}
-          {onGenerateDefault && (
-            <button
-              onClick={onGenerateDefault}
-              className="px-3.5 py-2 rounded-lg bg-[#14141a] hover:bg-[#1c1c24] border border-[#262632] hover:border-[#32323e] text-xs font-medium text-[#f4f4f5] transition-colors cursor-pointer shadow-xs"
-            >
-              Curate Default Mix
-            </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -240,101 +267,116 @@ export default function PlaylistView({
   const activeSource = playlist.active_source || (youtubeResults.length > 0 ? 'youtube' : 'songs')
   const activeBrowseId = playlist.active_browse_id || ''
 
-  const usedModel = playlist.used_model || selectedModel
-  const reqModel = playlist.requested_model || selectedModel
-  const didFallback = !isDirectSearch && (Boolean(playlist.is_fallback) || usedModel !== reqModel)
-  const fallbackReason =
-    playlist.fallback_reason ||
-    (didFallback ? `High demand (HTTP 503) or rate limit on ${reqModel}` : '')
-  const latencySec = playlist.latency_ms ? `${(playlist.latency_ms / 1000).toFixed(1)}s` : ''
-
   return (
-    <div className="w-full flex flex-col bg-[#0a0a0d]" onClick={() => setQueueMenuIdx(null)}>
-      {/* Mobile / First-run API Setup Banner */}
-      {needsSetup && onOpenSettings && (
-        <div className="px-3.5 py-2 bg-indigo-500/10 border-b border-indigo-500/25 flex items-center justify-between gap-2">
-          <span className="text-[11px] text-indigo-200 leading-snug">
-            Direct Search works with 0 setup. Add a Gemini API Key only if you want custom AI curation.
-          </span>
-          <button
-            onClick={onOpenSettings}
-            className="px-2.5 py-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-medium flex items-center gap-1 flex-shrink-0 cursor-pointer"
-          >
-            <KeyRound className="w-3 h-3" />
-            <span>Configure</span>
-          </button>
-        </div>
-      )}
+    <div
+      className="w-full flex flex-col bg-transparent pb-28 sm:pb-24 select-none"
+      onClick={() => setActiveMenuIdx(null)}
+    >
+      {/* 1. Header: YouTube Music "Quick picks" with Carousel Controls */}
+      <div className="px-3.5 sm:px-6 pt-4 pb-2 flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* User Profile Avatar / Circular Icon */}
+            {googleUser?.picture ? (
+              <img
+                src={googleUser.picture}
+                alt=""
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-white/20 shrink-0"
+              />
+            ) : (
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-rose-500 via-purple-600 to-indigo-600 flex items-center justify-center text-white text-xs sm:text-sm font-bold shadow-md shadow-rose-600/20 shrink-0">
+                {(googleUser?.name || 'U')[0].toUpperCase()}
+              </div>
+            )}
 
-      {/* Antigravity Session Diff Header */}
-      <div className="px-3.5 py-3 sm:px-6 sm:py-3.5 border-b border-[#1c1c22] flex flex-col gap-1.5 bg-[#0d0d11] flex-shrink-0 select-none">
-        <div className="flex items-start sm:items-center justify-between gap-2.5">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-sm sm:text-base font-semibold text-[#f4f4f5] tracking-tight truncate">
-                {playlist.playlist_title || 'Curated Selection'}
-              </h2>
-
-              {isDirectSearch ? (
-                <span className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-full border bg-sky-500/10 text-sky-200 border-sky-500/30">
-                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
-                  <span>DIRECT • 0 TOKENS</span>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowModelDetails((prev) => !prev)}
-                  className={`flex items-center gap-1.5 text-[10px] sm:text-[11px] font-mono px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
-                    didFallback
-                      ? 'bg-amber-500/10 text-amber-200 border-amber-500/30'
-                      : 'bg-indigo-500/10 text-indigo-200 border-indigo-500/25'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${didFallback ? 'bg-amber-400' : 'bg-indigo-400'}`} />
-                  <span className="truncate max-w-[160px] sm:max-w-none">
-                    {didFallback ? `${usedModel} (Fallback)` : `${usedModel}${latencySec ? ` · ${latencySec}` : ''}`}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight truncate">
+                  Quick picks
+                </h1>
+                {isDirectSearch && (
+                  <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                    DIRECT
                   </span>
-                  <Info className="w-3 h-3 opacity-70" />
-                </button>
-              )}
+                )}
+              </div>
+              <p className="text-xs text-zinc-400 truncate max-w-lg">
+                {playlist.playlist_title || playlist.subtitle || 'Selected based on your listening taste'}
+              </p>
             </div>
-
-            <p className="text-[11px] text-[#8e8e96] mt-0.5 line-clamp-1 max-w-2xl font-mono">
-              {isDirectSearch && tracks.length > 0
-                ? `YouTube results : ${tracks.length} videos`
-                : (playlist.subtitle || playlist.vibe_description)}
-            </p>
           </div>
 
-          <div className="flex items-center gap-2.5 flex-shrink-0">
-            <span className="text-[11px] font-mono text-[#71717a] hidden sm:inline">
-              {tracks.length} tracks
-            </span>
+          {/* Right Header Controls: Carousel Arrows & Layout Toggle & Play All */}
+          <div className="flex items-center gap-2 shrink-0">
+            {/* Play All Button */}
             <button
               onClick={() => onPlayTrack(tracks[0], 0)}
-              className="px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/40 text-emerald-200 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-95"
+              className="hidden sm:flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white text-black font-semibold text-xs hover:bg-zinc-200 transition-colors cursor-pointer shadow-sm active:scale-95"
             >
-              <Play className="w-3.5 h-3.5 fill-current text-emerald-400" />
+              <Play className="w-3.5 h-3.5 fill-black ml-0.5" />
               <span>Play All</span>
             </button>
+
+            {/* Layout Mode Toggle (Grid vs Table) */}
+            <div className="hidden md:flex items-center bg-white/[0.06] border border-white/[0.08] rounded-full p-0.5">
+              <button
+                type="button"
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-full transition-colors cursor-pointer ${
+                  viewMode === 'grid' ? 'bg-white/20 text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+                title="Quick picks 4-Row Grid View"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-full transition-colors cursor-pointer ${
+                  viewMode === 'table' ? 'bg-white/20 text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+                title="Detailed Table View"
+              >
+                <Table className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Carousel Navigation Arrows (< >) Matching Screenshot */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => scrollGrid('left')}
+                className="w-8 h-8 rounded-full border border-white/20 hover:border-white/50 hover:bg-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer"
+                title="Previous picks"
+                aria-label="Scroll left"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => scrollGrid('right')}
+                className="w-8 h-8 rounded-full border border-white/20 hover:border-white/50 hover:bg-white/10 flex items-center justify-center text-zinc-300 hover:text-white transition-all cursor-pointer"
+                title="Next picks"
+                aria-label="Scroll right"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Direct Search: YouTube Results (Red), YT Music Songs (Purple) & Playlists (Emerald) Switcher Strip */}
+        {/* Direct Search Subtabs: YouTube, Songs, Playlists */}
         {isDirectSearch && (youtubeResults.length > 0 || songResults.length > 0 || matchedPlaylists.length > 0) && (
-          <div className="flex items-center gap-1.5 mt-1.5 overflow-x-auto no-scrollbar pb-0.5">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1">
             {youtubeResults.length > 0 && (
               <button
                 type="button"
                 onClick={() => onSelectYoutubeResults && onSelectYoutubeResults()}
-                disabled={isLoadingPlaylistBrowse}
-                className={`px-2.5 py-1 rounded-md border text-[11px] font-medium flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${
+                className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shrink-0 border ${
                   activeSource === 'youtube'
-                    ? 'bg-rose-500/20 border-rose-500/60 text-rose-200 font-semibold shadow-xs'
-                    : 'bg-[#121217] hover:bg-[#1a1a22] border-[#22222a] hover:border-rose-500/40 text-[#8e8e96] hover:text-rose-200'
+                    ? 'bg-rose-500/20 border-rose-500/60 text-rose-300 font-semibold'
+                    : 'bg-white/[0.06] border-white/[0.08] text-zinc-400 hover:text-white'
                 }`}
               >
-                <Play className="w-3 h-3 text-rose-500 fill-rose-500" />
+                <Play className="w-3 h-3 text-rose-400 fill-rose-400" />
                 <span>YouTube Results ({youtubeResults.length})</span>
               </button>
             )}
@@ -343,15 +385,14 @@ export default function PlaylistView({
               <button
                 type="button"
                 onClick={() => onSelectDirectSongs && onSelectDirectSongs()}
-                disabled={isLoadingPlaylistBrowse}
-                className={`px-2.5 py-1 rounded-md border text-[11px] font-medium flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${
+                className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all cursor-pointer shrink-0 border ${
                   activeSource === 'songs'
-                    ? 'bg-purple-500/20 border-purple-500/60 text-purple-200 font-semibold shadow-xs'
-                    : 'bg-[#121217] hover:bg-[#1a1a22] border-[#22222a] hover:border-purple-500/40 text-[#8e8e96] hover:text-purple-200'
+                    ? 'bg-purple-500/20 border-purple-500/60 text-purple-300 font-semibold'
+                    : 'bg-white/[0.06] border-white/[0.08] text-zinc-400 hover:text-white'
                 }`}
               >
                 <Disc className="w-3 h-3 text-purple-400" />
-                <span>YT Music Songs ({songResults.length})</span>
+                <span>Songs ({songResults.length})</span>
               </button>
             )}
 
@@ -362,435 +403,303 @@ export default function PlaylistView({
                   key={pl.browse_id}
                   type="button"
                   onClick={() => onSelectMatchedPlaylist && onSelectMatchedPlaylist(pl)}
-                  disabled={isLoadingPlaylistBrowse}
-                  className={`px-2.5 py-1 rounded-md border text-[11px] flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer flex-shrink-0 ${
+                  className={`px-3 py-1 rounded-full text-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0 border ${
                     isActivePl
-                      ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-200 font-semibold shadow-xs'
-                      : 'bg-[#121217] hover:bg-[#1a1a22] border-[#22222a] hover:border-emerald-500/40 text-[#8e8e96] hover:text-emerald-200'
+                      ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300 font-semibold'
+                      : 'bg-white/[0.06] border-white/[0.08] text-zinc-400 hover:text-white'
                   }`}
                 >
-                  {isLoadingPlaylistBrowse && isActivePl ? (
-                    <Loader2 className="w-3 h-3 animate-spin text-emerald-400" />
-                  ) : (
-                    <ListMusic className="w-3 h-3 text-emerald-400 flex-shrink-0" />
-                  )}
-                  <span className="truncate max-w-[200px]">{pl.title}</span>
-                  {pl.is_editorial && (
-                    <span className="text-[9px] font-mono px-1 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                      Official
-                    </span>
-                  )}
+                  <ListMusic className="w-3 h-3 text-emerald-400" />
+                  <span className="truncate max-w-[180px]">{pl.title}</span>
                 </button>
               )
             })}
           </div>
         )}
-
-        {showModelDetails && !isDirectSearch && (
-          <div className="mt-1 px-3 py-2 rounded-lg bg-[#121218] border border-[#22222a] text-[11px] sm:text-xs flex items-center justify-between gap-2">
-            <div className="text-[#d4d4d8]">
-              <span className="font-mono text-[10px] uppercase text-indigo-400 font-semibold mr-1.5">
-                AI Status:
-              </span>
-              {didFallback ? (
-                <span>
-                  Target <code className="text-[#f4f4f5]">{reqModel}</code> hit{' '}
-                  <span className="text-amber-300">{fallbackReason}</span> &rarr; fulfilled by{' '}
-                  <code className="text-emerald-300">{usedModel}</code>.
-                </span>
-              ) : (
-                <span>
-                  Target <code className="text-indigo-300">{usedModel}</code> responded directly
-                  {latencySec ? ` in ${latencySec}` : ''}.
-                </span>
-              )}
-            </div>
-            <button
-              onClick={() => setShowModelDetails(false)}
-              className="text-[11px] font-mono text-[#8e8e96] hover:text-white cursor-pointer"
-            >
-              Hide
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* Scrollable Track Area */}
-      <div className="w-full divide-y divide-[#15151c]">
-        {/* MOBILE TRACK CARDS (< 640px) */}
-        <div className="sm:hidden divide-y divide-[#15151c]">
-          {tracks.map((track, idx) => {
-            const isSelected = currentTrack && (
-              (currentTrack.video_id && currentTrack.video_id === track.video_id) ||
-              (currentTrack.title === track.title && currentTrack.artist === track.artist)
-            )
-            const isThisPlaying = isSelected && isPlaying
-            const isExpanded = expandedIdx === idx
-            const shortNote = cleanMusicalRationale(track.reason)
-            const moreNote = extraDetail(track)
-            const validDuration = track.duration_text && track.duration_text !== '--:--'
-            const thumbUrl = track.thumbnail || (track.video_id ? `https://i.ytimg.com/vi/${track.video_id}/hqdefault.jpg` : '')
-            const isFav = isTrackFavorite ? isTrackFavorite(track) : false
-            const matchTier = track.match_tier || 'Direct Match'
-            const trackSource = track.source || (isDirectSearch ? activeSource : 'youtube')
-
-            return (
-              <div
-                key={idx}
-                onClick={() => onPlayTrack(track, idx)}
-                className={`px-3.5 py-2.5 transition-colors active:bg-[#14141a] ${getActiveRowStyle(isSelected, trackSource)}`}
-              >
-                <div className="flex items-center gap-3">
-                  {/* Artwork with overlay play state */}
-                  <div className={`w-11 h-11 rounded-md bg-[#14141a] border overflow-hidden flex-shrink-0 relative ${
-                    isSelected
-                      ? trackSource === 'youtube'
-                        ? 'border-rose-500/60 shadow-xs shadow-rose-500/20'
-                        : trackSource === 'songs'
-                        ? 'border-purple-500/60 shadow-xs shadow-purple-500/20'
-                        : 'border-emerald-500/60 shadow-xs shadow-emerald-500/20'
-                      : 'border-[#22222a]'
-                  }`}>
-                    {thumbUrl ? (
-                      <img src={thumbUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-[#71717a]">
-                        <Music className="w-4 h-4" />
-                      </div>
-                    )}
-                    <div className={`absolute inset-0 flex items-center justify-center bg-black/45 ${
-                      isSelected ? 'opacity-100' : 'opacity-0'
-                    }`}>
-                      {isThisPlaying ? (
-                        <Pause className="w-4 h-4 text-white fill-current" />
-                      ) : (
-                        <Play className="w-4 h-4 text-white fill-current ml-0.5" />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Title, Artist, Badge & Duration */}
-                  <div className="min-w-0 flex-1">
-                    <div className={`text-[13.5px] font-semibold truncate ${getActiveTextStyle(isSelected, trackSource)}`}>
-                      {track.title}
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-0.5 text-xs text-[#8e8e96]">
-                      <span className="truncate">{track.artist}</span>
-                      {validDuration && (
-                        <>
-                          <span className="text-[#3f3f46]">&bull;</span>
-                          <span className="font-mono text-[11px] flex-shrink-0">{track.duration_text}</span>
-                        </>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className={`inline-block text-[9.5px] font-mono px-1.5 py-0.2 rounded border ${getTierBadgeStyle(matchTier, trackSource)}`}>
-                        {matchTier}
-                      </span>
-                      {track.vibe && (
-                        <span className="text-[10px] font-mono text-[#71717a] truncate">
-                          {track.vibe}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Mobile Actions */}
-                  <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setQueueMenuIdx(queueMenuIdx === `m-${idx}` ? null : `m-${idx}`)
-                        }}
-                        className={`p-2 rounded-md transition-colors ${
-                          queueMenuIdx === `m-${idx}` ? 'text-sky-400 bg-sky-500/20' : 'text-[#71717a] hover:text-sky-300'
-                        }`}
-                        title="Queue options"
-                        aria-label="Queue options"
-                      >
-                        <ListPlus className="w-4 h-4" />
-                      </button>
-                      {queueMenuIdx === `m-${idx}` && (
-                        <div className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium animate-in fade-in zoom-in-95 duration-100">
-                          <button
-                            onClick={() => {
-                              onPlayNext && onPlayNext(track)
-                              setQueueMenuIdx(null)
-                            }}
-                            className="w-full text-left px-3 py-2 hover:bg-[#1e1e2c] text-[#f4f4f5] flex items-center gap-2 cursor-pointer"
-                          >
-                            <span className="text-sky-400 font-bold">⚡</span>
-                            <span>Play Next</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              onAddToQueue && onAddToQueue(track)
-                              setQueueMenuIdx(null)
-                            }}
-                            className="w-full text-left px-3 py-2 hover:bg-[#1e1e2c] text-[#a1a1aa] hover:text-white flex items-center gap-2 cursor-pointer"
-                          >
-                            <span className="text-emerald-400 font-bold">+</span>
-                            <span>Add to Queue</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => onToggleFavorite && onToggleFavorite(track)}
-                      className={`p-2 rounded-md ${
-                        isFav ? 'text-rose-400' : 'text-[#71717a]'
-                      }`}
-                      aria-label="Favorite"
-                    >
-                      <Heart className={`w-4 h-4 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
-                    </button>
-                    <button
-                      onClick={(e) => handleDownloadTrack(track, e)}
-                      disabled={downloadingVid === track.video_id}
-                      title={downloadingVid === track.video_id ? 'Downloading...' : (downloadedSet.has(track.video_id) || downloadedVid === track.video_id) ? 'Downloaded (Offline ready)' : 'Download Track'}
-                      className={`p-2 rounded-md ${
-                        (downloadedSet.has(track.video_id) || downloadedVid === track.video_id) ? 'text-emerald-400' : 'text-[#71717a] hover:text-white'
-                      }`}
-                      aria-label="Download"
-                    >
-                      {downloadingVid === track.video_id ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
-                      ) : (downloadedSet.has(track.video_id) || downloadedVid === track.video_id) ? (
-                        <Check className="w-4 h-4 text-emerald-400" />
-                      ) : (
-                        <Download className="w-4 h-4" />
-                      )}
-                    </button>
-                    <button
-                      onClick={() => setExpandedIdx(isExpanded ? null : idx)}
-                      className="p-2 rounded-md text-[#71717a]"
-                      aria-label="Details"
-                    >
-                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Musical rationale preview / expanded detail */}
-                <p className={`text-[11.5px] text-[#a1a1aa] mt-1.5 leading-relaxed ${isExpanded ? '' : 'line-clamp-1'}`}>
-                  {shortNote} {isExpanded && moreNote ? moreNote : ''}
-                </p>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* DESKTOP ANTIGRAVITY TABLE (>= 640px) */}
-        <table className="hidden sm:table w-full text-left border-collapse select-none">
-          <thead>
-            <tr className="border-b border-[#1c1c22] text-[10px] font-mono uppercase tracking-wider text-[#71717a] bg-[#0c0c10] sticky top-0 z-10">
-              <th className="py-2.5 pl-6 pr-2 w-11">#</th>
-              <th className="py-2.5 px-3">Track</th>
-              <th className="py-2.5 px-3 hidden lg:table-cell">Musical Connection</th>
-              <th className="py-2.5 px-3 w-44">Match & Style</th>
-              <th className="py-2.5 px-3 w-20 text-right">Duration</th>
-              <th className="py-2.5 pl-2 pr-6 w-24 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[#15151c] text-xs">
+      {/* 2. CENTERPIECE: The YouTube Music 4-Row Multi-Column Grid */}
+      {viewMode === 'grid' ? (
+        <div
+          ref={gridScrollRef}
+          className="px-3.5 sm:px-6 py-2 overflow-x-auto no-scrollbar scroll-smooth"
+        >
+          <div className="grid grid-rows-4 grid-flow-col gap-x-5 sm:gap-x-7 gap-y-2.5 w-max">
             {tracks.map((track, idx) => {
               const isSelected = currentTrack && (
                 (currentTrack.video_id && currentTrack.video_id === track.video_id) ||
                 (currentTrack.title === track.title && currentTrack.artist === track.artist)
               )
               const isThisPlaying = isSelected && isPlaying
-              const isExpanded = expandedIdx === idx || isSelected
-              const shortNote = cleanMusicalRationale(track.reason)
-              const moreNote = extraDetail(track)
-              const validDuration = track.duration_text && track.duration_text !== '--:--'
               const thumbUrl = track.thumbnail || (track.video_id ? `https://i.ytimg.com/vi/${track.video_id}/hqdefault.jpg` : '')
               const isFav = isTrackFavorite ? isTrackFavorite(track) : false
-              const matchTier = track.match_tier || 'Direct Match'
-              const trackSource = track.source || (isDirectSearch ? activeSource : 'youtube')
+              const isDownloaded = track.video_id ? downloadedSet.has(track.video_id) : false
+              const isDownloading = track.video_id && downloadingVid === track.video_id
 
               return (
-                <React.Fragment key={idx}>
-                  <tr
-                    onClick={() => onPlayTrack(track, idx)}
-                    className={`group transition-colors cursor-pointer ${getActiveRowStyle(isSelected, trackSource)}`}
-                  >
-                    <td className="py-3 pl-5 pr-2 font-mono text-xs text-[#71717a] w-11">
-                      <div className="w-6 h-6 flex items-center justify-center">
+                <div
+                  key={idx}
+                  onClick={() => onPlayTrack(track, idx)}
+                  className={`group flex items-center justify-between gap-3 p-1.5 pr-3 rounded-xl transition-all cursor-pointer w-[300px] sm:w-[350px] lg:w-[380px] border ${
+                    isSelected
+                      ? 'bg-white/[0.12] border-rose-500/40 shadow-md shadow-rose-950/30'
+                      : 'bg-white/[0.03] hover:bg-white/[0.08] border-transparent hover:border-white/[0.08]'
+                  }`}
+                >
+                  {/* Left: Artwork with Hover Play Triangle Overlay */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-white/10 overflow-hidden shrink-0 relative">
+                      {thumbUrl ? (
+                        <img src={thumbUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-zinc-500">
+                          <Music className="w-5 h-5" />
+                        </div>
+                      )}
+
+                      {/* Overlaid Play/Pause Status */}
+                      <div className={`absolute inset-0 flex items-center justify-center bg-black/50 transition-opacity ${
+                        isSelected || isThisPlaying ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                      }`}>
                         {isThisPlaying ? (
-                          <Pause className={`w-4 h-4 fill-current ${getActiveAccentColor(trackSource)}`} />
+                          <div className="flex items-end gap-0.5 h-3.5">
+                            <span className="w-1 bg-white animate-[bounce_0.6s_ease-in-out_infinite] h-full" />
+                            <span className="w-1 bg-white animate-[bounce_0.6s_ease-in-out_infinite_0.2s] h-2/3" />
+                            <span className="w-1 bg-white animate-[bounce_0.6s_ease-in-out_infinite_0.4s] h-4/5" />
+                          </div>
                         ) : (
+                          <Play className="w-4 h-4 fill-white text-white ml-0.5" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Middle: Title & Artist / Details */}
+                    <div className="min-w-0">
+                      <div className={`text-sm font-semibold truncate transition-colors ${
+                        isSelected ? 'text-rose-300' : 'text-white group-hover:text-rose-300'
+                      }`}>
+                        {track.title}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-zinc-400 truncate mt-0.5">
+                        <span className="truncate">{track.artist}</span>
+                        {track.duration_text && (
                           <>
-                            <span className={isSelected ? `${getActiveAccentColor(trackSource)} font-semibold group-hover:hidden` : 'group-hover:hidden'}>
-                              {(idx + 1).toString().padStart(2, '0')}
-                            </span>
-                            <Play className="w-4 h-4 text-white fill-current hidden group-hover:block" />
+                            <span className="text-zinc-600">•</span>
+                            <span className="font-mono text-[11px] shrink-0">{track.duration_text}</span>
                           </>
                         )}
                       </div>
-                    </td>
+                    </div>
+                  </div>
 
-                    <td className="py-3 px-3 max-w-[290px]">
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <div className={`w-10 h-10 rounded-md bg-[#14141a] border overflow-hidden flex-shrink-0 ${
-                          isSelected
-                            ? trackSource === 'youtube'
-                              ? 'border-rose-500/60 shadow-xs shadow-rose-500/20'
-                              : trackSource === 'songs'
-                              ? 'border-purple-500/60 shadow-xs shadow-purple-500/20'
-                              : 'border-emerald-500/60 shadow-xs shadow-emerald-500/20'
-                            : 'border-[#22222a]'
-                        }`}>
-                          {thumbUrl ? (
-                            <img src={thumbUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[#71717a]">
-                              <Music className="w-4 h-4" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <div className={`text-[13.5px] font-semibold truncate ${getActiveTextStyle(isSelected, trackSource)} group-hover:text-white`}>
-                            {track.title}
-                          </div>
-                          <div className="text-xs text-[#8e8e96] truncate mt-0.5">
-                            {track.artist}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
+                  {/* Right: Hover Actions (Like, Add to Queue, Download, More) */}
+                  <div
+                    className="flex items-center gap-1 shrink-0 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Like / Heart */}
+                    <button
+                      onClick={() => onToggleFavorite && onToggleFavorite(track)}
+                      title={isFav ? 'Remove from Liked' : 'Add to Liked'}
+                      className="p-1.5 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <Heart className={`w-4 h-4 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
+                    </button>
 
-                    <td className="py-3 px-3 hidden lg:table-cell max-w-md">
-                      <p className="text-xs text-[#a1a1aa] line-clamp-2 leading-relaxed">
-                        {shortNote}
-                      </p>
-                      {isExpanded && moreNote && (
-                        <p className={`text-[11px] mt-1 leading-relaxed ${getActiveAccentColor(trackSource)}`}>
-                          {moreNote}
-                        </p>
-                      )}
-                    </td>
+                    {/* Add to Queue */}
+                    {onAddToQueue && (
+                      <button
+                        onClick={() => onAddToQueue(track)}
+                        title="Add to Playback Queue"
+                        className="p-1.5 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                      >
+                        <ListPlus className="w-4 h-4" />
+                      </button>
+                    )}
 
-                    <td className="py-3 px-3">
-                      <div className="flex flex-col items-start gap-1">
-                        <span className={`inline-block text-[10px] font-mono px-2 py-0.5 rounded border font-medium ${getTierBadgeStyle(matchTier, trackSource)}`}>
-                          {matchTier}
-                        </span>
-                        {track.vibe && (
-                          <span className="text-[11px] font-mono text-[#8e8e96] truncate max-w-[140px]">
-                            {track.vibe}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="py-3 px-3 font-mono text-xs text-[#8e8e96] text-right">
-                      {validDuration ? (
-                        track.duration_text
-                      ) : isResolvingBatch ? (
-                        <Loader2 className="w-3 h-3 animate-spin text-sky-400 inline" />
+                    {/* Download Offline */}
+                    <button
+                      onClick={(e) => handleDownloadTrack(track, e)}
+                      title={isDownloaded ? 'Downloaded Offline' : 'Save Track Offline'}
+                      disabled={isDownloading}
+                      className="p-1.5 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                    >
+                      {isDownloading ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                      ) : isDownloaded || downloadedVid === track.video_id ? (
+                        <Check className="w-4 h-4 text-emerald-400" />
                       ) : (
-                        <span className="text-[11px] text-[#71717a] px-1.5 py-0.5 rounded bg-[#121217] border border-[#202028]">
-                          Ready
-                        </span>
+                        <Download className="w-4 h-4" />
                       )}
-                    </td>
+                    </button>
 
-                    <td className="py-3 pl-2 pr-6 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1">
-                        <div className="relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setQueueMenuIdx(queueMenuIdx === `d-${idx}` ? null : `d-${idx}`)
-                            }}
-                            title="Queue options"
-                            className={`p-1.5 rounded-md hover:bg-[#1a1a22] transition-colors cursor-pointer ${
-                              queueMenuIdx === `d-${idx}` ? 'text-sky-400 bg-sky-500/20' : 'text-[#71717a] hover:text-sky-300'
-                            }`}
-                          >
-                            <ListPlus className="w-3.5 h-3.5" />
-                          </button>
-                          {queueMenuIdx === `d-${idx}` && (
-                            <div className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100">
-                              <button
-                                onClick={() => {
-                                  onPlayNext && onPlayNext(track)
-                                  setQueueMenuIdx(null)
-                                }}
-                                className="w-full text-left px-3 py-1.5 hover:bg-[#1e1e2c] text-[#f4f4f5] flex items-center gap-2 cursor-pointer"
-                              >
-                                <span className="text-sky-400 font-bold">⚡</span>
-                                <span>Play Next</span>
-                              </button>
-                              <button
-                                onClick={() => {
-                                  onAddToQueue && onAddToQueue(track)
-                                  setQueueMenuIdx(null)
-                                }}
-                                className="w-full text-left px-3 py-1.5 hover:bg-[#1e1e2c] text-[#a1a1aa] hover:text-white flex items-center gap-2 cursor-pointer"
-                              >
-                                <span className="text-emerald-400 font-bold">+</span>
-                                <span>Add to Queue</span>
-                              </button>
-                            </div>
+                    {/* 3-dots more menu */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setActiveMenuIdx(activeMenuIdx === idx ? null : idx)}
+                        className="p-1.5 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                      >
+                        <MoreVertical className="w-4 h-4" />
+                      </button>
+
+                      {activeMenuIdx === idx && (
+                        <div className="absolute right-0 top-8 z-30 w-44 bg-[#141418] border border-white/10 rounded-xl p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in duration-100">
+                          {onPlayNext && (
+                            <button
+                              onClick={() => {
+                                onPlayNext(track)
+                                setActiveMenuIdx(null)
+                              }}
+                              className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-zinc-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer"
+                            >
+                              <Play className="w-3.5 h-3.5" />
+                              <span>Play next</span>
+                            </button>
+                          )}
+                          {track.url && (
+                            <a
+                              href={track.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => setActiveMenuIdx(null)}
+                              className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-zinc-200 hover:bg-white/10 hover:text-white flex items-center gap-2 cursor-pointer"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span>Open on YouTube</span>
+                            </a>
                           )}
                         </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ) : (
+        /* 3. Detailed Table View (For inspecting AI musical connections) */
+        <div className="px-3.5 sm:px-6 py-2 overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-white/[0.08] text-zinc-400 font-mono">
+                <th className="py-2.5 px-3 w-10">#</th>
+                <th className="py-2.5 px-3">Title & Artist</th>
+                <th className="py-2.5 px-3 hidden md:table-cell">Musical Connection</th>
+                <th className="py-2.5 px-3 w-20 text-right">Duration</th>
+                <th className="py-2.5 px-3 w-24 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/[0.06]">
+              {tracks.map((track, idx) => {
+                const isSelected = currentTrack && (
+                  (currentTrack.video_id && currentTrack.video_id === track.video_id) ||
+                  (currentTrack.title === track.title && currentTrack.artist === track.artist)
+                )
+                const isThisPlaying = isSelected && isPlaying
+                const thumbUrl = track.thumbnail || (track.video_id ? `https://i.ytimg.com/vi/${track.video_id}/hqdefault.jpg` : '')
+                const isFav = isTrackFavorite ? isTrackFavorite(track) : false
+
+                return (
+                  <tr
+                    key={idx}
+                    onClick={() => onPlayTrack(track, idx)}
+                    className={`group transition-colors cursor-pointer ${
+                      isSelected ? 'bg-white/[0.1] text-rose-300' : 'hover:bg-white/[0.06] text-zinc-300'
+                    }`}
+                  >
+                    <td className="py-3 px-3 font-mono text-zinc-500">
+                      {isThisPlaying ? (
+                        <Volume2 className="w-4 h-4 text-rose-400 animate-pulse" />
+                      ) : (
+                        <span>{(idx + 1).toString().padStart(2, '0')}</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-3">
+                      <div className="flex items-center gap-3">
+                        <img src={thumbUrl} alt="" className="w-9 h-9 rounded-md object-cover bg-zinc-900" />
+                        <div>
+                          <p className="font-semibold text-white">{track.title}</p>
+                          <p className="text-zinc-400 text-[11px]">{track.artist}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 px-3 hidden md:table-cell text-zinc-400 text-xs">
+                      {cleanMusicalRationale(track.reason)}
+                    </td>
+                    <td className="py-3 px-3 font-mono text-right text-zinc-400">
+                      {track.duration_text || '--:--'}
+                    </td>
+                    <td className="py-3 px-3 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
                         <button
                           onClick={() => onToggleFavorite && onToggleFavorite(track)}
-                          className={`p-1.5 rounded-md hover:bg-[#1a1a22] transition-colors cursor-pointer ${
-                            isFav ? 'text-rose-400' : 'text-[#71717a] hover:text-rose-300'
-                          }`}
+                          className="p-1 rounded hover:bg-white/10 text-zinc-400 hover:text-white"
                         >
                           <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
                         </button>
                         <button
                           onClick={(e) => handleDownloadTrack(track, e)}
-                          disabled={downloadingVid === track.video_id}
-                          title={downloadingVid === track.video_id ? 'Downloading...' : (downloadedSet.has(track.video_id) || downloadedVid === track.video_id) ? 'Downloaded (Offline ready)' : 'Download Track'}
-                          className={`p-1.5 rounded-md hover:bg-[#1a1a22] transition-colors cursor-pointer ${
-                            (downloadedSet.has(track.video_id) || downloadedVid === track.video_id) ? 'text-emerald-400' : 'text-[#71717a] hover:text-white'
-                          }`}
+                          className="p-1 rounded hover:bg-white/10 text-zinc-400 hover:text-white"
                         >
-                          {downloadingVid === track.video_id ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-                          ) : (downloadedSet.has(track.video_id) || downloadedVid === track.video_id) ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          ) : (
-                            <Download className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
-                          className="lg:hidden p-1.5 rounded-md hover:bg-[#1a1a22] text-[#8e8e96] hover:text-white transition-colors cursor-pointer"
-                        >
-                          {expandedIdx === idx ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                        </button>
-                        <button
-                          onClick={() => onPushToSafari(track)}
-                          className="p-1.5 rounded-md hover:bg-[#1a1a22] text-[#71717a] hover:text-white transition-colors cursor-pointer"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
+                          <Download className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
                   </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-                  {expandedIdx === idx && (
-                    <tr className="lg:hidden bg-[#0e0e13] border-l-2 border-l-sky-500/60">
-                      <td colSpan={6} className="px-6 py-2.5 text-xs text-[#a1a1aa] leading-relaxed">
-                        <span className="font-mono text-[10px] uppercase text-sky-400 mr-2">
-                          {matchTier}:
-                        </span>
-                        {shortNote} {moreNote}
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              )
-            })}
-          </tbody>
-        </table>
+      {/* 4. "Listen together" / Curated Stations Carousel (Matches Screenshot Second Section!) */}
+      <div className="px-3.5 sm:px-6 pt-8 pb-4">
+        <div className="mb-3">
+          <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500 font-bold block mb-0.5">
+            STATION
+          </span>
+          <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+            Listen together
+          </h2>
+        </div>
+
+        <div className="flex items-center gap-4 overflow-x-auto no-scrollbar py-2">
+          {CURATED_STATIONS.map((station) => (
+            <div
+              key={station.id}
+              onClick={() => onSelectStarter && onSelectStarter(station.query)}
+              className="group relative w-64 sm:w-72 h-44 rounded-2xl overflow-hidden cursor-pointer shrink-0 border border-white/[0.08] hover:border-white/30 transition-all shadow-xl"
+            >
+              <img
+                src={station.thumbnail}
+                alt=""
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-60"
+              />
+              <div className={`absolute inset-0 bg-gradient-to-t ${station.color} via-black/40`} />
+              
+              <div className="absolute inset-0 p-4 flex flex-col justify-between">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-white/90 font-bold px-2 py-0.5 rounded-full bg-white/20 border border-white/20 w-fit backdrop-blur-xs">
+                  Station
+                </span>
+                
+                <div className="flex items-end justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-white group-hover:text-rose-300 transition-colors">
+                      {station.title}
+                    </h3>
+                    <p className="text-[11px] text-zinc-300 mt-0.5">{station.subtitle}</p>
+                  </div>
+
+                  <div className="w-9 h-9 rounded-full bg-white text-black flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all shadow-md shadow-white/30 shrink-0 ml-2">
+                    <Play className="w-3.5 h-3.5 fill-black ml-0.5" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

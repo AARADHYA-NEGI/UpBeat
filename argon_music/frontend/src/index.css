@@ -14,8 +14,28 @@
 
 html, body, #root {
   height: 100%;
-  background: #0a0a0c;
+  background: #030305;
+  color: #f4f4f5;
   overscroll-behavior: none;
+}
+
+/* YouTube Music Inspired Cyber Atmosphere with Subtle Red Grid Lines */
+.ytm-atmosphere {
+  background-color: #030305;
+  background-image: 
+    radial-gradient(ellipse 85% 420px at 45% -30px, rgba(239, 68, 68, 0.22) 0%, rgba(244, 63, 94, 0.12) 35%, rgba(56, 189, 248, 0.03) 70%, transparent 100%),
+    radial-gradient(circle 600px at 85% 15%, rgba(225, 29, 72, 0.08) 0%, transparent 75%),
+    linear-gradient(to right, rgba(239, 68, 68, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(239, 68, 68, 0.045) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+  background-attachment: fixed;
+}
+
+.ytm-grid-overlay {
+  background-image: 
+    linear-gradient(to right, rgba(239, 68, 68, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(239, 68, 68, 0.045) 1px, transparent 1px);
+  background-size: 36px 36px;
 }
 
 body {
