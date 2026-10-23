@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import {
   RefreshCw, ExternalLink, PanelLeft, Heart, KeyRound,
-  X, Check, Settings, Sparkles, Layers, Fingerprint, ChevronDown, DownloadCloud
+  X, Check, Settings, Sparkles, Layers, Fingerprint, ChevronDown, DownloadCloud, Search
 } from 'lucide-react'
 import { getStoredApiKey, setStoredApiKey, getStoredServerUrl, setStoredServerUrl, hasBackend } from '../standaloneApi'
+import { GoogleIcon } from './GoogleAuthModal'
 
 export default function Navbar({
   models = [],
@@ -22,7 +23,11 @@ export default function Navbar({
   isSidebarOpen = true,
   onToggleSidebar,
   showKeyModal: controlledShowModal,
-  setShowKeyModal: setControlledShowModal
+  setShowKeyModal: setControlledShowModal,
+  isSearchOpen = false,
+  onToggleSearch,
+  googleUser,
+  onOpenGoogleModal
 }) {
   const [internalShowModal, setInternalShowModal] = useState(false)
   const showKeyModal = controlledShowModal !== undefined ? controlledShowModal : internalShowModal
@@ -173,10 +178,58 @@ export default function Navbar({
             </button>
           </nav>
 
-          {/* Right: Antigravity Model Pill, Sync & Settings */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Model Pill matching the Antigravity prompt bar dropdown */}
-            <div className="flex items-center gap-1.5 bg-[#141418] hover:bg-[#181820] border border-[#24242c] hover:border-[#2f2f3a] px-2.5 py-1 rounded-lg text-xs font-mono transition-colors">
+          {/* Right: Search Toggle, Google Account, Desktop Model Pill, Safari & Settings */}
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
+            {/* Top Search Button: Toggles the search / AI curator bar */}
+            {onToggleSearch && (
+              <button
+                onClick={onToggleSearch}
+                title={isSearchOpen ? 'Hide Search & AI Curator' : 'Open Search & AI Curator'}
+                className={`p-1.5 rounded-lg border text-xs font-mono flex items-center gap-1.5 transition-all cursor-pointer ${
+                  isSearchOpen
+                    ? 'bg-sky-500/20 border-sky-400 text-sky-300 shadow-xs'
+                    : 'bg-[#141418] hover:bg-[#1a1a20] border-[#24242c] text-[#a1a1aa] hover:text-white'
+                }`}
+                aria-label="Toggle Search"
+              >
+                <Search className="w-4 h-4" />
+                <span className="hidden md:inline text-xs font-medium">Search</span>
+              </button>
+            )}
+
+            {/* Google / YouTube Account Button */}
+            {onOpenGoogleModal && (
+              googleUser ? (
+                <button
+                  onClick={onOpenGoogleModal}
+                  title={`Google Connected: ${googleUser.name || googleUser.email}`}
+                  className="p-1 rounded-lg border border-[#24242c] bg-[#141418] hover:bg-[#1a1a20] flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  {googleUser.picture ? (
+                    <img src={googleUser.picture} alt="" className="w-5 h-5 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
+                      {(googleUser.name || 'G')[0].toUpperCase()}
+                    </div>
+                  )}
+                  <span className="hidden lg:inline text-xs font-mono text-[#e4e4e7] max-w-[90px] truncate">
+                    {googleUser.name?.split(' ')[0] || 'Google'}
+                  </span>
+                </button>
+              ) : (
+                <button
+                  onClick={onOpenGoogleModal}
+                  title="Connect Google / YouTube Account"
+                  className="p-1.5 rounded-lg border border-[#24242c] bg-[#141418] hover:bg-[#1a1a20] text-[#a1a1aa] hover:text-white flex items-center gap-1.5 text-xs font-mono transition-colors cursor-pointer"
+                >
+                  <GoogleIcon className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">Sign In</span>
+                </button>
+              )
+            )}
+
+            {/* Desktop Model Pill (Hidden on mobile to keep top bar clean and spacious!) */}
+            <div className="hidden sm:flex items-center gap-1.5 bg-[#141418] hover:bg-[#181820] border border-[#24242c] hover:border-[#2f2f3a] px-2.5 py-1 rounded-lg text-xs font-mono transition-colors">
               <span
                 className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                   isFallback ? 'bg-amber-400' : 'bg-sky-400'

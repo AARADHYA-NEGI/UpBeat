@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef, useEffect } from 'react'
 import { Loader2, ArrowRight, Sparkles, Search, X } from 'lucide-react'
 
 export default function CuratorPrompt({
@@ -10,9 +10,19 @@ export default function CuratorPrompt({
   setSearchMode,
   isGenerating,
   isSearching,
-  selectedModel
+  selectedModel,
+  isOpen = true,
+  onClose,
+  onOpen
 }) {
   const busy = isGenerating || isSearching
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus()
+    }
+  }, [isOpen])
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault()
@@ -24,12 +34,31 @@ export default function CuratorPrompt({
     }
   }
 
+  if (!isOpen) {
+    return (
+      <div className="bg-[#0a0a0d] px-3 sm:px-6 pt-2.5 pb-1 select-none flex-shrink-0">
+        <button
+          onClick={onOpen}
+          className="w-full px-3.5 py-2 rounded-xl bg-[#131318]/90 hover:bg-[#181822] border border-[#22222a] hover:border-sky-500/40 text-left flex items-center justify-between gap-3 text-xs text-[#71717a] hover:text-[#e4e4e7] transition-all cursor-pointer shadow-xs group"
+        >
+          <div className="flex items-center gap-2.5 truncate">
+            <Search className="w-3.5 h-3.5 text-sky-400 group-hover:scale-110 transition-transform" />
+            <span className="truncate">{prompt ? `"${prompt}"` : 'Search any song, artist, playlist, or AI vibe...'}</span>
+          </div>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#1c1c24] text-[#8e8e96] shrink-0 border border-[#262630] group-hover:text-sky-300">
+            Open Search
+          </span>
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div className="bg-[#0a0a0d] border-b border-[#1c1c22] px-3 sm:px-6 py-3 sm:py-4 flex-shrink-0 select-none">
+    <div className="bg-[#0a0a0d] border-b border-[#1c1c22] px-3 sm:px-6 py-3 sm:py-3.5 flex-shrink-0 select-none animate-in fade-in slide-in-from-top-2 duration-150">
       <form onSubmit={handleSubmit}>
         {/* Antigravity Floating Prompt Card */}
         <div className="relative rounded-2xl bg-[#131318] border border-[#24242e] focus-within:border-sky-500/50 hover:border-[#2f2f3c] shadow-lg shadow-black/40 transition-all p-3 sm:p-3.5">
-          {/* Upper section: Input & Clear */}
+          {/* Upper section: Input & Clear & Close */}
           <div className="flex items-center gap-2.5">
             <div className="flex-shrink-0">
               {searchMode === 'direct' ? (
@@ -39,6 +68,7 @@ export default function CuratorPrompt({
               )}
             </div>
             <input
+              ref={inputRef}
               type="text"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -69,6 +99,17 @@ export default function CuratorPrompt({
                 aria-label="Clear text"
               >
                 <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-1 rounded-md text-[#71717a] hover:text-white hover:bg-[#1e1e26] transition-colors cursor-pointer flex-shrink-0"
+                title="Collapse Search Bar"
+                aria-label="Collapse"
+              >
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>

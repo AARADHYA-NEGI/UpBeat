@@ -610,8 +610,12 @@ export default function PlayerBar({
           clearInterval(fadeIntervalRef.current)
           fadeIntervalRef.current = null
         }
-        if (audioRefA.current) audioRefA.current.pause()
-        if (audioRefB.current) audioRefB.current.pause()
+        if (audioRefA.current) try { audioRefA.current.pause() } catch {}
+        if (audioRefB.current) try { audioRefB.current.pause() } catch {}
+        if ('mediaSession' in navigator) {
+          navigator.mediaSession.playbackState = 'paused'
+        }
+        notifyNativePlayback(false, currentTime, effectiveDuration)
       }
       return
     }
@@ -760,7 +764,9 @@ export default function PlayerBar({
 
           if (Math.abs(cur - lastNativeReportSecRef.current) >= 3) {
             lastNativeReportSecRef.current = cur
-            notifyNativePlayback(true, cur, targetDur)
+            if (isPlayingRef.current) {
+              notifyNativePlayback(true, cur, targetDur)
+            }
           }
         }
 
@@ -831,8 +837,35 @@ export default function PlayerBar({
           })
         }
         navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
-        navigator.mediaSession.setActionHandler('play', () => setIsPlaying(true))
-        navigator.mediaSession.setActionHandler('pause', () => setIsPlaying(false))
+        navigator.mediaSession.setActionHandler('play', () => {
+          setIsPlaying(true)
+          isPlayingRef.current = true
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'playing'
+          }
+          const activeAudio = getActiveAudio()
+          if (activeAudio && activeAudio.src) {
+            try { activeAudio.play().catch(() => {}) } catch {}
+          }
+          notifyNativePlayback(true, currentTime, effectiveDuration)
+        })
+        navigator.mediaSession.setActionHandler('pause', () => {
+          setIsPlaying(false)
+          isPlayingRef.current = false
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'paused'
+          }
+          const activeAudio = getActiveAudio()
+          if (activeAudio) {
+            try { activeAudio.pause() } catch {}
+          }
+          if (audioRefA.current) try { audioRefA.current.pause() } catch {}
+          if (audioRefB.current) try { audioRefB.current.pause() } catch {}
+          if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+            try { playerRef.current.pauseVideo() } catch {}
+          }
+          notifyNativePlayback(false, currentTime, effectiveDuration)
+        })
         navigator.mediaSession.setActionHandler('previoustrack', () => onPrev())
         navigator.mediaSession.setActionHandler('nexttrack', () => onNextRef.current())
         navigator.mediaSession.setActionHandler('seekto', (details) => {

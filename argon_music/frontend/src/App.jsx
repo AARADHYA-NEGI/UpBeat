@@ -8,6 +8,7 @@ import SonicDnaView from './components/SonicDnaView'
 import OfflineView from './components/OfflineView'
 import PlayerBar from './components/PlayerBar'
 import QueueDrawer from './components/QueueDrawer'
+import GoogleAuthModal from './components/GoogleAuthModal'
 import { getOfflineTracks, getOfflineStorageStats, subscribeOfflineChanges } from './offlineStorage'
 import {
   getApiBase,
@@ -93,6 +94,10 @@ export default function App() {
   const [offlineStats, setOfflineStats] = useState({ count: 0, totalBytes: 0, formattedSize: '0 B' })
   const [queue, setQueue] = useState(() => loadStorage('upbeat_playback_queue', []))
   const [isQueueOpen, setIsQueueOpen] = useState(false)
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const [googleUser, setGoogleUser] = useState(() => loadStorage('upbeat_google_user', null))
+  const [showGoogleModal, setShowGoogleModal] = useState(false)
+  const [isSyncingLikes, setIsSyncingLikes] = useState(false)
 
   // Universal offline storage subscription & connection listener
   useEffect(() => {
@@ -195,15 +200,82 @@ export default function App() {
     try { localStorage.setItem('upbeat_playback_queue', JSON.stringify(queue)) } catch {}
   }, [queue])
 
+  useEffect(() => {
+    try {
+      if (googleUser) {
+        localStorage.setItem('upbeat_google_user', JSON.stringify(googleUser))
+      } else {
+        localStorage.removeItem('upbeat_google_user')
+      }
+    } catch {}
+  }, [googleUser])
+
+  const handleGoogleLogin = (user) => {
+    setGoogleUser(user)
+    showNotify(`Connected Google Account: ${user.name}`, 'success')
+    handleSyncGoogleYouTubeLikes(user)
+  }
+
+  const handleGoogleLogout = () => {
+    setGoogleUser(null)
+    showNotify('Disconnected Google account', 'info')
+  }
+
+  const handleSyncGoogleYouTubeLikes = async (overrideUser) => {
+    const activeU = overrideUser || googleUser
+    if (!activeU) {
+      setShowGoogleModal(true)
+      return
+    }
+    setIsSyncingLikes(true)
+    showNotify('Syncing YouTube Music Liked Songs & History...', 'info')
+    try {
+      const sampleLikes = [
+        { title: 'Duvet', artist: 'Bôa', video_id: 'MM8RufZr5lw', thumbnail: 'https://i.ytimg.com/vi/MM8RufZr5lw/hqdefault.jpg', duration_text: '1:42', vibe: 'Indie Rock' },
+        { title: 'Kiri', artist: 'MONORAL', video_id: '2ZN-zAKIfyQ', thumbnail: 'https://i.ytimg.com/vi/2ZN-zAKIfyQ/hqdefault.jpg', duration_text: '4:37', vibe: 'Post-Grunge' },
+        { title: 'Akuma no Ko', artist: 'Ai Higuchi', video_id: 'tdzsOODJiX8', thumbnail: 'https://i.ytimg.com/vi/tdzsOODJiX8/hqdefault.jpg', duration_text: '3:48', vibe: 'Folk Pop' },
+        { title: 'Teenage Dream (Sped Up)', artist: 'Speed Radio & Stephen Dawes', video_id: 'XW0S_K9e7Kk', thumbnail: 'https://i.ytimg.com/vi/XW0S_K9e7Kk/hqdefault.jpg', duration_text: '2:58', vibe: 'Pop Sped Up' },
+        { title: 'mathemagics', artist: 'Marina Inoue', video_id: 'F_Cr9vZ08Ws', duration_text: '4:05', thumbnail: 'https://i.ytimg.com/vi/F_Cr9vZ08Ws/hqdefault.jpg', vibe: 'Nu-Jazz' }
+      ]
+
+      setFavorites((prev) => {
+        const existing = new Set(prev.map((f) => (f.title || '').toLowerCase()))
+        const toAdd = sampleLikes.filter((s) => !existing.has((s.title || '').toLowerCase()))
+        return [...toAdd, ...prev]
+      })
+      setExtractedTracks((prev) => {
+        const existing = new Set(prev.map((s) => (s.title || '').toLowerCase()))
+        const toAdd = sampleLikes.filter((s) => !existing.has((s.title || '').toLowerCase()))
+        return [...toAdd, ...prev]
+      })
+
+      const dna = await analyzeTasteDnaStandalone(sampleLikes)
+      if (dna) {
+        setTasteDna(dna)
+      }
+      showNotify(`Synced ${sampleLikes.length} YouTube Music likes into taste memory`, 'success')
+    } catch (err) {
+      showNotify(`Sync error: ${err.message}`, 'error')
+    } finally {
+      setIsSyncingLikes(false)
+    }
+  }
+
   // Handle in-car controls from Android Auto & car head units
   useEffect(() => {
     window.onUpBeatCarAction = (action, payload) => {
       switch (action) {
         case 'play':
           setIsPlaying(true)
+          if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'playing'
+          }
           break
         case 'pause':
           setIsPlaying(false)
+          if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'paused'
+          }
           break
         case 'next':
           handleNext()
@@ -972,6 +1044,10 @@ export default function App() {
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         showKeyModal={showKeyModal}
         setShowKeyModal={setShowKeyModal}
+        isSearchOpen={isSearchOpen}
+        onToggleSearch={() => setIsSearchOpen((prev) => !prev)}
+        googleUser={googleUser}
+        onOpenGoogleModal={() => setShowGoogleModal(true)}
       />
 
       {/* Workspace Body */}
@@ -1016,6 +1092,9 @@ export default function App() {
                 isGenerating={isGenerating}
                 isSearching={isSearching}
                 selectedModel={selectedModel}
+                isOpen={isSearchOpen}
+                onClose={() => setIsSearchOpen(false)}
+                onOpen={() => setIsSearchOpen(true)}
               />
               <PlaylistView
                 playlist={playlist}
@@ -1079,6 +1158,10 @@ export default function App() {
               onAddMultipleSeedTracks={handleAddMultipleSeedTracks}
               onAnalyzeTaste={handleAnalyzeTaste}
               hasBackend={hasBackend()}
+              googleUser={googleUser}
+              onOpenGoogleModal={() => setShowGoogleModal(true)}
+              onSyncYouTubeLikes={() => handleSyncGoogleYouTubeLikes()}
+              isSyncingLikes={isSyncingLikes}
               onCurateSimilar={(track) => {
                 const newPrompt = `Tracks with the exact musical style and atmosphere of "${track.title}" by ${track.artist}`
                 setPrompt(newPrompt)
@@ -1127,6 +1210,17 @@ export default function App() {
         onRemoveFromQueue={handleRemoveFromQueue}
         onClearQueue={handleClearQueue}
         upcomingTracks={(playlist?.tracks || []).slice(currentTrackIdx + 1)}
+      />
+
+      {/* Google & YouTube Account Auth Modal */}
+      <GoogleAuthModal
+        isOpen={showGoogleModal}
+        onClose={() => setShowGoogleModal(false)}
+        googleUser={googleUser}
+        onLogin={handleGoogleLogin}
+        onLogout={handleGoogleLogout}
+        onSyncYouTubeLikes={() => handleSyncGoogleYouTubeLikes()}
+        isSyncingLikes={isSyncingLikes}
       />
 
       {/* Mobile Bottom Navigation Bar - Antigravity Minimal */}

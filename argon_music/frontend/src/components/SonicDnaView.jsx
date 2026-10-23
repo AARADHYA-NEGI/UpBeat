@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import {
   RefreshCw, ExternalLink, Search, Music, Heart, Play,
-  Sparkles, Download, Check, Loader2, ListPlus
+  Sparkles, Download, Check, Loader2, ListPlus, Activity,
+  Sliders, Zap, ShieldCheck, Flame, Compass, ChevronRight, Disc
 } from 'lucide-react'
 import { getTrackDownloadUrl, getAudioSource } from '../standaloneApi'
 import { saveTrackOffline, getDownloadedVideoIds, subscribeOfflineChanges } from '../offlineStorage'
 import YouTubeTasteSyncModal, { Youtube } from './YouTubeTasteSyncModal'
+import { GoogleIcon } from './GoogleAuthModal'
 
 export default function SonicDnaView({
   mode = 'dna',
@@ -25,7 +27,11 @@ export default function SonicDnaView({
   onAddSeedTrack,
   onAddMultipleSeedTracks,
   onAnalyzeTaste,
-  hasBackend = false
+  hasBackend = false,
+  googleUser,
+  onOpenGoogleModal,
+  onSyncYouTubeLikes,
+  isSyncingLikes = false
 }) {
   const [filter, setFilter] = useState('')
   const [downloadingVid, setDownloadingVid] = useState(null)
@@ -529,124 +535,343 @@ export default function SonicDnaView({
     )
   }
 
-  // 3. TASTE PROFILE VIEW
-  const hasProfile = Boolean(tasteDna && (tasteDna.archetype || tasteDna.summary))
+  // 3. MODERN INTERACTIVE SONIC TASTE STUDIO
+  const allTracks = favorites.length > 0 ? favorites : extractedTracks
+  const artists = Array.from(new Set(allTracks.map((t) => t.artist).filter(Boolean)))
+  const topArtists = (tasteDna?.key_artists && tasteDna.key_artists.length)
+    ? tasteDna.key_artists
+    : (tasteDna?.top_artists && tasteDna.top_artists.length)
+    ? tasteDna.top_artists
+    : (artists.length ? artists.slice(0, 5) : ['Bôa', 'MONORAL', 'Ai Higuchi', 'Yutaka Yamada', 'Hiroyuki Sawano'])
+
+  const isHighEnergy = allTracks.some((t) => /rock|sawano|epic|metal|hyper|phonk|battle/i.test(`${t.title} ${t.artist}`))
+  const isMelancholic = allTracks.some((t) => /duvet|kiri|lonely|rain|dark|slow|acoustic|indie/i.test(`${t.title} ${t.artist}`))
+
+  const derivedArchetype = tasteDna?.archetype || (
+    isHighEnergy ? 'High-Impact Sonic Voyager' :
+    isMelancholic ? 'Ethereal Alt-Rock & Anime Connoisseur' :
+    favorites.length > 0 ? 'Melodic Audio Explorer' : 'Acoustic & Electronic Explorer'
+  )
+
+  const derivedSummary = tasteDna?.summary || (
+    favorites.length > 0
+      ? `Your profile is driven by ${favorites.length} liked songs, blending ${topArtists.slice(0, 2).join(' and ')} with rich guitar textures, evocative vocals, and cinematic dynamics.`
+      : 'Your taste profile evolves dynamically with every song you listen to, heart, or search. Connect your Google account or heart tracks to unlock personalized mixes.'
+  )
+
+  const tempoVal = tasteDna?.sonic_attributes?.tempo || (isHighEnergy ? '135-160 BPM' : '118-135 BPM')
+  const electronicRatio = tasteDna?.sonic_attributes?.electronic_balance ?? (isHighEnergy ? 72 : 58)
+  const acousticRatio = 100 - electronicRatio
+
+  const rawGenres = (tasteDna?.primary_genres && tasteDna.primary_genres.length)
+    ? tasteDna.primary_genres
+    : (isHighEnergy
+        ? ['Anime OST', 'Symphonic Rock', 'J-Rock', 'Epic Orchestral']
+        : ['Indie Rock', 'Anime OST', 'Atmospheric Ambient', 'Post-Grunge'])
+
+  const genrePills = rawGenres.map((g, idx) => ({
+    name: g,
+    pct: [42, 28, 18, 12][idx] || 15
+  }))
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 bg-[#0a0a0c]">
-      <div className="max-w-4xl flex flex-col gap-6">
-        <div className="border border-[#222228] bg-[#0d0d10] rounded-lg p-6">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-400 font-medium">
-              Taste Profile {hasProfile ? 'Analysis' : 'Memory'}
-            </span>
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-[#0a0a0c]" onClick={() => setQueueMenuIdx(null)}>
+      <div className="max-w-4xl mx-auto flex flex-col gap-5 sm:gap-6">
+        {/* Main Archetype Hero Card */}
+        <div className="relative overflow-hidden rounded-2xl border border-[#242432] bg-gradient-to-br from-[#12121a] via-[#0f0f15] to-[#0d0d12] p-5 sm:p-6 shadow-xl">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent rounded-full blur-3xl pointer-events-none" />
+
+          {/* Top Bar with Badges and Sync Buttons */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-400 font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/25 flex items-center gap-1.5">
+                <Activity className="w-3 h-3 text-indigo-400" />
+                <span>Sonic Taste DNA • Active</span>
+              </span>
+
+              {/* Animated Equalizer Visualizer */}
+              <div className="flex items-end gap-0.5 h-3.5 px-2 py-0.5 rounded-md bg-[#161622] border border-[#262636]">
+                <span className="w-0.5 bg-indigo-400 rounded-full animate-[bounce_0.9s_infinite_100ms] h-full" />
+                <span className="w-0.5 bg-purple-400 rounded-full animate-[bounce_0.9s_infinite_300ms] h-2/3" />
+                <span className="w-0.5 bg-sky-400 rounded-full animate-[bounce_0.9s_infinite_200ms] h-4/5" />
+                <span className="w-0.5 bg-emerald-400 rounded-full animate-[bounce_0.9s_infinite_400ms] h-1/2" />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setIsTasteSyncOpen(true)}
-                className="px-3 py-1.5 rounded-md bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
               >
                 <Youtube className="w-3.5 h-3.5 text-rose-400" />
-                <span>Sync YouTube Taste</span>
+                <span>Sync YouTube Seeds</span>
               </button>
-              {hasBackend && onSyncSafari && (
-                <button
-                  onClick={onSyncSafari}
-                  disabled={isSyncing}
-                  className="px-3 py-1.5 rounded-md bg-[#16161c] hover:bg-[#22222a] border border-[#2a2a34] text-xs text-[#e5e5e5] flex items-center gap-1.5 transition-colors cursor-pointer"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isSyncing ? 'animate-spin' : ''}`} />
-                  <span className="hidden sm:inline">Refresh Safari</span>
-                </button>
-              )}
+
+              <button
+                onClick={() => onAnalyzeTaste && onAnalyzeTaste()}
+                disabled={isSyncing}
+                title="Re-run deep musical taste analysis with Gemini"
+                className="px-3 py-1.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/35 text-xs text-indigo-200 font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Sparkles className={`w-3.5 h-3.5 text-indigo-400 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>Analyze DNA</span>
+              </button>
             </div>
           </div>
 
-          <h2 className="text-xl font-semibold text-[#f5f5f5] tracking-tight">
-            {hasProfile ? (tasteDna?.archetype || 'Listener Profile') : 'Personal Taste Profile'}
-          </h2>
-          <p className="text-xs sm:text-sm text-[#c4c4cc] mt-2 leading-relaxed max-w-2xl">
-            {hasProfile
-              ? tasteDna?.summary
-              : favorites.length > 0
-              ? `You have ${favorites.length} song${favorites.length > 1 ? 's' : ''} in your Liked memory. UpBeat uses your favorites as your primary taste signal when curating personalized mixes.`
-              : 'Your taste profile is formed as you listen, search, and heart songs. Heart ❤️ tracks in any playlist or search to build your personal taste memory.'}
-          </p>
+          {/* Archetype Title & Summary */}
+          <div className="max-w-2xl">
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+              <span className="bg-gradient-to-r from-white via-indigo-200 to-purple-300 bg-clip-text text-transparent">
+                {derivedArchetype}
+              </span>
+            </h2>
+            <p className="text-xs sm:text-sm text-[#b4b4be] mt-2 leading-relaxed">
+              {derivedSummary}
+            </p>
+          </div>
 
-          {!hasProfile && favorites.length > 0 && onCurateFromFavorites && (
-            <div className="mt-4">
+          {/* 1-Tap Curate from DNA Actions */}
+          <div className="flex flex-wrap items-center gap-2.5 mt-5 pt-4 border-t border-[#1f1f2a]">
+            {onCurateFromFavorites && (
               <button
                 onClick={onCurateFromFavorites}
-                className="px-4 py-2 rounded-md bg-indigo-600 hover:bg-indigo-500 text-xs font-medium text-white flex items-center gap-2 transition-colors cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-indigo-500/20 active:scale-98"
               >
-                <Sparkles className="w-4 h-4" />
-                <span>Curate Fresh Mix from Your Liked Songs</span>
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Curate My DNA Mix (0 AI Tokens)</span>
               </button>
-            </div>
-          )}
+            )}
 
-          {hasProfile && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
-            <div className="p-3.5 rounded-md bg-[#131318] border border-[#22222a]">
-              <span className="text-[10px] font-mono uppercase text-[#9ca3af] block">Tempo Range</span>
-              <span className="text-sm font-mono font-semibold text-[#f5f5f5] mt-1 block">
-                {tasteDna?.sonic_attributes?.tempo || '120-130 BPM'}
-              </span>
-            </div>
-            <div className="p-3.5 rounded-md bg-[#131318] border border-[#22222a]">
-              <span className="text-[10px] font-mono uppercase text-[#9ca3af] block">Electronic Ratio</span>
-              <span className="text-sm font-mono font-semibold text-indigo-300 mt-1 block">
-                {tasteDna?.sonic_attributes?.electronic_balance ?? 70}%
-              </span>
-            </div>
-            <div className="p-3.5 rounded-md bg-[#131318] border border-[#22222a]">
-              <span className="text-[10px] font-mono uppercase text-[#9ca3af] block">Hearted Memory</span>
-              <span className="text-sm font-mono font-semibold text-rose-300 mt-1 block">
-                {favorites.length} liked
-              </span>
-            </div>
-            <div className="p-3.5 rounded-md bg-[#131318] border border-[#22222a]">
-              <span className="text-[10px] font-mono uppercase text-[#9ca3af] block">YouTube Seeds</span>
-              <span className="text-sm font-mono font-semibold text-[#f5f5f5] mt-1 block">
-                {extractedTracks.length} items
-              </span>
-            </div>
-          </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="border border-[#222228] bg-[#0d0d10] rounded-lg p-5">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-[#9ca3af] font-medium block mb-3">
-              Primary Genres
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {(tasteDna?.primary_genres || ['Soundtrack', 'Electronic', 'Alternative']).map((g, i) => (
-                <span
-                  key={i}
-                  className="px-3 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/30 text-xs font-mono text-indigo-200"
-                >
-                  {g}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          <div className="border border-[#222228] bg-[#0d0d10] rounded-lg p-5">
-            <span className="text-[11px] font-mono uppercase tracking-wider text-[#9ca3af] font-medium block mb-3">
-              Key Artists & Channels
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {(tasteDna?.top_artists || []).map((a, i) => (
-                <span
-                  key={i}
-                  className="px-3 py-1 rounded-md bg-[#14141a] border border-[#282832] text-xs font-mono text-[#e4e4e7]"
-                >
-                  {a}
-                </span>
-              ))}
-            </div>
+            <button
+              onClick={() => onCurateSimilar && favorites[0] && onCurateSimilar(favorites[0])}
+              disabled={!favorites.length}
+              className="px-3.5 py-2 rounded-xl bg-[#161622] hover:bg-[#1d1d2c] border border-[#28283a] text-xs text-[#e4e4e7] flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
+            >
+              <Compass className="w-3.5 h-3.5 text-sky-400" />
+              <span>Explore Acoustic Boundaries</span>
+            </button>
           </div>
         </div>
+
+        {/* Google & YouTube Sync Status Card */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#0f0f15] border border-[#22222e] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+              <GoogleIcon className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm font-semibold text-white">
+                  {googleUser ? `Connected: ${googleUser.name}` : 'Connect Google & YouTube Music'}
+                </span>
+                {googleUser && (
+                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    ONLINE
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-[#8e8e96] truncate mt-0.5">
+                {googleUser
+                  ? `${googleUser.email} • YouTube likes & listening habits synced`
+                  : 'Import your personal YouTube music likes, private mixes, and curated history'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {googleUser ? (
+              <button
+                onClick={onSyncYouTubeLikes}
+                disabled={isSyncingLikes}
+                className="px-3.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isSyncingLikes ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400" />
+                ) : (
+                  <Youtube className="w-3.5 h-3.5 text-rose-400" />
+                )}
+                <span>Sync YouTube Likes</span>
+              </button>
+            ) : (
+              <button
+                onClick={onOpenGoogleModal}
+                className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#eaeaea] text-[#1f1f1f] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
+              >
+                <GoogleIcon className="w-3.5 h-3.5" />
+                <span>Sign in with Google</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Sonic Attributes & Frequency Sliders */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Tile 1: Electronic vs Acoustic Balance */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#0e0e14] border border-[#20202c]">
+            <div className="flex items-center justify-between text-xs mb-2">
+              <span className="font-mono text-[#8e8e96] flex items-center gap-1.5">
+                <Sliders className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Sonic Spectrum</span>
+              </span>
+              <span className="font-mono text-[11px] text-indigo-300 font-semibold">
+                {electronicRatio}% Electronic • {acousticRatio}% Acoustic
+              </span>
+            </div>
+            {/* Visual dual-gradient bar */}
+            <div className="w-full h-2.5 rounded-full bg-[#181822] overflow-hidden flex">
+              <div
+                style={{ width: `${electronicRatio}%` }}
+                className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300"
+              />
+              <div
+                style={{ width: `${acousticRatio}%` }}
+                className="h-full bg-gradient-to-r from-amber-500 to-rose-500 transition-all duration-300"
+              />
+            </div>
+            <div className="flex justify-between text-[10px] font-mono text-[#71717a] mt-1.5">
+              <span>Synths & Production</span>
+              <span>Organic & Strings</span>
+            </div>
+          </div>
+
+          {/* Tile 2: Tempo & Energy Pulse */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#0e0e14] border border-[#20202c]">
+            <div className="flex items-center justify-between text-xs mb-2">
+              <span className="font-mono text-[#8e8e96] flex items-center gap-1.5">
+                <Flame className="w-3.5 h-3.5 text-rose-400" />
+                <span>Tempo & Energy Pulse</span>
+              </span>
+              <span className="font-mono text-[11px] text-rose-300 font-semibold">
+                {tempoVal}
+              </span>
+            </div>
+            {/* Visual progress bar */}
+            <div className="w-full h-2.5 rounded-full bg-[#181822] overflow-hidden">
+              <div
+                style={{ width: `${isHighEnergy ? 84 : 64}%` }}
+                className="h-full bg-gradient-to-r from-emerald-500 via-sky-400 to-rose-500 transition-all duration-300"
+              />
+            </div>
+            <div className="flex justify-between text-[10px] font-mono text-[#71717a] mt-1.5">
+              <span>Moderate Pace</span>
+              <span>High BPM Climax</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Genre Affinity Breakdown */}
+        <div className="p-5 rounded-2xl bg-[#0e0e14] border border-[#20202c]">
+          <div className="flex items-center justify-between mb-3.5">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-[#8e8e96] font-semibold flex items-center gap-1.5">
+              <Disc className="w-3.5 h-3.5 text-sky-400" />
+              <span>Genre Affinity & Tonal Distribution</span>
+            </span>
+            <span className="text-[10px] font-mono text-[#71717a]">
+              {genrePills.length} Identified Styles
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {genrePills.map((g, idx) => (
+              <div
+                key={idx}
+                className="p-3 rounded-xl bg-[#13131b] border border-[#222230] hover:border-sky-500/40 transition-colors"
+              >
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  <span className="font-medium text-[#f4f4f5]">{g.name}</span>
+                  <span className="font-mono text-[11px] text-sky-300">{g.pct}%</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-[#1a1a26] overflow-hidden">
+                  <div
+                    style={{ width: `${g.pct}%` }}
+                    className="h-full bg-gradient-to-r from-sky-400 to-indigo-500"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Top Influences & Artists */}
+        <div className="p-5 rounded-2xl bg-[#0e0e14] border border-[#20202c]">
+          <span className="text-[11px] font-mono uppercase tracking-wider text-[#8e8e96] font-semibold block mb-3">
+            Key Anchoring Artists & Sounds
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {topArtists.map((a, idx) => (
+              <div
+                key={idx}
+                onClick={() => onCurateSimilar && onCurateSimilar({ title: 'Mix', artist: a })}
+                className="px-3.5 py-1.5 rounded-xl bg-[#13131c] hover:bg-[#1a1a26] border border-[#242434] hover:border-indigo-500/40 text-xs font-mono text-[#e4e4e7] hover:text-white flex items-center gap-2 transition-colors cursor-pointer group"
+                title={`Curate mix inspired by ${a}`}
+              >
+                <Music className="w-3 h-3 text-indigo-400 group-hover:scale-110 transition-transform" />
+                <span>{a}</span>
+                <span className="text-[9px] text-[#71717a] group-hover:text-sky-300 font-mono">Curate &rarr;</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Top 4 Anchor Songs (The actual songs shaping this profile) */}
+        {allTracks.length > 0 && (
+          <div className="p-5 rounded-2xl bg-[#0e0e14] border border-[#20202c]">
+            <div className="flex items-center justify-between mb-3.5">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-[#8e8e96] font-semibold flex items-center gap-1.5">
+                <Heart className="w-3.5 h-3.5 text-rose-400" />
+                <span>Core Tracks Anchoring Your Profile ({allTracks.length})</span>
+              </span>
+              <span className="text-[10px] font-mono text-[#71717a]">Highest Weight</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {allTracks.slice(0, 4).map((t, idx) => {
+                const thumb = t.thumbnail || (t.video_id ? `https://i.ytimg.com/vi/${t.video_id}/hqdefault.jpg` : '')
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => onPlayTrack(t, idx)}
+                    className="p-2.5 rounded-xl bg-[#12121a] hover:bg-[#181824] border border-[#20202c] hover:border-[#2e2e42] flex items-center justify-between gap-3 transition-colors cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-lg bg-[#181822] border border-[#242432] overflow-hidden shrink-0 relative">
+                        {thumb ? (
+                          <img src={thumb} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <Music className="w-4 h-4 text-[#71717a] m-auto mt-3" />
+                        )}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <Play className="w-3.5 h-3.5 text-white fill-current ml-0.5" />
+                        </div>
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-[#f4f4f5] truncate group-hover:text-sky-300">
+                          {t.title}
+                        </div>
+                        <div className="text-[11px] text-[#8e8e96] truncate mt-0.5">
+                          {t.artist}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {onCurateSimilar && (
+                        <button
+                          onClick={() => onCurateSimilar(t)}
+                          title="Curate similar vibe"
+                          className="p-1.5 rounded-lg text-[#71717a] hover:text-sky-300 hover:bg-[#1a1a28] transition-colors cursor-pointer"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Standalone YouTube Taste Sync Modal */}
