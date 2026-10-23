@@ -8,7 +8,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     var backendProcess: Process?
     let serverURL = URL(string: "http://127.0.0.1:8000")!
     let workspacePath = "/Users/aaradhya/Documents/Programming/random"
-    let appVersion = "3.0+1.0"
+    let appVersion: String = {
+        if let ver = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String, !ver.isEmpty {
+            return ver
+        }
+        return "4.0"
+    }()
     let githubRepo = "AaradhyaNegi009/UpBeat"
 
     var updateTimer: Timer?
@@ -299,8 +304,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
     @objc func showAboutPanel() {
         let alert = NSAlert()
-        alert.messageText = "UpBeat 3.0+1.0 :||"
-        alert.informativeText = "Version \(appVersion) (Thrice Upon a Time)\nCreated for modern music curation with zero-token search, offline playback on Mac & Android, YouTube Music streaming, and Safari sync."
+        alert.messageText = "UpBeat v\(appVersion)"
+        alert.informativeText = "Version \(appVersion)\nCreated for modern music curation with zero-token search, offline playback on Mac & Android, YouTube Music streaming, and Safari sync."
         alert.alertStyle = .informational
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "Check for Updates")
@@ -397,7 +402,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
             }.resume()
             _ = sem.wait(timeout: .now() + 4.5)
 
-            let hasReleaseUpdate = !releaseTag.isEmpty && !releaseTag.contains(self.appVersion) && releaseTag > "v\(self.appVersion)"
+            let hasReleaseUpdate = !releaseTag.isEmpty && self.isNewerVersion(remote: releaseTag, current: self.appVersion)
 
             DispatchQueue.main.async {
                 if hasGitUpdate || hasReleaseUpdate {
@@ -427,6 +432,21 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
                 }
             }
         }
+    }
+
+    private func isNewerVersion(remote: String, current: String) -> Bool {
+        let cleanRemote = remote.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+        let cleanCurrent = current.trimmingCharacters(in: CharacterSet(charactersIn: "vV"))
+        let rParts = cleanRemote.split(separator: ".").compactMap { Int($0.prefix(while: { $0.isNumber })) }
+        let cParts = cleanCurrent.split(separator: ".").compactMap { Int($0.prefix(while: { $0.isNumber })) }
+        let maxLen = max(rParts.count, cParts.count)
+        for i in 0..<maxLen {
+            let r = i < rParts.count ? rParts[i] : 0
+            let c = i < cParts.count ? cParts[i] : 0
+            if r > c { return true }
+            if r < c { return false }
+        }
+        return false
     }
 
     func runSelfUpdate(userTriggered: Bool) {
