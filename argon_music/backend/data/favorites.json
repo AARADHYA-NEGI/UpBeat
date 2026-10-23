@@ -1,5 +1,21 @@
 [
   {
+    "title": "Cake By The Ocean",
+    "artist": "DNCE",
+    "video_id": "yC_gfqxS-ZY",
+    "fallback_ids": [
+      "IDhUof_lyHE",
+      "utsEMv934-Q",
+      "0pCCxFMxRcU"
+    ],
+    "thumbnail": "https://i.ytimg.com/vi/yC_gfqxS-ZY/hqdefault.jpg",
+    "duration_text": "2:43",
+    "vibe": "Dance-Rock",
+    "reason": "Infectious dance-rock bassline, upbeat handclaps, and falsetto-driven party energy.",
+    "url": "https://www.youtube.com/watch?v=yC_gfqxS-ZY",
+    "liked_at": 1792769765
+  },
+  {
     "title": "That's What I Like",
     "artist": "Bruno Mars",
     "video_id": "PMivT7MJ41M",

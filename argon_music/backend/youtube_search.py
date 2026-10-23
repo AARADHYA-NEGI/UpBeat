@@ -200,16 +200,7 @@ def get_audio_stream_url(video_id: str) -> Optional[Dict[str, Any]]:
     if cached and (now - cached.get("ts", 0)) < 1500:
         return cached
 
-    # 1. Try ultra-fast direct Innertube player endpoint (0.35s)
-    try:
-        fast_info = _fast_innertube_audio(video_id)
-        if fast_info and fast_info.get("url"):
-            _STREAM_CACHE[video_id] = fast_info
-            return fast_info
-    except Exception as e:
-        print(f"Innertube fast audio error for {video_id}: {e}")
-
-    # 2. Robust fallback via persistent thread-local yt-dlp with full JS signature solving
+    # Robust resolution via persistent thread-local yt-dlp with full JS signature solving
     try:
         ydl = _get_ydl()
         info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
@@ -226,35 +217,43 @@ def get_audio_stream_url(video_id: str) -> Optional[Dict[str, Any]]:
                 best_fmt = (m4a_fmts or audio_formats)[-1]
                 stream_url = best_fmt.get("url")
 
-        if not stream_url:
-            return None
-
-        ext = info.get("ext", "m4a")
-        mime = "audio/mp4" if ext == "m4a" else f"audio/{ext}"
-        clen = int(info.get("filesize") or info.get("filesize_approx") or 0)
-        if not clen:
-            qs = urllib.parse.parse_qs(urllib.parse.urlparse(stream_url).query)
-            if "clen" in qs:
-                clen = int(qs["clen"][0])
-        ua = (info.get("http_headers") or {}).get(
-            "User-Agent",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-        )
-        entry = {
-            "url": stream_url,
-            "mime": mime,
-            "clen": clen,
-            "ua": ua,
-            "title": info.get("title", ""),
-            "uploader": info.get("uploader", ""),
-            "duration": info.get("duration", 0),
-            "ts": now,
-        }
-        _STREAM_CACHE[video_id] = entry
-        return entry
+        if stream_url:
+            ext = info.get("ext", "m4a")
+            mime = "audio/mp4" if ext == "m4a" else f"audio/{ext}"
+            clen = int(info.get("filesize") or info.get("filesize_approx") or 0)
+            if not clen:
+                qs = urllib.parse.parse_qs(urllib.parse.urlparse(stream_url).query)
+                if "clen" in qs:
+                    clen = int(qs["clen"][0])
+            ua = (info.get("http_headers") or {}).get(
+                "User-Agent",
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+            )
+            entry = {
+                "url": stream_url,
+                "mime": mime,
+                "clen": clen,
+                "ua": ua,
+                "title": info.get("title", ""),
+                "uploader": info.get("uploader", ""),
+                "duration": info.get("duration", 0),
+                "ts": now,
+            }
+            _STREAM_CACHE[video_id] = entry
+            return entry
     except Exception as e:
         print(f"yt-dlp stream extraction error for {video_id}: {e}")
-        return None
+
+    # Fallback to direct Innertube player endpoint only if yt-dlp completely fails
+    try:
+        fast_info = _fast_innertube_audio(video_id)
+        if fast_info and fast_info.get("url"):
+            _STREAM_CACHE[video_id] = fast_info
+            return fast_info
+    except Exception as e:
+        print(f"Innertube fallback audio error for {video_id}: {e}")
+
+    return None
 
 
 def prefetch_streams_async(video_ids: List[str]) -> None:
