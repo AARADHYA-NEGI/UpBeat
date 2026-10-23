@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { getApiBase, hasBackend, getAudioSource, searchYouTubeStandalone, getTrackDownloadUrl } from '../standaloneApi'
 import { isTrackDownloaded, saveTrackOffline, createOfflineAudioUrl, subscribeOfflineChanges } from '../offlineStorage'
+import { useAlbumColor, DEFAULT_LAVENDER_THEME } from '../utils/colorExtractor'
 
 function formatTime(sec) {
   if (!sec || isNaN(sec) || sec < 0) return '0:00'
@@ -130,6 +131,7 @@ export default function PlayerBar({
           ? authoritativeDurationRef.current
           : parseDurationText(track?.duration_text))
   const thumbUrl = track?.thumbnail || (resolvedVid ? `https://i.ytimg.com/vi/${resolvedVid}/hqdefault.jpg` : '')
+  const albumColor = useAlbumColor(thumbUrl)
   const displayTime = Math.min(
     isScrubbing ? scrubTime : currentTime,
     effectiveDuration > 0 ? effectiveDuration : Infinity
@@ -1024,12 +1026,23 @@ export default function PlayerBar({
         <div id="argon-yt-player-mount" className="w-full h-full" />
       </div>
 
-      <footer className="bg-[#0d0d10] border-t border-[#202026] px-3 sm:px-5 py-2 sm:py-0 sm:h-[68px] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-4 select-none flex-shrink-0 z-30 relative">
+      <footer
+        className="bg-[#0d0d10] border-t border-[#202026] px-3 sm:px-5 py-2 sm:py-0 sm:h-[70px] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-4 select-none flex-shrink-0 z-30 relative"
+        style={{
+          '--slider-thumb-color': albumColor.primary,
+          '--slider-thumb-glow': albumColor.glow,
+          boxShadow: isPlaying ? `0 -8px 28px ${albumColor.subtle}` : 'none',
+          transition: 'box-shadow 0.4s ease'
+        }}
+      >
         {/* Top progress bar */}
         {track && effectiveDuration > 0 && (
           <div
-            className="absolute top-0 left-0 h-[2px] bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-150 pointer-events-none"
-            style={{ width: `${progressPct}%` }}
+            className="absolute top-0 left-0 h-[2px] transition-all duration-150 pointer-events-none"
+            style={{
+              width: `${progressPct}%`,
+              background: `linear-gradient(to right, ${albumColor.primary}, ${albumColor.accent})`
+            }}
           />
         )}
 
@@ -1039,9 +1052,13 @@ export default function PlayerBar({
           <div className="flex items-center gap-2.5 min-w-0 flex-1 sm:w-1/4 sm:min-w-[200px] sm:flex-initial">
             {track ? (
               <>
-                <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-md bg-[#14141a] border overflow-hidden flex-shrink-0 relative ${
-                  isPlaying ? 'border-emerald-500/60 shadow-xs shadow-emerald-500/20' : 'border-[#22222a]'
-                }`}>
+                <div
+                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-md bg-[#14141a] border overflow-hidden flex-shrink-0 relative transition-all duration-300"
+                  style={{
+                    borderColor: isPlaying ? albumColor.border : '#22222a',
+                    boxShadow: isPlaying ? `0 0 14px ${albumColor.subtle}` : 'none'
+                  }}
+                >
                   {thumbUrl ? (
                     <img src={thumbUrl} alt="" className="w-full h-full object-cover" />
                   ) : (
@@ -1052,9 +1069,14 @@ export default function PlayerBar({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                      isPlaying ? 'bg-emerald-400 animate-pulse' : 'bg-[#52525b]'
-                    }`} />
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                        isPlaying ? 'animate-pulse' : ''
+                      }`}
+                      style={{
+                        backgroundColor: isPlaying ? albumColor.primary : '#52525b'
+                      }}
+                    />
                     <div className="text-xs sm:text-[13px] font-semibold text-[#f4f4f5] truncate">
                       {track.title}
                     </div>
@@ -1108,19 +1130,25 @@ export default function PlayerBar({
           </div>
 
           {/* Mobile Compact Transport Controls */}
-          <div className="flex sm:hidden items-center gap-1.5 flex-shrink-0">
+          <div className="flex sm:hidden items-center gap-2 flex-shrink-0">
             <button
               onClick={isSafariMode ? () => onSafariControl('prev') : onPrev}
               disabled={!track}
-              className="p-2 text-[#8e8e96] active:text-white disabled:opacity-30"
+              className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 disabled:opacity-30 transition-transform cursor-pointer"
+              style={{ color: albumColor.primary }}
               aria-label="Previous"
             >
-              <SkipBack className="w-4 h-4" />
+              <SkipBack className="w-4 h-4 fill-current opacity-90" />
             </button>
             <button
               onClick={isSafariMode ? () => onSafariControl('play_pause') : onTogglePlay}
               disabled={!track}
-              className="w-9 h-9 rounded-full bg-emerald-500 active:bg-emerald-400 text-white flex items-center justify-center disabled:opacity-30 shadow-md shadow-emerald-500/25"
+              className="w-9 h-9 rounded-full flex items-center justify-center disabled:opacity-30 transition-all duration-150 active:scale-95 shadow-md cursor-pointer hover:brightness-110"
+              style={{
+                backgroundColor: albumColor.primary,
+                color: albumColor.contrastText,
+                boxShadow: isPlaying ? `0 4px 16px ${albumColor.glow}` : '0 2px 8px rgba(0,0,0,0.35)'
+              }}
               aria-label={isPlaying ? 'Pause' : 'Play'}
             >
               {isLoadingStream ? (
@@ -1134,10 +1162,11 @@ export default function PlayerBar({
             <button
               onClick={isSafariMode ? () => onSafariControl('next') : onNext}
               disabled={!track}
-              className="p-2 text-[#8e8e96] active:text-white disabled:opacity-30"
+              className="w-8 h-8 rounded-full flex items-center justify-center active:scale-90 disabled:opacity-30 transition-transform cursor-pointer"
+              style={{ color: albumColor.primary }}
               aria-label="Next"
             >
-              <SkipForward className="w-4 h-4" />
+              <SkipForward className="w-4 h-4 fill-current opacity-90" />
             </button>
             {onToggleQueue && (
               <button
@@ -1164,16 +1193,22 @@ export default function PlayerBar({
               <button
                 onClick={isSafariMode ? () => onSafariControl('prev') : onPrev}
                 disabled={!track}
-                className="text-[#8e8e96] hover:text-white disabled:opacity-30 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/[0.06] transition-all duration-150 active:scale-90 disabled:opacity-30 cursor-pointer"
+                style={{ color: albumColor.primary }}
                 title="Previous Track"
               >
-                <SkipBack className="w-4 h-4" />
+                <SkipBack className="w-4 h-4 fill-current opacity-90" />
               </button>
 
               <button
                 onClick={isSafariMode ? () => onSafariControl('play_pause') : onTogglePlay}
                 disabled={!track}
-                className="w-8 h-8 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white flex items-center justify-center disabled:opacity-30 transition-all shadow-md shadow-emerald-500/25 active:scale-95 cursor-pointer"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center disabled:opacity-30 transition-all duration-150 active:scale-95 shadow-lg cursor-pointer hover:brightness-110 hover:scale-105"
+                style={{
+                  backgroundColor: albumColor.primary,
+                  color: albumColor.contrastText,
+                  boxShadow: isPlaying ? `0 4px 20px ${albumColor.glow}` : '0 2px 10px rgba(0,0,0,0.4)'
+                }}
                 title={isPlaying ? 'Pause' : 'Play'}
               >
                 {isLoadingStream ? (
@@ -1188,10 +1223,11 @@ export default function PlayerBar({
               <button
                 onClick={isSafariMode ? () => onSafariControl('next') : onNext}
                 disabled={!track}
-                className="text-[#8e8e96] hover:text-white disabled:opacity-30 transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-white/[0.06] transition-all duration-150 active:scale-90 disabled:opacity-30 cursor-pointer"
+                style={{ color: albumColor.primary }}
                 title="Next Track"
               >
-                <SkipForward className="w-4 h-4" />
+                <SkipForward className="w-4 h-4 fill-current opacity-90" />
               </button>
             </div>
 
@@ -1213,7 +1249,7 @@ export default function PlayerBar({
                 onMouseUp={handleScrubEnd}
                 disabled={!track || isSafariMode}
                 style={{
-                  background: `linear-gradient(to right, #10b981 0%, #34d399 ${progressPct}%, #202028 ${progressPct}%, #202028 100%)`
+                  background: `linear-gradient(to right, ${albumColor.primary} 0%, ${albumColor.accent} ${progressPct}%, #202028 ${progressPct}%, #202028 100%)`
                 }}
                 className="flex-1 argon-slider cursor-pointer disabled:opacity-40"
               />
@@ -1340,7 +1376,7 @@ export default function PlayerBar({
                   setIsMuted(false)
                 }}
                 style={{
-                  background: `linear-gradient(to right, #10b981 0%, #34d399 ${volumeVal}%, #202028 ${volumeVal}%, #202028 100%)`
+                  background: `linear-gradient(to right, ${albumColor.primary} 0%, ${albumColor.accent} ${volumeVal}%, #202028 ${volumeVal}%, #202028 100%)`
                 }}
                 className="w-16 argon-slider cursor-pointer"
               />
@@ -1368,7 +1404,7 @@ export default function PlayerBar({
               onMouseUp={handleScrubEnd}
               disabled={!track || isSafariMode}
               style={{
-                background: `linear-gradient(to right, #10b981 0%, #34d399 ${progressPct}%, #202028 ${progressPct}%, #202028 100%)`
+                background: `linear-gradient(to right, ${albumColor.primary} 0%, ${albumColor.accent} ${progressPct}%, #202028 ${progressPct}%, #202028 100%)`
               }}
               className="flex-1 argon-slider"
             />
