@@ -448,6 +448,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
             let proc = Process()
             let pipe = Pipe()
+
+            var env = ProcessInfo.processInfo.environment
+            let extraPaths = "/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+            let existingPath = env["PATH"] ?? ""
+            env["PATH"] = "\(extraPaths):\(existingPath)"
+            proc.environment = env
+
             proc.executableURL = URL(fileURLWithPath: "/bin/bash")
             proc.arguments = [scriptPath]
             proc.currentDirectoryURL = URL(fileURLWithPath: self.workspacePath)

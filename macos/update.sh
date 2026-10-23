@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -e
 
+# Ensure complete PATH across Homebrew, Node, and developer tools when launched from macOS GUI
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.nvm/versions/node/$(ls "$HOME/.nvm/versions/node" 2>/dev/null | tail -n 1)/bin:$HOME/.fnm/current/bin:$HOME/.volta/bin:$PATH"
+
+# Fallback path discovery if npm is still not resolved
+if ! command -v npm >/dev/null 2>&1; then
+    for candidate in /opt/homebrew/bin /usr/local/bin /usr/bin; do
+        if [ -x "$candidate/npm" ]; then
+            export PATH="$candidate:$PATH"
+            break
+        fi
+    done
+fi
+
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$DIR"
 
