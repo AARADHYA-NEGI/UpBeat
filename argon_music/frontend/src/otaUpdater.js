@@ -25,29 +25,31 @@ export async function initOtaUpdater(onUpdateReady) {
     checkOtaUpdate({ silent: true, onUpdateReady }).catch((e) => {
       console.warn('[OTA] Background check error:', e)
     })
-  }, 3500)
+  }, 4000)
 }
 
 /**
  * Get current active OTA version
  */
 export async function getCurrentOtaVersion() {
-  if (!Capacitor.isNativePlatform()) {
-    return CURRENT_BUILTIN_VERSION
+  const stored = localStorage.getItem('upbeat_ota_version')
+  if (stored) return stored
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const cur = await CapacitorUpdater.current()
+      if (cur?.bundle?.version && cur.bundle.version !== 'builtin') {
+        return cur.bundle.version
+      }
+    } catch {}
   }
-  try {
-    const cur = await CapacitorUpdater.current()
-    if (cur?.bundle?.version) {
-      return cur.bundle.version
-    }
-  } catch {}
-  return localStorage.getItem('upbeat_ota_version') || CURRENT_BUILTIN_VERSION
+  return CURRENT_BUILTIN_VERSION
 }
 
 /**
  * Check GitHub Releases for newer dist.zip bundle
  */
-export async function checkOtaUpdate({ silent = false, onUpdateReady = null } = {}) {
+export async function checkOtaUpdate({ silent = false, forceCheck = false, onUpdateReady = null } = {}) {
   if (!Capacitor.isNativePlatform()) {
     return { isNative: false, updateAvailable: false }
   }
@@ -71,13 +73,38 @@ export async function checkOtaUpdate({ silent = false, onUpdateReady = null } = 
     // Find dist.zip in release assets
     const zipAsset = (release.assets || []).find((a) => a.name === 'dist.zip')
     if (!zipAsset || !zipAsset.browser_download_url) {
-      return { updateAvailable: false, currentVer, latestTag, error: 'No dist.zip found' }
+      return { updateAvailable: false, currentVer, latestTag, error: 'No dist.zip found in latest release' }
     }
 
-    // Compare versions (e.g. v4.0.1 vs v4.0.0 or commit hashes)
+    // Extract SHA-256 checksum from asset digest
+    let checksum = (zipAsset.digest || '').replace(/^sha256:/i, '').trim()
+    if (!checksum) {
+      const shaAsset = (release.assets || []).find((a) => a.name === 'dist.zip.sha256')
+      if (shaAsset?.browser_download_url) {
+        try {
+          const shaRes = await fetch(shaAsset.browser_download_url)
+          if (shaRes.ok) {
+            checksum = (await shaRes.text()).trim().split(/\s+/)[0]
+          }
+        } catch {}
+      }
+    }
+
+    // Compare versions (e.g. v4.0.1 vs v4.0.0)
     const isNewer = isVersionNewer(latestTag, currentVer)
-    if (!isNewer) {
-      return { updateAvailable: false, currentVer, latestTag }
+    if (!isNewer && !forceCheck) {
+      return { updateAvailable: false, currentVer, latestTag, upToDate: true }
+    }
+
+    if (!isNewer && forceCheck) {
+      return {
+        updateAvailable: false,
+        upToDate: true,
+        currentVer,
+        latestTag,
+        downloadUrl: zipAsset.browser_download_url,
+        checksum
+      }
     }
 
     console.log(`[OTA] New update available: ${latestTag} (current: ${currentVer})`)
@@ -87,9 +114,10 @@ export async function checkOtaUpdate({ silent = false, onUpdateReady = null } = 
         latestVersion: latestTag,
         currentVersion: currentVer,
         downloadUrl: zipAsset.browser_download_url,
+        checksum,
         notes: release.body || '',
         autoApply: async () => {
-          return applyOtaBundle(zipAsset.browser_download_url, latestTag)
+          return applyOtaBundle(zipAsset.browser_download_url, latestTag, checksum)
         }
       })
     }
@@ -99,6 +127,7 @@ export async function checkOtaUpdate({ silent = false, onUpdateReady = null } = 
       currentVer,
       latestTag,
       downloadUrl: zipAsset.browser_download_url,
+      checksum,
       release
     }
   } catch (err) {
@@ -110,18 +139,22 @@ export async function checkOtaUpdate({ silent = false, onUpdateReady = null } = 
 /**
  * Download and install dist.zip OTA update
  */
-export async function applyOtaBundle(downloadUrl, version) {
+export async function applyOtaBundle(downloadUrl, version, checksum = '') {
   if (!Capacitor.isNativePlatform()) {
     return false
   }
 
   try {
-    console.log(`[OTA] Downloading bundle: ${version} from ${downloadUrl}...`)
-    const bundle = await CapacitorUpdater.download({
+    console.log(`[OTA] Downloading bundle: ${version} (checksum: ${checksum || 'none'})...`)
+    const downloadOpts = {
       url: downloadUrl,
       version: version
-    })
+    }
+    if (checksum) {
+      downloadOpts.checksum = checksum
+    }
 
+    const bundle = await CapacitorUpdater.download(downloadOpts)
     console.log(`[OTA] Bundle downloaded successfully:`, bundle)
     localStorage.setItem('upbeat_ota_version', version)
 
@@ -141,6 +174,7 @@ export async function applyOtaBundle(downloadUrl, version) {
 function isVersionNewer(newVer, currentVer) {
   if (!newVer || !currentVer) return false
   if (newVer === currentVer) return false
+  if (currentVer === 'builtin') return true
 
   const clean = (v) => v.replace(/^v/i, '').split('.').map(n => parseInt(n, 10) || 0)
   const [nMaj = 0, nMin = 0, nPat = 0] = clean(newVer)
@@ -150,6 +184,5 @@ function isVersionNewer(newVer, currentVer) {
   if (nMin !== cMin) return nMin > cMin
   if (nPat !== cPat) return nPat > cPat
 
-  // If numeric semver is identical but strings differ (e.g. tag suffix), treat as newer
   return newVer !== currentVer
 }

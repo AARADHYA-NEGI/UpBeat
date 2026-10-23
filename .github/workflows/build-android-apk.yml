@@ -60,6 +60,7 @@ jobs:
             cd argon_music/frontend/dist
             zip -r ../../../dist.zip .
             cd ../../..
+            sha256sum dist.zip | awk '{print $1}' > dist.zip.sha256
           fi
 
       - name: Publish UpBeat.apk and macOS Release to GitHub
@@ -71,5 +72,6 @@ jobs:
             argon_music/frontend/android/app/build/outputs/apk/debug/UpBeat.apk
             UpBeat-macOS.zip
             dist.zip
+            dist.zip.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -49,15 +49,17 @@ export default function Navbar({
     setIsCheckingOta(true)
     setOtaStatusMsg('')
     try {
-      const res = await checkOtaUpdate({ silent: false })
+      const res = await checkOtaUpdate({ silent: false, forceCheck: true })
       if (res.updateAvailable && res.downloadUrl) {
         setOtaStatusMsg(`Downloading update ${res.latestTag}...`)
-        await applyOtaBundle(res.downloadUrl, res.latestTag)
+        await applyOtaBundle(res.downloadUrl, res.latestTag, res.checksum)
         setOtaStatusMsg(`Update applied! Reloading...`)
+      } else if (res.upToDate) {
+        setOtaStatusMsg(`UpBeat is up to date (${res.currentVer || otaVer}) ✨`)
       } else if (res.error) {
         setOtaStatusMsg(`Check status: ${res.error}`)
       } else {
-        setOtaStatusMsg(`UpBeat is up to date (${res.currentVer || otaVer})`)
+        setOtaStatusMsg(`UpBeat is up to date (${res.currentVer || otaVer}) ✨`)
       }
     } catch (e) {
       setOtaStatusMsg('Error checking update: ' + (e?.message || 'Check connection'))
