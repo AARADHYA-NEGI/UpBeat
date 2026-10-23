@@ -60,8 +60,8 @@ jobs:
       - name: Publish UpBeat.apk and macOS Release to GitHub
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v3.0.0
-          name: "UpBeat v3.0 — Ultra-Fast Stream Resolution & Dual-Deck Audio Engine"
+          tag_name: v4.0.0
+          name: "UpBeat v4.0"
           files: |
             argon_music/frontend/android/app/build/outputs/apk/debug/UpBeat.apk
             UpBeat-macOS.zip
