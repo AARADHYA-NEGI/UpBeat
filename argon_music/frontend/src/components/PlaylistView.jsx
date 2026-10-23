@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import {
   Play, Pause, ExternalLink, Loader2, Music,
-  ChevronDown, ChevronUp, Heart, Info, KeyRound, ListMusic, Disc, Sparkles
+  ChevronDown, ChevronUp, Heart, Info, KeyRound, ListMusic, Disc, Sparkles, Download, Check
 } from 'lucide-react'
+import { getTrackDownloadUrl, getAudioSource } from '../standaloneApi'
 
 function cleanMusicalRationale(text) {
   if (!text) return 'Selected for its harmonic and rhythmic alignment.'
@@ -90,6 +91,48 @@ export default function PlaylistView({
 }) {
   const [expandedIdx, setExpandedIdx] = useState(null)
   const [showModelDetails, setShowModelDetails] = useState(false)
+  const [downloadingVid, setDownloadingVid] = useState(null)
+  const [downloadedVid, setDownloadedVid] = useState(null)
+
+  const handleDownloadTrack = async (track, e) => {
+    e.stopPropagation()
+    if (!track) return
+    const vid = track.video_id
+    if (!vid) return
+
+    setDownloadingVid(vid)
+    try {
+      const title = (track.title || 'Track').replace(/[\\/*?:"<>|]/g, '').trim()
+      const artist = (track.artist || '').replace(/[\\/*?:"<>|]/g, '').trim()
+      const cleanFileName = artist && !title.toLowerCase().includes(artist.toLowerCase())
+        ? `${artist} - ${title}.m4a`
+        : `${title}.m4a`
+
+      let downloadUrl = getTrackDownloadUrl(track)
+      if (!downloadUrl) {
+        const src = await getAudioSource(vid)
+        downloadUrl = typeof src === 'string' ? src : src?.url
+      }
+      if (!downloadUrl) throw new Error('Audio stream unavailable')
+
+      const a = document.createElement('a')
+      a.href = downloadUrl
+      a.download = cleanFileName
+      a.target = '_blank'
+      document.body.appendChild(a)
+      a.click()
+      setTimeout(() => {
+        try { document.body.removeChild(a) } catch {}
+      }, 1000)
+
+      setDownloadedVid(vid)
+      setTimeout(() => setDownloadedVid(null), 2200)
+    } catch (err) {
+      console.error('Download error:', err)
+    } finally {
+      setDownloadingVid(null)
+    }
+  }
 
   if (isGenerating || isSearching) {
     return (
@@ -441,6 +484,21 @@ export default function PlaylistView({
                       <Heart className={`w-4 h-4 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
                     </button>
                     <button
+                      onClick={(e) => handleDownloadTrack(track, e)}
+                      disabled={downloadingVid === track.video_id}
+                      title={downloadingVid === track.video_id ? 'Downloading...' : downloadedVid === track.video_id ? 'Downloaded!' : 'Download Track'}
+                      className="p-2 rounded-md text-[#71717a] hover:text-white"
+                      aria-label="Download"
+                    >
+                      {downloadingVid === track.video_id ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                      ) : downloadedVid === track.video_id ? (
+                        <Check className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                    </button>
+                    <button
                       onClick={() => setExpandedIdx(isExpanded ? null : idx)}
                       className="p-2 rounded-md text-[#71717a]"
                       aria-label="Details"
@@ -583,6 +641,20 @@ export default function PlaylistView({
                           }`}
                         >
                           <Heart className={`w-3.5 h-3.5 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
+                        </button>
+                        <button
+                          onClick={(e) => handleDownloadTrack(track, e)}
+                          disabled={downloadingVid === track.video_id}
+                          title={downloadingVid === track.video_id ? 'Downloading...' : downloadedVid === track.video_id ? 'Downloaded!' : 'Download Track'}
+                          className="p-1.5 rounded-md hover:bg-[#1a1a22] text-[#71717a] hover:text-white transition-colors cursor-pointer"
+                        >
+                          {downloadingVid === track.video_id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                          ) : downloadedVid === track.video_id ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <Download className="w-3.5 h-3.5" />
+                          )}
                         </button>
                         <button
                           onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}

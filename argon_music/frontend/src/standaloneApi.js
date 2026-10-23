@@ -693,6 +693,16 @@ export async function getAudioSource(videoId) {
   return resolveStandaloneAudio(videoId)
 }
 
+export function getTrackDownloadUrl(track) {
+  if (!track || !track.video_id) return ''
+  const title = (track.title || 'Track').replace(/[\\/*?:"<>|]/g, '').trim()
+  const artist = (track.artist || '').replace(/[\\/*?:"<>|]/g, '').trim()
+  if (hasBackend()) {
+    return apiUrl(`/download/${track.video_id}?title=${encodeURIComponent(title)}&artist=${encodeURIComponent(artist)}`)
+  }
+  return ''
+}
+
 // ---------------------------------------------------------------------------
 // Standalone curation
 // ---------------------------------------------------------------------------

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { RefreshCw, ExternalLink, Search, Music, Heart, Play, Sparkles } from 'lucide-react'
+import { RefreshCw, ExternalLink, Search, Music, Heart, Play, Sparkles, Download, Check, Loader2 } from 'lucide-react'
+import { getTrackDownloadUrl, getAudioSource } from '../standaloneApi'
 
 export default function SonicDnaView({
   mode = 'dna',
@@ -16,6 +17,48 @@ export default function SonicDnaView({
   onCurateSimilar
 }) {
   const [filter, setFilter] = useState('')
+  const [downloadingVid, setDownloadingVid] = useState(null)
+  const [downloadedVid, setDownloadedVid] = useState(null)
+
+  const handleDownloadTrack = async (t, e) => {
+    e.stopPropagation()
+    if (!t) return
+    const vid = t.video_id
+    if (!vid) return
+
+    setDownloadingVid(vid)
+    try {
+      const title = (t.title || 'Track').replace(/[\\/*?:"<>|]/g, '').trim()
+      const artist = (t.artist || '').replace(/[\\/*?:"<>|]/g, '').trim()
+      const cleanFileName = artist && !title.toLowerCase().includes(artist.toLowerCase())
+        ? `${artist} - ${title}.m4a`
+        : `${title}.m4a`
+
+      let downloadUrl = getTrackDownloadUrl(t)
+      if (!downloadUrl) {
+        const src = await getAudioSource(vid)
+        downloadUrl = typeof src === 'string' ? src : src?.url
+      }
+      if (!downloadUrl) throw new Error('Audio stream unavailable')
+
+      const a = document.createElement('a')
+      a.href = downloadUrl
+      a.download = cleanFileName
+      a.target = '_blank'
+      document.body.appendChild(a)
+      a.click()
+      setTimeout(() => {
+        try { document.body.removeChild(a) } catch {}
+      }, 1000)
+
+      setDownloadedVid(vid)
+      setTimeout(() => setDownloadedVid(null), 2200)
+    } catch (err) {
+      console.error('Download error:', err)
+    } finally {
+      setDownloadingVid(null)
+    }
+  }
 
   // 1. FAVORITES MEMORY VIEW
   if (mode === 'favorites') {
@@ -166,6 +209,20 @@ export default function SonicDnaView({
                             </button>
                           )}
                           <button
+                            onClick={(e) => handleDownloadTrack(t, e)}
+                            disabled={downloadingVid === t.video_id}
+                            title={downloadingVid === t.video_id ? 'Downloading...' : downloadedVid === t.video_id ? 'Downloaded!' : 'Download Track'}
+                            className="p-1.5 rounded hover:bg-[#22222a] text-[#a1a1aa] hover:text-white transition-colors cursor-pointer"
+                          >
+                            {downloadingVid === t.video_id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                            ) : downloadedVid === t.video_id ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : (
+                              <Download className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                          <button
                             onClick={() => onPushToSafari(t)}
                             title="Open in Safari"
                             className="p-1.5 rounded hover:bg-[#22222a] text-[#a1a1aa] hover:text-white transition-colors cursor-pointer"
@@ -315,6 +372,20 @@ export default function SonicDnaView({
                               Curate Similar
                             </button>
                           )}
+                          <button
+                            onClick={(e) => handleDownloadTrack(t, e)}
+                            disabled={downloadingVid === t.video_id}
+                            title={downloadingVid === t.video_id ? 'Downloading...' : downloadedVid === t.video_id ? 'Downloaded!' : 'Download Track'}
+                            className="p-1.5 rounded hover:bg-[#22222a] text-[#a1a1aa] hover:text-white transition-colors cursor-pointer"
+                          >
+                            {downloadingVid === t.video_id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                            ) : downloadedVid === t.video_id ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : (
+                              <Download className="w-3.5 h-3.5" />
+                            )}
+                          </button>
                           <button
                             onClick={() => onPushToSafari(t)}
                             title="Open in Safari"

@@ -1,4 +1,6 @@
 import os
+import re
+import urllib.parse
 from typing import Dict, List, Any, Optional
 import requests as ext_requests
 from fastapi import FastAPI, HTTPException, Request
@@ -343,6 +345,94 @@ def stream_audio_endpoint(video_id: str, request: Request):
     return StreamingResponse(
         _iter_chunks(),
         status_code=status_code,
+        media_type=info.get("mime", "audio/mp4"),
+        headers=resp_headers,
+    )
+
+
+@app.api_route("/api/download/{video_id}", methods=["GET", "HEAD"])
+def download_audio_endpoint(
+    video_id: str,
+    request: Request,
+    title: Optional[str] = None,
+    artist: Optional[str] = None,
+):
+    """
+    Downloads high-quality m4a audio file directly with a clean filename
+    and proper Content-Disposition: attachment header.
+    """
+    info = get_audio_stream_url(video_id)
+    if not info or not info.get("url"):
+        raise HTTPException(status_code=404, detail="Audio stream unavailable for download")
+
+    stream_url = info["url"]
+    ua = info.get(
+        "ua",
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+    )
+    total_size = int(info.get("clen") or 0)
+
+    # Format a clean, valid filename for the user's OS
+    raw_title = (title or info.get("title") or "Track").strip()
+    raw_artist = (artist or info.get("uploader") or "").strip()
+    clean_title = re.sub(r'[\\/*?:"<>|]', "", raw_title).strip() or "Track"
+    clean_artist = re.sub(r'[\\/*?:"<>|]', "", raw_artist).strip()
+
+    if clean_artist and clean_artist.lower() not in clean_title.lower():
+        filename = f"{clean_artist} - {clean_title}.m4a"
+    else:
+        filename = f"{clean_title}.m4a"
+
+    encoded_filename = urllib.parse.quote(filename)
+    resp_headers = {
+        "Content-Disposition": f'attachment; filename="{filename}"; filename*=UTF-8\'\'{encoded_filename}',
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "public, max-age=3600",
+    }
+    if total_size > 0:
+        resp_headers["Content-Length"] = str(total_size)
+
+    if request.method == "HEAD":
+        return Response(
+            status_code=200,
+            media_type=info.get("mime", "audio/mp4"),
+            headers=resp_headers,
+        )
+
+    def _iter_download_chunks():
+        pos = 0
+        target_end = (total_size - 1) if total_size > 0 else None
+        while target_end is None or pos <= target_end:
+            chunk_end = (
+                min(pos + _STREAM_CHUNK_BYTES - 1, target_end)
+                if target_end is not None
+                else (pos + _STREAM_CHUNK_BYTES - 1)
+            )
+            r = _STREAM_HTTP_SESSION.get(
+                stream_url,
+                headers={"User-Agent": ua, "Range": f"bytes={pos}-{chunk_end}"},
+                stream=True,
+                timeout=20,
+            )
+            try:
+                if r.status_code not in (200, 206):
+                    break
+                received = 0
+                for piece in r.iter_content(chunk_size=65536):
+                    if piece:
+                        received += len(piece)
+                        yield piece
+                if received == 0:
+                    break
+                pos += received
+                if target_end is None and received < _STREAM_CHUNK_BYTES:
+                    break
+            finally:
+                r.close()
+
+    return StreamingResponse(
+        _iter_download_chunks(),
+        status_code=200,
         media_type=info.get("mime", "audio/mp4"),
         headers=resp_headers,
     )

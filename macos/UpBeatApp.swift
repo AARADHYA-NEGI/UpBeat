@@ -2,7 +2,7 @@ import Cocoa
 import WebKit
 import MediaPlayer
 
-class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, WKDownloadDelegate {
     var window: NSWindow!
     var webView: WKWebView!
     var backendProcess: Process?
@@ -552,9 +552,62 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
         if let url = navigationAction.request.url {
+            if url.path.contains("/download/") {
+                // Let WKWebView handle in-app download
+                return nil
+            }
             NSWorkspace.shared.open(url)
         }
         return nil
+    }
+
+    @available(macOS 11.3, *)
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, preferences: WKWebpagePreferences, decisionHandler: @escaping (WKNavigationActionPolicy, WKWebpagePreferences) -> Void) {
+        if let url = navigationAction.request.url, url.path.contains("/download/") {
+            decisionHandler(.download, preferences)
+            return
+        }
+        decisionHandler(.allow, preferences)
+    }
+
+    @available(macOS 11.3, *)
+    func webView(_ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        if let url = navigationResponse.response.url, url.path.contains("/download/") {
+            decisionHandler(.download)
+            return
+        }
+        decisionHandler(.allow)
+    }
+
+    @available(macOS 11.3, *)
+    func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+        download.delegate = self
+    }
+
+    @available(macOS 11.3, *)
+    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        download.delegate = self
+    }
+
+    @available(macOS 11.3, *)
+    func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String, completionHandler: @escaping (URL?) -> Void) {
+        let downloadsDir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
+        let dest = downloadsDir.appendingPathComponent(suggestedFilename)
+        var finalDest = dest
+        var counter = 1
+        let ext = dest.pathExtension
+        let base = dest.deletingPathExtension().lastPathComponent
+        while FileManager.default.fileExists(atPath: finalDest.path) {
+            finalDest = downloadsDir.appendingPathComponent("\(base) (\(counter)).\(ext)")
+            counter += 1
+        }
+        completionHandler(finalDest)
+    }
+
+    @available(macOS 11.3, *)
+    func downloadDidFinish(_ download: WKDownload) {
+        NSSound(named: "Glass")?.play()
+        NSApp.requestUserAttention(.informationalRequest)
     }
 
     func applicationWillTerminate(_ notification: Notification) {

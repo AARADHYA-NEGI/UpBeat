@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Play, Pause, SkipForward, SkipBack, Volume2, VolumeX,
-  ExternalLink, Video, Music, Heart, Loader2
+  ExternalLink, Video, Music, Heart, Loader2, Download, Check
 } from 'lucide-react'
-import { getApiBase, hasBackend, getAudioSource, searchYouTubeStandalone } from '../standaloneApi'
+import { getApiBase, hasBackend, getAudioSource, searchYouTubeStandalone, getTrackDownloadUrl } from '../standaloneApi'
 
 function formatTime(sec) {
   if (!sec || isNaN(sec) || sec < 0) return '0:00'
@@ -133,6 +133,46 @@ export default function PlayerBar({
   const progressPct = effectiveDuration > 0 ? Math.min(100, (displayTime / effectiveDuration) * 100) : 0
   const volumeVal = isMuted ? 0 : volume
   const isFav = track && isTrackFavorite ? isTrackFavorite(track) : false
+  const [downloadState, setDownloadState] = useState('idle')
+
+  const handleDownload = async (targetTrack = track) => {
+    if (!targetTrack) return
+    const vid = targetTrack.video_id || resolvedVid
+    if (!vid) return
+
+    setDownloadState('downloading')
+    try {
+      const title = (targetTrack.title || 'Track').replace(/[\\/*?:"<>|]/g, '').trim()
+      const artist = (targetTrack.artist || '').replace(/[\\/*?:"<>|]/g, '').trim()
+      const cleanFileName = artist && !title.toLowerCase().includes(artist.toLowerCase())
+        ? `${artist} - ${title}.m4a`
+        : `${title}.m4a`
+
+      let downloadUrl = getTrackDownloadUrl({ ...targetTrack, video_id: vid })
+      if (!downloadUrl) {
+        const src = await getAudioSource(vid)
+        downloadUrl = typeof src === 'string' ? src : src?.url
+      }
+
+      if (!downloadUrl) throw new Error('Audio stream unavailable')
+
+      const a = document.createElement('a')
+      a.href = downloadUrl
+      a.download = cleanFileName
+      a.target = '_blank'
+      document.body.appendChild(a)
+      a.click()
+      setTimeout(() => {
+        try { document.body.removeChild(a) } catch {}
+      }, 1000)
+
+      setDownloadState('success')
+      setTimeout(() => setDownloadState('idle'), 2200)
+    } catch (err) {
+      console.error('Download error:', err)
+      setDownloadState('idle')
+    }
+  }
 
   // Centralized playback telemetry for Android media session and macOS WKScriptMessageHandler
   const notifyNativePlayback = useCallback((playing, curSec, durSec, customTrack, customThumb) => {
@@ -951,6 +991,23 @@ export default function PlayerBar({
                     <Heart className={`w-4 h-4 ${isFav ? 'fill-rose-500 text-rose-500' : ''}`} />
                   </button>
                 )}
+                {track && (
+                  <button
+                    onClick={() => handleDownload(track)}
+                    disabled={downloadState === 'downloading'}
+                    title={downloadState === 'downloading' ? 'Downloading...' : downloadState === 'success' ? 'Downloaded!' : 'Download Track'}
+                    aria-label="Download Track"
+                    className="p-1.5 rounded-md hover:bg-[#1a1a22] text-[#71717a] hover:text-white transition-colors cursor-pointer flex-shrink-0"
+                  >
+                    {downloadState === 'downloading' ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                    ) : downloadState === 'success' ? (
+                      <Check className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <Download className="w-4 h-4" />
+                    )}
+                  </button>
+                )}
               </>
             ) : (
               <div className="text-xs text-[#71717a] font-mono py-2">
@@ -1101,6 +1158,29 @@ export default function PlayerBar({
             >
               <Video className="w-4 h-4" />
             </button>
+
+            {track && (
+              <button
+                onClick={() => handleDownload(track)}
+                disabled={downloadState === 'downloading'}
+                title={downloadState === 'downloading' ? 'Downloading audio...' : downloadState === 'success' ? 'Downloaded!' : 'Download Track'}
+                className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                  downloadState === 'success'
+                    ? 'text-emerald-400 bg-emerald-500/15'
+                    : downloadState === 'downloading'
+                    ? 'text-emerald-300 animate-pulse bg-emerald-500/10'
+                    : 'text-[#8e8e96] hover:text-white hover:bg-[#1a1a22]'
+                }`}
+              >
+                {downloadState === 'downloading' ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                ) : downloadState === 'success' ? (
+                  <Check className="w-4 h-4 text-emerald-400" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+              </button>
+            )}
 
             {track && (
               <button
