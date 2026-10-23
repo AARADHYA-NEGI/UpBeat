@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Play, Pause, SkipForward, SkipBack, Volume2, VolumeX,
-  ExternalLink, Video, Music, Heart, Loader2, Download, Check
+  ExternalLink, Video, Music, Heart, Loader2, Download, Check, ListMusic
 } from 'lucide-react'
 import { getApiBase, hasBackend, getAudioSource, searchYouTubeStandalone, getTrackDownloadUrl } from '../standaloneApi'
 import { isTrackDownloaded, saveTrackOffline, createOfflineAudioUrl, subscribeOfflineChanges } from '../offlineStorage'
@@ -45,7 +45,10 @@ export default function PlayerBar({
   onSafariControl,
   onTrackResolved,
   isTrackFavorite,
-  onToggleFavorite
+  onToggleFavorite,
+  onToggleQueue,
+  queueCount = 0,
+  isQueueOpen = false
 }) {
   const [showVideo, setShowVideo] = useState(false)
   const [volume, setVolume] = useState(80)
@@ -1103,6 +1106,23 @@ export default function PlayerBar({
             >
               <SkipForward className="w-4 h-4" />
             </button>
+            {onToggleQueue && (
+              <button
+                onClick={onToggleQueue}
+                title="Playback Queue"
+                aria-label="Open Queue"
+                className={`p-1.5 relative rounded-md transition-colors cursor-pointer ${
+                  isQueueOpen ? 'text-sky-300 bg-sky-500/20' : 'text-[#8e8e96] active:text-white'
+                }`}
+              >
+                <ListMusic className="w-4 h-4" />
+                {queueCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-3.5 h-3.5 px-0.5 rounded-full bg-sky-500 text-[9px] font-bold text-white flex items-center justify-center">
+                    {queueCount}
+                  </span>
+                )}
+              </button>
+            )}
           </div>
 
           {/* Desktop Center Transport & Scrubber */}
@@ -1195,6 +1215,25 @@ export default function PlayerBar({
                   Safari
                 </button>
               </div>
+            )}
+
+            {onToggleQueue && (
+              <button
+                onClick={onToggleQueue}
+                title="Open Playback Queue"
+                className={`p-1.5 rounded-md relative transition-colors cursor-pointer ${
+                  isQueueOpen
+                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                    : 'text-[#8e8e96] hover:text-white hover:bg-[#1a1a22]'
+                }`}
+              >
+                <ListMusic className="w-4 h-4" />
+                {queueCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-3.5 h-3.5 px-0.5 rounded-full bg-sky-500 text-[9px] font-bold text-white flex items-center justify-center">
+                    {queueCount}
+                  </span>
+                )}
+              </button>
             )}
 
             <button

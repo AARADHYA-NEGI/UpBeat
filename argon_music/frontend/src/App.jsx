@@ -7,12 +7,14 @@ import PlaylistView from './components/PlaylistView'
 import SonicDnaView from './components/SonicDnaView'
 import OfflineView from './components/OfflineView'
 import PlayerBar from './components/PlayerBar'
+import QueueDrawer from './components/QueueDrawer'
 import { getOfflineTracks, getOfflineStorageStats, subscribeOfflineChanges } from './offlineStorage'
 import {
   getApiBase,
   curateStandalone,
   directSearchStandalone,
   browsePlaylistStandalone,
+  analyzeTasteDnaStandalone,
   hasBackend,
   isNativeApp,
   isConfigured,
@@ -89,6 +91,8 @@ export default function App() {
   const [notification, setNotification] = useState(null)
   const [offlineTracks, setOfflineTracks] = useState([])
   const [offlineStats, setOfflineStats] = useState({ count: 0, totalBytes: 0, formattedSize: '0 B' })
+  const [queue, setQueue] = useState(() => loadStorage('upbeat_playback_queue', []))
+  const [isQueueOpen, setIsQueueOpen] = useState(false)
 
   // Universal offline storage subscription & connection listener
   useEffect(() => {
@@ -186,6 +190,10 @@ export default function App() {
       }
     }
   }, [playlist])
+
+  useEffect(() => {
+    try { localStorage.setItem('upbeat_playback_queue', JSON.stringify(queue)) } catch {}
+  }, [queue])
 
   // Handle in-car controls from Android Auto & car head units
   useEffect(() => {
@@ -719,6 +727,19 @@ export default function App() {
   }
 
   const handleNext = () => {
+    // 1. Prioritize queued tracks
+    if (queue.length > 0) {
+      const nextTrack = queue[0]
+      setQueue((prev) => prev.slice(1))
+      setCurrentTrack(nextTrack)
+      setIsPlaying(true)
+      if (playbackMode === 'safari') {
+        handlePushToSafari(nextTrack)
+      }
+      return
+    }
+
+    // 2. Sequential playlist fallback
     const list = getActiveTrackList()
     if (!list || list.length === 0) return
     const nextIdx = (currentTrackIdx + 1) % list.length
@@ -727,6 +748,81 @@ export default function App() {
     setIsPlaying(true)
     if (playbackMode === 'safari') {
       handlePushToSafari(list[nextIdx])
+    }
+  }
+
+  const handlePlayNext = (track) => {
+    if (!track) return
+    setQueue((prev) => {
+      const filtered = prev.filter((t) => t.video_id !== track.video_id)
+      return [track, ...filtered]
+    })
+    showNotify(`Playing next: "${track.title}"`, 'info')
+  }
+
+  const handleAddToQueue = (track) => {
+    if (!track) return
+    setQueue((prev) => [...prev, track])
+    showNotify(`Added "${track.title}" to queue (${queue.length + 1})`, 'info')
+  }
+
+  const handleRemoveFromQueue = (idx) => {
+    setQueue((prev) => prev.filter((_, i) => i !== idx))
+  }
+
+  const handleClearQueue = () => {
+    setQueue([])
+    showNotify('Playback queue cleared', 'info')
+  }
+
+  const handleAddSeedTrack = (track) => {
+    if (!track) return
+    setExtractedTracks((prev) => {
+      const exists = prev.some((t) => t.video_id === track.video_id || (t.title === track.title && t.artist === track.artist))
+      if (exists) return prev
+      return [track, ...prev]
+    })
+    showNotify(`Added "${track.title}" to Seeds`, 'success')
+  }
+
+  const handleAddMultipleSeedTracks = (newTracks) => {
+    if (!newTracks || !newTracks.length) return
+    setExtractedTracks((prev) => {
+      const existingIds = new Set(prev.map((t) => t.video_id).filter(Boolean))
+      const toAdd = newTracks.filter((t) => !existingIds.has(t.video_id))
+      return [...toAdd, ...prev]
+    })
+    showNotify(`Imported ${newTracks.length} seeds from YouTube`, 'success')
+  }
+
+  const handleAnalyzeTaste = async () => {
+    const list = extractedTracks.length > 0 ? extractedTracks : favorites
+    if (!list.length) {
+      showNotify('Add some seeds or like songs first to generate a taste profile', 'warning')
+      return
+    }
+    showNotify('Analyzing YouTube musical taste profile...', 'info')
+    try {
+      let dna = null
+      if (hasBackend()) {
+        try {
+          const res = await fetch(`${getApiBase()}/taste-dna`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tracks: list, model_name: selectedModel })
+          })
+          if (res.ok) dna = await res.json()
+        } catch {}
+      }
+      if (!dna) {
+        dna = await analyzeTasteDnaStandalone(list)
+      }
+      if (dna) {
+        setTasteDna(dna)
+        showNotify(`Generated Taste Profile: ${dna.archetype || 'Complete'}`, 'success')
+      }
+    } catch (err) {
+      showNotify(`Analysis failed: ${err.message}`, 'error')
     }
   }
 
@@ -909,7 +1005,7 @@ export default function App() {
 
         <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#0a0a0d]">
           {activeTab === 'curator' ? (
-            <>
+            <div className="flex-1 overflow-y-auto min-h-0 flex flex-col bg-[#0a0a0d] scroll-smooth">
               <CuratorPrompt
                 prompt={prompt}
                 setPrompt={handlePromptChange}
@@ -931,6 +1027,8 @@ export default function App() {
                 onToggleFavorite={handleToggleFavorite}
                 onPlayTrack={handlePlayTrack}
                 onPushToSafari={handlePushToSafari}
+                onPlayNext={handlePlayNext}
+                onAddToQueue={handleAddToQueue}
                 isGenerating={isGenerating}
                 isSearching={isSearching}
                 isLoadingPlaylistBrowse={isLoadingPlaylistBrowse}
@@ -945,13 +1043,15 @@ export default function App() {
                 needsSetup={!isConfigured()}
                 onOpenSettings={() => setShowKeyModal(true)}
               />
-            </>
+            </div>
           ) : activeTab === 'offline' ? (
             <OfflineView
               currentTrack={currentTrack}
               isPlaying={isPlaying}
               onPlayTrack={handlePlayTrack}
               onNavigateTab={(tab) => setActiveTab(tab)}
+              onPlayNext={handlePlayNext}
+              onAddToQueue={handleAddToQueue}
             />
           ) : (
             <SonicDnaView
@@ -973,6 +1073,12 @@ export default function App() {
               isSyncing={isSyncing}
               onPlayTrack={handlePlayTrack}
               onPushToSafari={handlePushToSafari}
+              onPlayNext={handlePlayNext}
+              onAddToQueue={handleAddToQueue}
+              onAddSeedTrack={handleAddSeedTrack}
+              onAddMultipleSeedTracks={handleAddMultipleSeedTracks}
+              onAnalyzeTaste={handleAnalyzeTaste}
+              hasBackend={hasBackend()}
               onCurateSimilar={(track) => {
                 const newPrompt = `Tracks with the exact musical style and atmosphere of "${track.title}" by ${track.artist}`
                 setPrompt(newPrompt)
@@ -1000,6 +1106,27 @@ export default function App() {
         onTrackResolved={handleTrackResolved}
         isTrackFavorite={isTrackFavorite}
         onToggleFavorite={handleToggleFavorite}
+        onToggleQueue={() => setIsQueueOpen((prev) => !prev)}
+        queueCount={queue.length}
+        isQueueOpen={isQueueOpen}
+      />
+
+      {/* Playback Queue Drawer */}
+      <QueueDrawer
+        isOpen={isQueueOpen}
+        onClose={() => setIsQueueOpen(false)}
+        queue={queue}
+        currentTrack={currentTrack}
+        isPlaying={isPlaying}
+        onPlayTrack={(track, queueIdx) => {
+          if (typeof queueIdx === 'number') {
+            setQueue((prev) => prev.filter((_, i) => i !== queueIdx))
+          }
+          handlePlayTrack(track, 0)
+        }}
+        onRemoveFromQueue={handleRemoveFromQueue}
+        onClearQueue={handleClearQueue}
+        upcomingTracks={(playlist?.tracks || []).slice(currentTrackIdx + 1)}
       />
 
       {/* Mobile Bottom Navigation Bar - Antigravity Minimal */}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   DownloadCloud, Play, Pause, Trash2, Search, HardDrive,
-  WifiOff, Wifi, Sparkles, Heart, RefreshCw, FileAudio, Check, AlertCircle, Folder
+  WifiOff, Wifi, Sparkles, Heart, RefreshCw, FileAudio, Check, AlertCircle, Folder, ListPlus
 } from 'lucide-react'
 import {
   getOfflineTracks, deleteOfflineTrack, clearAllOfflineTracks,
@@ -14,7 +14,9 @@ export default function OfflineView({
   currentTrack,
   isPlaying,
   onPlayTrack,
-  onNavigateTab
+  onNavigateTab,
+  onPlayNext,
+  onAddToQueue
 }) {
   const [tracks, setTracks] = useState([])
   const [stats, setStats] = useState({ count: 0, totalBytes: 0, formattedSize: '0 B' })
@@ -22,6 +24,7 @@ export default function OfflineView({
   const [offlineMode, setOfflineMode] = useState(() => isOfflineModeActive())
   const [confirmClear, setConfirmClear] = useState(false)
   const [isDeletingId, setIsDeletingId] = useState(null)
+  const [queueMenuIdx, setQueueMenuIdx] = useState(null)
 
   // Reload tracks and stats
   const reloadOfflineData = async () => {
@@ -138,8 +141,6 @@ export default function OfflineView({
             <p className="text-xs text-[#8e8e96] mt-1 flex items-center gap-2 font-mono">
               <HardDrive className="w-3.5 h-3.5 text-[#71717a]" />
               <span>{stats.formattedSize} stored locally</span>
-              <span className="text-[#3f3f46]">•</span>
-              <span className="text-emerald-400/90">Instant playback on Mac & Android</span>
             </p>
           </div>
 
@@ -396,6 +397,44 @@ export default function OfflineView({
                         {/* Action Buttons */}
                         <td className="py-2.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5 opacity-90 group-hover:opacity-100">
+                            <div className="relative">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setQueueMenuIdx(queueMenuIdx === `off-d-${idx}` ? null : `off-d-${idx}`)
+                                }}
+                                title="Queue options"
+                                className={`p-1.5 rounded hover:bg-[#20202a] transition-colors cursor-pointer ${
+                                  queueMenuIdx === `off-d-${idx}` ? 'text-sky-400 bg-sky-500/20' : 'text-[#8e8e96] hover:text-sky-300'
+                                }`}
+                              >
+                                <ListPlus className="w-3.5 h-3.5" />
+                              </button>
+                              {queueMenuIdx === `off-d-${idx}` && (
+                                <div className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100">
+                                  <button
+                                    onClick={() => {
+                                      onPlayNext && onPlayNext(t)
+                                      setQueueMenuIdx(null)
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 hover:bg-[#1e1e2c] text-[#f4f4f5] flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <span className="text-sky-400 font-bold">⚡</span>
+                                    <span>Play Next</span>
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      onAddToQueue && onAddToQueue(t)
+                                      setQueueMenuIdx(null)
+                                    }}
+                                    className="w-full text-left px-3 py-1.5 hover:bg-[#1e1e2c] text-[#a1a1aa] hover:text-white flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <span className="text-emerald-400 font-bold">+</span>
+                                    <span>Add to Queue</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                             <button
                               onClick={(e) => handleReDownload(t, e)}
                               title="Save copy to Downloads folder"
@@ -472,6 +511,45 @@ export default function OfflineView({
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setQueueMenuIdx(queueMenuIdx === `off-m-${idx}` ? null : `off-m-${idx}`)
+                          }}
+                          className={`p-2 rounded-full cursor-pointer transition-colors ${
+                            queueMenuIdx === `off-m-${idx}` ? 'text-sky-300 bg-sky-500/20' : 'text-[#8e8e96] hover:text-sky-300'
+                          }`}
+                          title="Queue options"
+                        >
+                          <ListPlus className="w-4 h-4" />
+                        </button>
+                        {queueMenuIdx === `off-m-${idx}` && (
+                          <div className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100">
+                            <button
+                              onClick={() => {
+                                onPlayNext && onPlayNext(t)
+                                setQueueMenuIdx(null)
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-[#1e1e2c] text-[#f4f4f5] flex items-center gap-2 cursor-pointer"
+                            >
+                              <span className="text-sky-400 font-bold">⚡</span>
+                              <span>Play Next</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                onAddToQueue && onAddToQueue(t)
+                                setQueueMenuIdx(null)
+                              }}
+                              className="w-full text-left px-3 py-2 hover:bg-[#1e1e2c] text-[#a1a1aa] hover:text-white flex items-center gap-2 cursor-pointer"
+                            >
+                              <span className="text-emerald-400 font-bold">+</span>
+                              <span>Add to Queue</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
                       <button
                         onClick={(e) => {
                           e.stopPropagation()

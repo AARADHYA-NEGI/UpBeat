@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import {
   Play, Pause, ExternalLink, Loader2, Music,
-  ChevronDown, ChevronUp, Heart, Info, KeyRound, ListMusic, Disc, Sparkles, Download, Check
+  ChevronDown, ChevronUp, Heart, Info, KeyRound, ListMusic, ListPlus, Disc, Sparkles, Download, Check
 } from 'lucide-react'
 import { getTrackDownloadUrl, getAudioSource } from '../standaloneApi'
 import { saveTrackOffline, getDownloadedVideoIds, subscribeOfflineChanges } from '../offlineStorage'
@@ -79,6 +79,8 @@ export default function PlaylistView({
   onToggleFavorite,
   onPlayTrack,
   onPushToSafari,
+  onPlayNext,
+  onAddToQueue,
   isGenerating,
   isSearching,
   isLoadingPlaylistBrowse,
@@ -95,6 +97,7 @@ export default function PlaylistView({
   const [downloadingVid, setDownloadingVid] = useState(null)
   const [downloadedVid, setDownloadedVid] = useState(null)
   const [downloadedSet, setDownloadedSet] = useState(new Set())
+  const [queueMenuIdx, setQueueMenuIdx] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -246,7 +249,7 @@ export default function PlaylistView({
   const latencySec = playlist.latency_ms ? `${(playlist.latency_ms / 1000).toFixed(1)}s` : ''
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0d]">
+    <div className="w-full flex flex-col bg-[#0a0a0d]" onClick={() => setQueueMenuIdx(null)}>
       {/* Mobile / First-run API Setup Banner */}
       {needsSetup && onOpenSettings && (
         <div className="px-3.5 py-2 bg-indigo-500/10 border-b border-indigo-500/25 flex items-center justify-between gap-2">
@@ -413,7 +416,7 @@ export default function PlaylistView({
       </div>
 
       {/* Scrollable Track Area */}
-      <div className="flex-1 overflow-y-auto divide-y divide-[#15151c]">
+      <div className="w-full divide-y divide-[#15151c]">
         {/* MOBILE TRACK CARDS (< 640px) */}
         <div className="sm:hidden divide-y divide-[#15151c]">
           {tracks.map((track, idx) => {
@@ -494,6 +497,45 @@ export default function PlaylistView({
 
                   {/* Mobile Actions */}
                   <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <div className="relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setQueueMenuIdx(queueMenuIdx === `m-${idx}` ? null : `m-${idx}`)
+                        }}
+                        className={`p-2 rounded-md transition-colors ${
+                          queueMenuIdx === `m-${idx}` ? 'text-sky-400 bg-sky-500/20' : 'text-[#71717a] hover:text-sky-300'
+                        }`}
+                        title="Queue options"
+                        aria-label="Queue options"
+                      >
+                        <ListPlus className="w-4 h-4" />
+                      </button>
+                      {queueMenuIdx === `m-${idx}` && (
+                        <div className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium animate-in fade-in zoom-in-95 duration-100">
+                          <button
+                            onClick={() => {
+                              onPlayNext && onPlayNext(track)
+                              setQueueMenuIdx(null)
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-[#1e1e2c] text-[#f4f4f5] flex items-center gap-2 cursor-pointer"
+                          >
+                            <span className="text-sky-400 font-bold">⚡</span>
+                            <span>Play Next</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              onAddToQueue && onAddToQueue(track)
+                              setQueueMenuIdx(null)
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-[#1e1e2c] text-[#a1a1aa] hover:text-white flex items-center gap-2 cursor-pointer"
+                          >
+                            <span className="text-emerald-400 font-bold">+</span>
+                            <span>Add to Queue</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                     <button
                       onClick={() => onToggleFavorite && onToggleFavorite(track)}
                       className={`p-2 rounded-md ${
@@ -656,6 +698,44 @@ export default function PlaylistView({
 
                     <td className="py-3 pl-2 pr-6 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1">
+                        <div className="relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setQueueMenuIdx(queueMenuIdx === `d-${idx}` ? null : `d-${idx}`)
+                            }}
+                            title="Queue options"
+                            className={`p-1.5 rounded-md hover:bg-[#1a1a22] transition-colors cursor-pointer ${
+                              queueMenuIdx === `d-${idx}` ? 'text-sky-400 bg-sky-500/20' : 'text-[#71717a] hover:text-sky-300'
+                            }`}
+                          >
+                            <ListPlus className="w-3.5 h-3.5" />
+                          </button>
+                          {queueMenuIdx === `d-${idx}` && (
+                            <div className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100">
+                              <button
+                                onClick={() => {
+                                  onPlayNext && onPlayNext(track)
+                                  setQueueMenuIdx(null)
+                                }}
+                                className="w-full text-left px-3 py-1.5 hover:bg-[#1e1e2c] text-[#f4f4f5] flex items-center gap-2 cursor-pointer"
+                              >
+                                <span className="text-sky-400 font-bold">⚡</span>
+                                <span>Play Next</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  onAddToQueue && onAddToQueue(track)
+                                  setQueueMenuIdx(null)
+                                }}
+                                className="w-full text-left px-3 py-1.5 hover:bg-[#1e1e2c] text-[#a1a1aa] hover:text-white flex items-center gap-2 cursor-pointer"
+                              >
+                                <span className="text-emerald-400 font-bold">+</span>
+                                <span>Add to Queue</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
                         <button
                           onClick={() => onToggleFavorite && onToggleFavorite(track)}
                           className={`p-1.5 rounded-md hover:bg-[#1a1a22] transition-colors cursor-pointer ${

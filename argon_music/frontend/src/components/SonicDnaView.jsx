@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react'
-import { RefreshCw, ExternalLink, Search, Music, Heart, Play, Sparkles, Download, Check, Loader2 } from 'lucide-react'
+import {
+  RefreshCw, ExternalLink, Search, Music, Heart, Play,
+  Sparkles, Download, Check, Loader2, ListPlus
+} from 'lucide-react'
 import { getTrackDownloadUrl, getAudioSource } from '../standaloneApi'
 import { saveTrackOffline, getDownloadedVideoIds, subscribeOfflineChanges } from '../offlineStorage'
+import YouTubeTasteSyncModal, { Youtube } from './YouTubeTasteSyncModal'
 
 export default function SonicDnaView({
   mode = 'dna',
@@ -15,12 +19,20 @@ export default function SonicDnaView({
   isSyncing,
   onPlayTrack,
   onPushToSafari,
-  onCurateSimilar
+  onCurateSimilar,
+  onPlayNext,
+  onAddToQueue,
+  onAddSeedTrack,
+  onAddMultipleSeedTracks,
+  onAnalyzeTaste,
+  hasBackend = false
 }) {
   const [filter, setFilter] = useState('')
   const [downloadingVid, setDownloadingVid] = useState(null)
   const [downloadedVid, setDownloadedVid] = useState(null)
   const [downloadedSet, setDownloadedSet] = useState(new Set())
+  const [isTasteSyncOpen, setIsTasteSyncOpen] = useState(false)
+  const [queueMenuIdx, setQueueMenuIdx] = useState(null)
 
   useEffect(() => {
     let active = true
@@ -212,6 +224,44 @@ export default function SonicDnaView({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-center justify-end gap-1.5">
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setQueueMenuIdx(queueMenuIdx === `fav-${idx}` ? null : `fav-${idx}`)
+                              }}
+                              title="Queue options"
+                              className={`p-1.5 rounded hover:bg-[#22222a] transition-colors cursor-pointer ${
+                                queueMenuIdx === `fav-${idx}` ? 'text-sky-400 bg-sky-500/20' : 'text-[#8e8e93] hover:text-sky-300'
+                              }`}
+                            >
+                              <ListPlus className="w-3.5 h-3.5" />
+                            </button>
+                            {queueMenuIdx === `fav-${idx}` && (
+                              <div className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100">
+                                <button
+                                  onClick={() => {
+                                    onPlayNext && onPlayNext(t)
+                                    setQueueMenuIdx(null)
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 hover:bg-[#1e1e2c] text-[#f4f4f5] flex items-center gap-2 cursor-pointer"
+                                >
+                                  <span className="text-sky-400 font-bold">⚡</span>
+                                  <span>Play Next</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    onAddToQueue && onAddToQueue(t)
+                                    setQueueMenuIdx(null)
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 hover:bg-[#1e1e2c] text-[#a1a1aa] hover:text-white flex items-center gap-2 cursor-pointer"
+                                >
+                                  <span className="text-emerald-400 font-bold">+</span>
+                                  <span>Add to Queue</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
                           <button
                             onClick={() => onToggleFavorite && onToggleFavorite(t)}
                             title="Remove from Favorites memory"
@@ -264,7 +314,7 @@ export default function SonicDnaView({
     )
   }
 
-  // 2. SAFARI LIBRARY VIEW
+  // 2. YOUTUBE & SEEDS LIBRARY VIEW
   if (mode === 'library') {
     const filteredTracks = extractedTracks.filter((t) => {
       if (!filter.trim()) return true
@@ -276,14 +326,14 @@ export default function SonicDnaView({
     })
 
     return (
-      <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0c]">
-        <div className="px-6 py-4 border-b border-[#222226] flex flex-wrap items-center justify-between gap-4 bg-[#0d0d0f]">
+      <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0c]" onClick={() => setQueueMenuIdx(null)}>
+        <div className="px-4 sm:px-6 py-4 border-b border-[#222226] flex flex-wrap items-center justify-between gap-4 bg-[#0d0d0f]">
           <div>
             <h2 className="text-sm font-semibold text-[#f5f5f5]">
-              Safari YouTube Library ({extractedTracks.length})
+              YouTube Seeds & Library ({extractedTracks.length})
             </h2>
             <p className="text-xs text-[#a1a1aa]">
-              Extracted directly from active YouTube & YouTube Music tabs in Safari
+              Curate seed tracks from YouTube search, playlists, or Safari tabs to power your Sonic DNA
             </p>
           </div>
 
@@ -295,19 +345,30 @@ export default function SonicDnaView({
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder="Filter tracks..."
-                className="bg-transparent text-xs text-[#f5f5f5] placeholder:text-[#73737a] focus:outline-none w-44"
+                className="bg-transparent text-xs text-[#f5f5f5] placeholder:text-[#73737a] focus:outline-none w-36 sm:w-44"
               />
             </div>
 
             <button
-              onClick={onSyncSafari}
-              disabled={isSyncing}
-              title="Re-scan open Safari YouTube tabs"
-              className="px-3 py-1.5 rounded-md bg-[#18181c] hover:bg-[#22222a] border border-[#2e2e36] text-xs text-[#e5e5e5] flex items-center gap-1.5 transition-colors cursor-pointer"
+              onClick={() => setIsTasteSyncOpen(true)}
+              title="Add seeds from YouTube search or playlist URL"
+              className="px-3 py-1.5 rounded-md bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>Refresh</span>
+              <Youtube className="w-3.5 h-3.5 text-rose-400" />
+              <span>Sync YouTube Seeds</span>
             </button>
+
+            {hasBackend && (
+              <button
+                onClick={onSyncSafari}
+                disabled={isSyncing}
+                title="Re-scan open Safari YouTube tabs"
+                className="px-3 py-1.5 rounded-md bg-[#18181c] hover:bg-[#22222a] border border-[#2e2e36] text-xs text-[#e5e5e5] flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Refresh Safari</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -376,6 +437,44 @@ export default function SonicDnaView({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-center justify-end gap-1.5">
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setQueueMenuIdx(queueMenuIdx === `lib-${idx}` ? null : `lib-${idx}`)
+                              }}
+                              title="Queue options"
+                              className={`p-1.5 rounded hover:bg-[#22222a] transition-colors cursor-pointer ${
+                                queueMenuIdx === `lib-${idx}` ? 'text-sky-400 bg-sky-500/20' : 'text-[#8e8e93] hover:text-sky-300'
+                              }`}
+                            >
+                              <ListPlus className="w-3.5 h-3.5" />
+                            </button>
+                            {queueMenuIdx === `lib-${idx}` && (
+                              <div className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100">
+                                <button
+                                  onClick={() => {
+                                    onPlayNext && onPlayNext(t)
+                                    setQueueMenuIdx(null)
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 hover:bg-[#1e1e2c] text-[#f4f4f5] flex items-center gap-2 cursor-pointer"
+                                >
+                                  <span className="text-sky-400 font-bold">⚡</span>
+                                  <span>Play Next</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    onAddToQueue && onAddToQueue(t)
+                                    setQueueMenuIdx(null)
+                                  }}
+                                  className="w-full text-left px-3 py-1.5 hover:bg-[#1e1e2c] text-[#a1a1aa] hover:text-white flex items-center gap-2 cursor-pointer"
+                                >
+                                  <span className="text-emerald-400 font-bold">+</span>
+                                  <span>Add to Queue</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
                           <button
                             onClick={() => onToggleFavorite && onToggleFavorite(t)}
                             title={isFav ? 'Saved in Favorites memory' : 'Save to Favorites memory'}
@@ -441,16 +540,25 @@ export default function SonicDnaView({
             <span className="text-[11px] font-mono uppercase tracking-wider text-indigo-400 font-medium">
               Taste Profile {hasProfile ? 'Analysis' : 'Memory'}
             </span>
-            {onSyncSafari && (
+            <div className="flex items-center gap-2">
               <button
-                onClick={onSyncSafari}
-                disabled={isSyncing}
-                className="px-3 py-1 rounded-md bg-[#16161c] hover:bg-[#22222a] border border-[#2a2a34] text-xs text-[#e5e5e5] flex items-center gap-1.5 transition-colors cursor-pointer"
+                onClick={() => setIsTasteSyncOpen(true)}
+                className="px-3 py-1.5 rounded-md bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
               >
-                <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>Sync YouTube / Safari</span>
+                <Youtube className="w-3.5 h-3.5 text-rose-400" />
+                <span>Sync YouTube Taste</span>
               </button>
-            )}
+              {hasBackend && onSyncSafari && (
+                <button
+                  onClick={onSyncSafari}
+                  disabled={isSyncing}
+                  className="px-3 py-1.5 rounded-md bg-[#16161c] hover:bg-[#22222a] border border-[#2a2a34] text-xs text-[#e5e5e5] flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span className="hidden sm:inline">Refresh Safari</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <h2 className="text-xl font-semibold text-[#f5f5f5] tracking-tight">
@@ -497,7 +605,7 @@ export default function SonicDnaView({
               </span>
             </div>
             <div className="p-3.5 rounded-md bg-[#131318] border border-[#22222a]">
-              <span className="text-[10px] font-mono uppercase text-[#9ca3af] block">Safari Seeds</span>
+              <span className="text-[10px] font-mono uppercase text-[#9ca3af] block">YouTube Seeds</span>
               <span className="text-sm font-mono font-semibold text-[#f5f5f5] mt-1 block">
                 {extractedTracks.length} items
               </span>
@@ -540,6 +648,25 @@ export default function SonicDnaView({
           </div>
         </div>
       </div>
+
+      {/* Standalone YouTube Taste Sync Modal */}
+      <YouTubeTasteSyncModal
+        isOpen={isTasteSyncOpen}
+        onClose={() => setIsTasteSyncOpen(false)}
+        onAddSeedTrack={(track) => {
+          onAddSeedTrack && onAddSeedTrack(track)
+        }}
+        onAddMultipleSeedTracks={(tracks) => {
+          onAddMultipleSeedTracks && onAddMultipleSeedTracks(tracks)
+        }}
+        onAnalyzeTaste={() => {
+          onAnalyzeTaste && onAnalyzeTaste()
+        }}
+        onSyncSafari={onSyncSafari}
+        isSyncing={isSyncing}
+        hasBackend={hasBackend}
+        favoritesCount={favorites.length}
+      />
     </div>
   )
 }

@@ -801,3 +801,116 @@ export function formatDurationSeconds(sec) {
   }
   return `${m}:${remSec.toString().padStart(2, '0')}`
 }
+
+/**
+ * Searches YouTube Music and returns a list of matching tracks for adding seeds.
+ */
+export async function searchYouTubeMusicList(query) {
+  if (!query || !query.trim()) return []
+  try {
+    const items = await ytmSearchItems(query)
+    return items.map((it) => ({
+      video_id: it.video_id,
+      title: it.title || 'Unknown Title',
+      artist: it.artist || 'Unknown Artist',
+      thumbnail: `https://i.ytimg.com/vi/${it.video_id}/hqdefault.jpg`,
+      duration_text: it.duration_text || '',
+      url: `https://www.youtube.com/watch?v=${it.video_id}`
+    }))
+  } catch (err) {
+    console.error('searchYouTubeMusicList error:', err)
+    return []
+  }
+}
+
+/**
+ * Imports tracks from a YouTube or YouTube Music playlist / mix URL.
+ */
+export async function importYouTubePlaylistStandalone(urlOrQuery) {
+  if (!urlOrQuery) return []
+  try {
+    let browseId = null
+    const listMatch = urlOrQuery.match(/[?&]list=([^&]+)/)
+    if (listMatch) {
+      browseId = listMatch[1].startsWith('VL') ? listMatch[1] : `VL${listMatch[1]}`
+    }
+
+    if (browseId) {
+      const res = await browsePlaylistStandalone(browseId)
+      if (res && res.tracks && res.tracks.length) {
+        return res.tracks
+      }
+    }
+
+    // Fallback: direct search for the query / title
+    const searchRes = await directSearchStandalone(urlOrQuery, 'songs')
+    if (searchRes && searchRes.tracks && searchRes.tracks.length) {
+      return searchRes.tracks
+    }
+    return []
+  } catch (err) {
+    console.error('importYouTubePlaylistStandalone error:', err)
+    return []
+  }
+}
+
+/**
+ * Analyzes seed tracks and hearted favorites to produce a rich Sonic Taste DNA profile.
+ * Works on Android / mobile without needing a Mac host or Safari.
+ */
+export async function analyzeTasteDnaStandalone(tracks) {
+  if (!tracks || !tracks.length) return null
+
+  const trackListStr = tracks
+    .slice(0, 15)
+    .map((t) => `"${t.title}" by ${t.artist}`)
+    .join(', ')
+
+  if (isConfigured()) {
+    try {
+      const prompt = `Analyze this user's music taste based on their favorite and seed tracks:
+${trackListStr}
+
+Return JSON with this exact schema:
+{
+  "archetype": "A creative 2-4 word listener archetype (e.g. 'Epic Anime Orchestrator', 'Midnight Synthwave Voyager', 'Lofi Focus Architect')",
+  "summary": "A rich 2-3 sentence paragraph analyzing their musical preferences, mood, timbre, and emotional dynamics.",
+  "sonic_attributes": {
+    "tempo": "A tempo range e.g. '125-155 BPM'",
+    "electronic_balance": 65
+  },
+  "primary_genres": ["3-5 genre strings e.g. 'Anime OST', 'Symphonic Rock', 'J-Rock'"],
+  "key_artists": ["3-5 distinct artist strings based on the tracks"]
+}`
+      const res = await generateWithDirectGemini(prompt, 'gemini-3.8-flash')
+      if (res && res.archetype) {
+        return res
+      }
+    } catch (e) {
+      console.warn('Gemini taste analysis fallback:', e)
+    }
+  }
+
+  // Heuristic Sonic DNA generation if Gemini is offline
+  const artists = Array.from(new Set(tracks.map((t) => t.artist).filter(Boolean)))
+  const topArtists = artists.slice(0, 4)
+  const isHighEnergy = tracks.some((t) => /rock|sawano|epic|metal|hyper|phonk|battle/i.test(`${t.title} ${t.artist}`))
+  const isAtmospheric = tracks.some((t) => /ost|theme|lofi|piano|acoustic|synth|vibe/i.test(`${t.title} ${t.artist}`))
+
+  let archetype = 'Eclectic Audio Connoisseur'
+  if (isHighEnergy) archetype = 'High-Octane Sonic Voyager'
+  else if (isAtmospheric) archetype = 'Atmospheric Soundscape Curator'
+
+  return {
+    archetype,
+    summary: `Drawn to dynamic melodies, evocative vocals, and rhythmic harmony. Their taste profile bridges ${topArtists.slice(0, 2).join(' and ')} with rich musical textures and memorable hooks.`,
+    sonic_attributes: {
+      tempo: isHighEnergy ? '130-160 BPM' : '110-135 BPM',
+      electronic_balance: isHighEnergy ? 70 : 45
+    },
+    primary_genres: isHighEnergy
+      ? ['Soundtrack', 'Electronic Rock', 'J-Rock', 'Epic Orchestral']
+      : ['Indie Pop', 'Alternative', 'Ambient', 'Soundtrack'],
+    key_artists: topArtists.length ? topArtists : ['Hiroyuki Sawano', 'Yutaka Yamada', 'Ai Higuchi']
+  }
+}
