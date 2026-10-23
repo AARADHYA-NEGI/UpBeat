@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import {
-  RefreshCw, Menu, Settings, Sparkles, ChevronDown, Search, Loader2, X, Check, Music
+  RefreshCw, Menu, Settings, Sparkles, ChevronDown, Search, Loader2, X, Check, Music, ArrowLeft
 } from 'lucide-react'
 import { getStoredApiKey, setStoredApiKey, getStoredServerUrl, setStoredServerUrl, hasBackend } from '../standaloneApi'
 import { GoogleIcon } from './GoogleAuthModal'
@@ -35,6 +35,7 @@ export default function Navbar({
   const [serverUrlInput, setServerUrlInput] = useState(() => getStoredServerUrl())
   const [savedBanner, setSavedBanner] = useState(false)
   const [isSearchFocused, setIsSearchFocused] = useState(false)
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
 
   const hasYT = safariStatus?.has_yt
   const hasKeyOrServer = Boolean(getStoredApiKey()) || hasBackend()
@@ -66,104 +67,90 @@ export default function Navbar({
   return (
     <>
       <header className="pt-safe bg-[#030305]/95 backdrop-blur-xl border-b border-white/[0.06] select-none flex-shrink-0 z-30 sticky top-0 transition-colors">
-        <div className="h-14 px-3 sm:px-6 flex items-center justify-between gap-4">
-          
-          {/* Left: Clean Brand (No version clutter, no breadcrumbs) */}
-          <div className="flex items-center gap-3 shrink-0">
-            <button
-              onClick={onToggleSidebar}
-              className="p-2 rounded-full hover:bg-white/[0.08] active:bg-white/[0.12] text-zinc-300 hover:text-white transition-all cursor-pointer"
-              title="Toggle sidebar (Cmd+B)"
-              aria-label="Toggle navigation drawer"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-
-            {/* Clean UpBeat Brand: Music note symbol and UpBeat, nothing else */}
-            <div
-              onClick={() => setActiveTab && setActiveTab('curator')}
-              className="flex items-center gap-2 cursor-pointer group"
-              title="UpBeat"
-            >
-              <Music className="w-5 h-5 text-white" />
-              <span className="font-bold text-white text-lg tracking-tight">UpBeat</span>
-            </div>
-          </div>
-
-          {/* Center: Dispersed, Roomy Search Pill with Contextual AI Model Selector */}
-          <div className="flex-1 max-w-xl lg:max-w-2xl mx-2 sm:mx-6 flex items-center justify-center min-w-0">
-            <form
-              onSubmit={handleSearchSubmit}
-              className={`w-full h-10 sm:h-11 rounded-full flex items-center gap-2.5 px-3.5 sm:px-4 transition-all ${
-                isSearchFocused
-                  ? 'bg-[#18181b] border border-white/30 shadow-lg shadow-black/50 ring-1 ring-white/20'
-                  : 'bg-white/[0.08] hover:bg-white/[0.12] border border-white/[0.08]'
-              }`}
-            >
+        {/* Mobile Full-Width Search Header (when search is open on mobile) */}
+        {isMobileSearchOpen ? (
+          <div className="sm:hidden flex flex-col">
+            <div className="h-14 px-3 flex items-center gap-2.5 w-full">
               <button
-                type="submit"
-                disabled={busy}
-                className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
-                title="Search"
+                type="button"
+                onClick={() => setIsMobileSearchOpen(false)}
+                className="p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white shrink-0 cursor-pointer"
+                title="Back to navigation"
               >
-                {busy ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
-                ) : (
-                  <Search className="w-4 h-4" />
-                )}
+                <ArrowLeft className="w-5 h-5" />
               </button>
 
-              <input
-                type="text"
-                value={prompt}
-                onChange={(e) => setPrompt && setPrompt(e.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-                placeholder={
-                  isAiMode
-                    ? 'Describe mood, anime, soundtrack, or vibe for Gemini...'
-                    : 'Search songs, albums, artists, podcasts...'
-                }
-                className="w-full bg-transparent text-xs sm:text-sm text-white placeholder:text-zinc-400 focus:outline-none min-w-0"
-              />
-
-              {/* Clear button if text present */}
-              {Boolean(prompt) && !busy && (
+              <form
+                onSubmit={handleSearchSubmit}
+                className="flex-1 h-10 rounded-full bg-white/[0.08] border border-white/20 flex items-center gap-2 px-3.5 min-w-0"
+              >
                 <button
-                  type="button"
-                  onClick={() => setPrompt && setPrompt('')}
-                  className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-                  title="Clear search"
+                  type="submit"
+                  disabled={busy}
+                  className="text-zinc-400 hover:text-white shrink-0 cursor-pointer"
+                  title="Search"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  {busy ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
+                  ) : (
+                    <Search className="w-4 h-4" />
+                  )}
                 </button>
-              )}
 
-              {/* AI Curate Toggle Button */}
-              {setSearchMode && (
-                <button
-                  type="button"
-                  onClick={() => setSearchMode(isAiMode ? 'direct' : 'curator')}
-                  className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-all shrink-0 cursor-pointer ${
+                <input
+                  type="text"
+                  autoFocus
+                  value={prompt}
+                  onChange={(e) => setPrompt && setPrompt(e.target.value)}
+                  placeholder={
                     isAiMode
-                      ? 'bg-purple-500/25 text-purple-200 border-purple-500/50 shadow-sm'
-                      : 'bg-white/[0.06] text-zinc-400 hover:text-white border-white/[0.08] hover:border-white/20'
-                  }`}
-                  title={isAiMode ? 'Switch to Regular Search' : 'Enable Gemini AI Curator'}
-                >
-                  <Sparkles className={`w-3.5 h-3.5 ${isAiMode ? 'text-purple-300' : 'text-zinc-400'}`} />
-                  <span className="hidden sm:inline">AI Curate</span>
-                </button>
-              )}
+                      ? 'Describe vibe, mood, anime...'
+                      : 'Search songs, artists...'
+                  }
+                  className="w-full bg-transparent text-xs text-white placeholder:text-zinc-400 focus:outline-none min-w-0"
+                />
 
-              {/* AI Model Selector: ONLY VISIBLE WHEN AI CURATE IS ACTIVE (Saves space on top!) */}
-              {isAiMode && models.length > 0 && (
-                <div className="flex items-center gap-1 bg-purple-950/50 border border-purple-500/30 px-2 py-0.5 rounded-full text-[11px] font-mono shrink-0 animate-in fade-in duration-150">
-                  <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0" />
+                {Boolean(prompt) && !busy && (
+                  <button
+                    type="button"
+                    onClick={() => setPrompt && setPrompt('')}
+                    className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 shrink-0 cursor-pointer"
+                    title="Clear text"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {setSearchMode && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchMode(isAiMode ? 'direct' : 'curator')}
+                    className={`flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all shrink-0 cursor-pointer ${
+                      isAiMode
+                        ? 'bg-purple-500/25 text-purple-200 border-purple-500/50 shadow-sm'
+                        : 'bg-white/[0.06] text-zinc-400 hover:text-white border-white/[0.08]'
+                    }`}
+                    title={isAiMode ? 'Switch to Regular Search' : 'Enable Gemini AI Curator'}
+                  >
+                    <Sparkles className={`w-3 h-3 ${isAiMode ? 'text-purple-300' : 'text-zinc-400'}`} />
+                    <span>AI</span>
+                  </button>
+                )}
+              </form>
+            </div>
+
+            {/* AI Model Sub-Bar on Mobile (Only when AI curate is on) */}
+            {isAiMode && models.length > 0 && (
+              <div className="px-4 py-1.5 bg-[#0a0a0f] border-t border-white/[0.06] flex items-center justify-between text-xs animate-in fade-in duration-100">
+                <div className="flex items-center gap-1.5 text-purple-300 text-[11px] font-mono">
+                  <Sparkles className="w-3 h-3" />
+                  <span>Curator Model:</span>
+                </div>
+                <div className="flex items-center gap-1 bg-purple-950/60 border border-purple-500/30 px-2.5 py-0.5 rounded-full text-[11px] font-mono">
                   <select
                     value={selectedModel}
                     onChange={(e) => onSelectModel && onSelectModel(e.target.value)}
-                    className="bg-transparent text-purple-200 focus:outline-none cursor-pointer max-w-[110px] sm:max-w-[150px] truncate"
+                    className="bg-transparent text-purple-200 focus:outline-none cursor-pointer text-xs"
                   >
                     {models.map((m) => (
                       <option key={m.id} value={m.id} className="bg-[#141418] text-white">
@@ -171,75 +158,209 @@ export default function Navbar({
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="w-2.5 h-2.5 text-purple-400 pointer-events-none -ml-0.5" />
+                  <ChevronDown className="w-2.5 h-2.5 text-purple-400 pointer-events-none" />
                 </div>
-              )}
-            </form>
+              </div>
+            )}
           </div>
-
-          {/* Right: Dispersed Actions (Safari Sync, Settings, User Profile) */}
-          <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-            {/* Safari Sync Button */}
-            {hasBackend() && (
+        ) : (
+          /* Standard Navbar (Desktop full + Mobile clean icon bar) */
+          <div className="h-14 px-3 sm:px-6 flex items-center justify-between gap-3 sm:gap-4">
+            {/* Left: Clean Brand (On mobile, ONLY music note logo; on desktop, logo + UpBeat) */}
+            <div className="flex items-center gap-3 shrink-0">
               <button
-                onClick={onSyncSafari}
-                disabled={isSyncing}
-                title="Sync playing tabs from Safari"
-                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-xs font-mono text-zinc-300 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                onClick={onToggleSidebar}
+                className="p-2 rounded-full hover:bg-white/[0.08] active:bg-white/[0.12] text-zinc-300 hover:text-white transition-all cursor-pointer"
+                title="Toggle sidebar (Cmd+B)"
+                aria-label="Toggle navigation drawer"
               >
-                <RefreshCw className={`w-3.5 h-3.5 text-rose-400 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>{isSyncing ? 'Syncing...' : 'Safari'}</span>
+                <Menu className="w-5 h-5" />
               </button>
-            )}
 
-            {/* Settings & Setup Button */}
-            <button
-              onClick={() => {
-                setApiKeyInput(getStoredApiKey())
-                setServerUrlInput(getStoredServerUrl())
-                setShowKeyModal(true)
-              }}
-              title="Settings & Setup"
-              className={`p-2 rounded-full border text-xs flex items-center justify-center transition-colors cursor-pointer ${
-                !hasKeyOrServer
-                  ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 animate-pulse'
-                  : 'bg-white/[0.06] hover:bg-white/[0.12] border-white/[0.08] text-zinc-400 hover:text-white'
-              }`}
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+              <div
+                onClick={() => setActiveTab && setActiveTab('curator')}
+                className="flex items-center gap-2 cursor-pointer group"
+                title="UpBeat"
+              >
+                <Music className="w-5 h-5 text-white" />
+                {/* Text is hidden on mobile screens, shown on desktop */}
+                <span className="hidden sm:inline font-bold text-white text-lg tracking-tight">UpBeat</span>
+              </div>
+            </div>
 
-            {/* Google Profile Avatar */}
-            {onOpenGoogleModal && (
-              googleUser ? (
+            {/* Center: Desktop-only Spacious Search Bar */}
+            <div className="hidden sm:flex flex-1 max-w-xl lg:max-w-2xl mx-4 lg:mx-6 items-center justify-center min-w-0">
+              <form
+                onSubmit={handleSearchSubmit}
+                className={`w-full h-10 sm:h-11 rounded-full flex items-center gap-2.5 px-3.5 sm:px-4 transition-all ${
+                  isSearchFocused
+                    ? 'bg-[#18181b] border border-white/30 shadow-lg shadow-black/50 ring-1 ring-white/20'
+                    : 'bg-white/[0.08] hover:bg-white/[0.12] border border-white/[0.08]'
+                }`}
+              >
                 <button
-                  onClick={onOpenGoogleModal}
-                  title={`Google Connected: ${googleUser.name || googleUser.email}`}
-                  className="relative p-0.5 rounded-full border border-white/20 hover:border-white/50 transition-all cursor-pointer group"
+                  type="submit"
+                  disabled={busy}
+                  className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                  title="Search"
                 >
-                  {googleUser.picture ? (
-                    <img src={googleUser.picture} alt="" className="w-8 h-8 rounded-full object-cover" />
+                  {busy ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-rose-500 via-purple-600 to-indigo-600 text-white text-xs font-bold flex items-center justify-center">
-                      {(googleUser.name || 'A')[0].toUpperCase()}
-                    </div>
+                    <Search className="w-4 h-4" />
                   )}
-                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#030305]" />
                 </button>
-              ) : (
-                <button
-                  onClick={onOpenGoogleModal}
-                  title="Sign In with Google"
-                  className="px-3.5 py-1.5 rounded-full border border-white/[0.15] bg-white/[0.08] hover:bg-white/[0.15] text-zinc-200 hover:text-white flex items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer"
-                >
-                  <GoogleIcon className="w-3.5 h-3.5" />
-                  <span>Sign In</span>
-                </button>
-              )
-            )}
-          </div>
 
-        </div>
+                <input
+                  type="text"
+                  value={prompt}
+                  onChange={(e) => setPrompt && setPrompt(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setIsSearchFocused(false)}
+                  placeholder={
+                    isAiMode
+                      ? 'Describe mood, anime, soundtrack, or vibe for Gemini...'
+                      : 'Search songs, albums, artists, podcasts...'
+                  }
+                  className="w-full bg-transparent text-xs sm:text-sm text-white placeholder:text-zinc-400 focus:outline-none min-w-0"
+                />
+
+                {/* Clear button if text present */}
+                {Boolean(prompt) && !busy && (
+                  <button
+                    type="button"
+                    onClick={() => setPrompt && setPrompt('')}
+                    className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
+                {/* AI Curate Toggle Button */}
+                {setSearchMode && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchMode(isAiMode ? 'direct' : 'curator')}
+                    className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border transition-all shrink-0 cursor-pointer ${
+                      isAiMode
+                        ? 'bg-purple-500/25 text-purple-200 border-purple-500/50 shadow-sm'
+                        : 'bg-white/[0.06] text-zinc-400 hover:text-white border-white/[0.08] hover:border-white/20'
+                    }`}
+                    title={isAiMode ? 'Switch to Regular Search' : 'Enable Gemini AI Curator'}
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 ${isAiMode ? 'text-purple-300' : 'text-zinc-400'}`} />
+                    <span>AI Curate</span>
+                  </button>
+                )}
+
+                {/* AI Model Selector: ONLY VISIBLE WHEN AI CURATE IS ACTIVE */}
+                {isAiMode && models.length > 0 && (
+                  <div className="flex items-center gap-1 bg-purple-950/50 border border-purple-500/30 px-2 py-0.5 rounded-full text-[11px] font-mono shrink-0 animate-in fade-in duration-150">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0" />
+                    <select
+                      value={selectedModel}
+                      onChange={(e) => onSelectModel && onSelectModel(e.target.value)}
+                      className="bg-transparent text-purple-200 focus:outline-none cursor-pointer max-w-[110px] sm:max-w-[150px] truncate"
+                    >
+                      {models.map((m) => (
+                        <option key={m.id} value={m.id} className="bg-[#141418] text-white">
+                          {m.name || m.id}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-2.5 h-2.5 text-purple-400 pointer-events-none -ml-0.5" />
+                  </div>
+                )}
+              </form>
+            </div>
+
+            {/* Right: Actions (Mobile Search Toggle, Safari Sync, Settings, User Profile) */}
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+              {/* Mobile Search Toggle Button (Tapping this opens full-width search) */}
+              <button
+                type="button"
+                onClick={() => setIsMobileSearchOpen(true)}
+                className="sm:hidden p-2 rounded-full hover:bg-white/[0.08] active:bg-white/[0.12] text-zinc-300 hover:text-white transition-all cursor-pointer"
+                title="Search songs, artists, mood"
+                aria-label="Open search bar"
+              >
+                <Search className="w-5 h-5" />
+              </button>
+
+              {/* Safari Sync Button (Desktop) */}
+              {hasBackend() && (
+                <button
+                  onClick={onSyncSafari}
+                  disabled={isSyncing}
+                  title="Sync playing tabs from Safari"
+                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-xs font-mono text-zinc-300 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-rose-400 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span>{isSyncing ? 'Syncing...' : 'Safari'}</span>
+                </button>
+              )}
+
+              {/* Settings & Setup Button */}
+              <button
+                onClick={() => {
+                  setApiKeyInput(getStoredApiKey())
+                  setServerUrlInput(getStoredServerUrl())
+                  setShowKeyModal(true)
+                }}
+                title="Settings & Setup"
+                className={`p-2 rounded-full border text-xs flex items-center justify-center transition-colors cursor-pointer ${
+                  !hasKeyOrServer
+                    ? 'bg-rose-500/20 border-rose-500/50 text-rose-300 animate-pulse'
+                    : 'bg-white/[0.06] hover:bg-white/[0.12] border-white/[0.08] text-zinc-400 hover:text-white'
+                }`}
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+
+              {/* Google Profile Avatar / Sign In */}
+              {onOpenGoogleModal && (
+                googleUser ? (
+                  <button
+                    onClick={onOpenGoogleModal}
+                    title={`Google Connected: ${googleUser.name || googleUser.email}`}
+                    className="relative p-0.5 rounded-full border border-white/20 hover:border-white/50 transition-all cursor-pointer group"
+                  >
+                    {googleUser.picture ? (
+                      <img src={googleUser.picture} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-tr from-rose-500 via-purple-600 to-indigo-600 text-white text-xs font-bold flex items-center justify-center">
+                        {(googleUser.name || googleUser.email || 'U')[0].toUpperCase()}
+                      </div>
+                    )}
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#030305]" />
+                  </button>
+                ) : (
+                  <>
+                    {/* Desktop Sign In Pill */}
+                    <button
+                      onClick={onOpenGoogleModal}
+                      title="Sign In with Google"
+                      className="hidden sm:flex px-3.5 py-1.5 rounded-full border border-white/[0.15] bg-white/[0.08] hover:bg-white/[0.15] text-zinc-200 hover:text-white items-center gap-1.5 text-xs font-medium transition-colors cursor-pointer"
+                    >
+                      <GoogleIcon className="w-3.5 h-3.5" />
+                      <span>Sign In</span>
+                    </button>
+
+                    {/* Mobile Sign In Icon Button */}
+                    <button
+                      onClick={onOpenGoogleModal}
+                      title="Sign In with Google"
+                      className="sm:hidden p-2 rounded-full border border-white/[0.15] bg-white/[0.08] hover:bg-white/[0.15] text-zinc-200 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                    >
+                      <GoogleIcon className="w-4 h-4" />
+                    </button>
+                  </>
+                )
+              )}
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Settings Modal */}

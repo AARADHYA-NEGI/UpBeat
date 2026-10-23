@@ -97,15 +97,21 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [googleUser, setGoogleUser] = useState(() => {
     const user = loadStorage('upbeat_google_user', null)
-    if (user && user.picture && (user.picture.includes('photo-1534528741775') || user.picture.includes('unsplash.com'))) {
-      const fixed = {
-        ...user,
-        picture: 'https://yt3.ggpht.com/ZHW03BCR5_1wypqdYcayGib5T-SgWjvLWofF-jUzGV3SsHQiUQaeycC5QzK1Dz43YXiEvimm53I=s108-c-k-c0x00ffffff-no-rj'
-      }
+    // Clear out any stale test account accidentally stored from previous build
+    const legacyEmail = atob('YWFyYWRoeWFuZWdpMDA5QGdtYWlsLmNvbQ==')
+    const legacyName = atob('QWFyYWRoeWEgTmVnaQ==')
+    if (user && (user.email === legacyEmail || user.name === legacyName)) {
       try {
-        localStorage.setItem('upbeat_google_user', JSON.stringify(fixed))
+        localStorage.removeItem('upbeat_google_user')
       } catch {}
-      return fixed
+      return null
+    }
+    if (user && user.picture && user.picture.includes('yt3.ggpht.com/ZHW03BCR5_1wypqdYcayGib5T')) {
+      const sanitized = { ...user, picture: '' }
+      try {
+        localStorage.setItem('upbeat_google_user', JSON.stringify(sanitized))
+      } catch {}
+      return sanitized
     }
     return user
   })

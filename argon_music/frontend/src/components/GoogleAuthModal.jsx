@@ -5,8 +5,6 @@ import {
 import { Youtube } from './YouTubeTasteSyncModal'
 import { getApiBase, hasBackend } from '../standaloneApi'
 
-export const AUTHENTIC_GOOGLE_AVATAR = 'https://yt3.ggpht.com/ZHW03BCR5_1wypqdYcayGib5T-SgWjvLWofF-jUzGV3SsHQiUQaeycC5QzK1Dz43YXiEvimm53I=s108-c-k-c0x00ffffff-no-rj'
-
 export function GoogleIcon({ className = 'w-4 h-4' }) {
   return (
     <svg className={className} viewBox="0 0 24 24">
@@ -62,10 +60,14 @@ export default function GoogleAuthModal({
 
   if (!isOpen) return null
 
-  const handleQuickSignIn = async () => {
+  const handleSignIn = async (e) => {
+    if (e) e.preventDefault()
+    const email = customEmail.trim()
+    if (!email) return
     setIsLoggingIn(true)
-    let finalPic = AUTHENTIC_GOOGLE_AVATAR
-    if (hasBackend()) {
+
+    let finalPic = customPicUrl.trim()
+    if (!finalPic && hasBackend()) {
       try {
         const res = await fetch(`${getApiBase()}/safari/profile`)
         if (res.ok) {
@@ -74,28 +76,12 @@ export default function GoogleAuthModal({
         }
       } catch {}
     }
-    setTimeout(() => {
-      onLogin({
-        name: 'Aaradhya Negi',
-        email: 'aaradhyanegi009@gmail.com',
-        picture: finalPic,
-        connectedAt: Date.now(),
-        provider: 'google'
-      })
-      setIsLoggingIn(false)
-      onClose()
-    }, 300)
-  }
 
-  const handleCustomSignIn = (e) => {
-    if (e) e.preventDefault()
-    if (!customEmail.trim()) return
-    setIsLoggingIn(true)
     setTimeout(() => {
       onLogin({
-        name: customName.trim() || customEmail.split('@')[0],
-        email: customEmail.trim(),
-        picture: customPicUrl.trim() || AUTHENTIC_GOOGLE_AVATAR,
+        name: customName.trim() || email.split('@')[0],
+        email: email,
+        picture: finalPic,
         connectedAt: Date.now(),
         provider: 'google'
       })
@@ -134,6 +120,8 @@ export default function GoogleAuthModal({
     onLogin({ ...googleUser, picture: customPicUrl.trim() })
     setShowEditPic(false)
   }
+
+  const userInitial = (googleUser?.name || googleUser?.email || 'U')[0].toUpperCase()
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 select-none">
@@ -183,19 +171,19 @@ export default function GoogleAuthModal({
                   />
                 ) : (
                   <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-rose-500 via-purple-600 to-indigo-600 text-white font-bold text-lg flex items-center justify-center border-2 border-white/20 shadow-md">
-                    {(googleUser.name || 'A')[0].toUpperCase()}
+                    {userInitial}
                   </div>
                 )}
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-semibold text-white truncate">
-                      {googleUser.name || 'Aaradhya Negi'}
+                      {googleUser.name || (googleUser.email ? googleUser.email.split('@')[0] : 'Google User')}
                     </span>
                     <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title="Connected" />
                   </div>
                   <div className="text-xs text-[#8e8e96] truncate mt-0.5 font-mono">
-                    {googleUser.email || 'aaradhyanegi009@gmail.com'}
+                    {googleUser.email || 'Connected'}
                   </div>
                   <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono mt-1">
                     <ShieldCheck className="w-3 h-3" />
@@ -233,7 +221,7 @@ export default function GoogleAuthModal({
                       onClick={handleUseLetterAvatar}
                       className="text-[11px] font-mono text-zinc-400 hover:text-rose-300 cursor-pointer"
                     >
-                      Use Letter Avatar ("A")
+                      Use Letter Avatar ("{userInitial}")
                     </button>
                   </div>
                   <form onSubmit={handleSaveCustomPic} className="flex gap-2">
@@ -288,56 +276,47 @@ export default function GoogleAuthModal({
             /* Sign-In State */
             <div className="space-y-4">
               <div className="p-3.5 rounded-xl bg-[#14141c] border border-[#22222e] text-xs text-[#a1a1aa] leading-relaxed">
-                Connect your Google account to automatically import your <strong>YouTube Music Liked Songs</strong>, private mixes, and generate an AI Sonic DNA tailored to your personal listening habits.
+                Connect your personal Google account to automatically import your <strong>YouTube Music Liked Songs</strong>, private mixes, and generate an AI Sonic DNA tailored to your personal listening habits.
               </div>
 
-              {/* 1-Tap Google Sign-In Button */}
-              <button
-                onClick={handleQuickSignIn}
-                disabled={isLoggingIn}
-                className="w-full py-3 px-4 rounded-xl bg-white hover:bg-[#f2f2f2] text-[#1f1f1f] text-xs font-semibold flex items-center justify-center gap-3 transition-all cursor-pointer shadow-md hover:shadow-lg active:scale-[0.99]"
-              >
-                {isLoggingIn ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" />
-                ) : (
-                  <GoogleIcon className="w-4 h-4" />
-                )}
-                <span>Continue with Google (Aaradhya Negi)</span>
-              </button>
-
-              <div className="flex items-center gap-3 my-2">
-                <div className="h-[1px] flex-1 bg-[#20202a]" />
-                <span className="text-[10px] font-mono uppercase text-[#71717a]">or sign in with email</span>
-                <div className="h-[1px] flex-1 bg-[#20202a]" />
-              </div>
-
-              {/* Custom Google Email Form */}
-              <form onSubmit={handleCustomSignIn} className="space-y-3">
+              {/* Google Sign-In Form */}
+              <form onSubmit={handleSignIn} className="space-y-3">
                 <div>
+                  <label className="block text-[11px] font-mono uppercase tracking-wider text-[#a1a1aa] mb-1.5">
+                    Google / YouTube Account Email
+                  </label>
                   <input
                     type="email"
+                    required
                     value={customEmail}
                     onChange={(e) => setCustomEmail(e.target.value)}
-                    placeholder="Enter Google / YouTube email..."
-                    className="w-full px-3 py-2 rounded-xl bg-[#121217] border border-[#262634] text-xs text-[#f4f4f5] placeholder:text-[#6e6e78] focus:outline-none focus:border-sky-500/60 font-mono"
+                    placeholder="name@gmail.com"
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#121217] border border-[#262634] text-xs text-[#f4f4f5] placeholder:text-[#6e6e78] focus:outline-none focus:border-sky-500/60 font-mono"
                   />
                 </div>
                 <div>
+                  <label className="block text-[11px] font-mono uppercase tracking-wider text-[#a1a1aa] mb-1.5">
+                    Display Name or YouTube Handle (optional)
+                  </label>
                   <input
                     type="text"
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
-                    placeholder="Your name or YouTube handle (optional)..."
-                    className="w-full px-3 py-2 rounded-xl bg-[#121217] border border-[#262634] text-xs text-[#f4f4f5] placeholder:text-[#6e6e78] focus:outline-none focus:border-sky-500/60"
+                    placeholder="Your name or handle..."
+                    className="w-full px-3 py-2.5 rounded-xl bg-[#121217] border border-[#262634] text-xs text-[#f4f4f5] placeholder:text-[#6e6e78] focus:outline-none focus:border-sky-500/60"
                   />
                 </div>
                 <button
                   type="submit"
                   disabled={!customEmail.trim() || isLoggingIn}
-                  className="w-full py-2.5 px-4 rounded-xl bg-sky-500 hover:bg-sky-400 disabled:opacity-40 text-black text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                  className="w-full py-3 px-4 rounded-xl bg-white hover:bg-[#f2f2f2] disabled:opacity-40 text-[#1f1f1f] text-xs font-semibold flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-md hover:shadow-lg active:scale-[0.99] mt-2"
                 >
-                  <span>Connect Account</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  {isLoggingIn ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" />
+                  ) : (
+                    <GoogleIcon className="w-4 h-4" />
+                  )}
+                  <span>Sign in with Google</span>
                 </button>
               </form>
             </div>
