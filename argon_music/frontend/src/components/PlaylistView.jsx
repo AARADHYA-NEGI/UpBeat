@@ -178,10 +178,10 @@ export default function PlaylistView({
           <Loader2 className={`w-6 h-6 animate-spin ${isSearching ? 'text-rose-400' : 'text-purple-400'}`} />
         </div>
         <p className="text-base font-semibold text-white tracking-tight">
-          {isSearching ? 'Searching YouTube & YT Music...' : 'Curating Sonic Profile & Stream Resolution...'}
+          {isSearching ? 'Searching tracks & videos...' : 'Curating Sonic Profile & Stream Resolution...'}
         </p>
         <p className="text-xs font-mono text-zinc-400 mt-1.5">
-          {isSearching ? 'Direct Stream Match • 0 AI Tokens' : `Model Engine: ${selectedModel}`}
+          {isSearching ? 'Resolving highest audio quality' : `Model: ${selectedModel}`}
         </p>
       </div>
     )
@@ -244,8 +244,8 @@ export default function PlaylistView({
         {needsSetup && onOpenSettings && (
           <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-between gap-3 max-w-xl">
             <div>
-              <p className="text-xs font-semibold text-white">Direct Search is enabled with 0 tokens.</p>
-              <p className="text-[11px] text-zinc-400 mt-0.5">Enter your Gemini API key only if you want custom prompt curation.</p>
+              <p className="text-xs font-semibold text-white">Gemini AI Key Setup</p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">Configure your Gemini API key for custom prompt curation.</p>
             </div>
             <button
               onClick={onOpenSettings}
@@ -285,21 +285,14 @@ export default function PlaylistView({
               />
             ) : (
               <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-rose-500 via-purple-600 to-indigo-600 flex items-center justify-center text-white text-xs sm:text-sm font-bold shadow-md shadow-rose-600/20 shrink-0">
-                {(googleUser?.name || 'U')[0].toUpperCase()}
+                {(googleUser?.name || 'A')[0].toUpperCase()}
               </div>
             )}
 
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight truncate">
-                  Quick picks
-                </h1>
-                {isDirectSearch && (
-                  <span className="hidden sm:inline-block text-[10px] font-mono px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                    DIRECT
-                  </span>
-                )}
-              </div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-white tracking-tight truncate">
+                Quick picks
+              </h1>
               <p className="text-xs text-zinc-400 truncate max-w-lg">
                 {playlist.playlist_title || playlist.subtitle || 'Selected based on your listening taste'}
               </p>
@@ -377,7 +370,7 @@ export default function PlaylistView({
                 }`}
               >
                 <Play className="w-3 h-3 text-rose-400 fill-rose-400" />
-                <span>YouTube Results ({youtubeResults.length})</span>
+                <span>Videos ({youtubeResults.length})</span>
               </button>
             )}
 
