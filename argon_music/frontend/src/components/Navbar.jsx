@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import {
-  RefreshCw, Menu, Settings, Sparkles, ChevronDown, Search, Play, Loader2, X, Check
+  RefreshCw, Menu, Settings, Sparkles, ChevronDown, Search, Loader2, X, Check, Music
 } from 'lucide-react'
 import { getStoredApiKey, setStoredApiKey, getStoredServerUrl, setStoredServerUrl, hasBackend } from '../standaloneApi'
 import { GoogleIcon } from './GoogleAuthModal'
@@ -79,15 +79,13 @@ export default function Navbar({
               <Menu className="w-5 h-5" />
             </button>
 
-            {/* UpBeat Music Brand */}
+            {/* Clean UpBeat Brand: Music note symbol and UpBeat, nothing else */}
             <div
               onClick={() => setActiveTab && setActiveTab('curator')}
-              className="flex items-center gap-2.5 cursor-pointer group"
-              title="UpBeat Music"
+              className="flex items-center gap-2 cursor-pointer group"
+              title="UpBeat"
             >
-              <div className="w-7 h-7 rounded-full bg-[#ff0033] flex items-center justify-center text-white shadow-md shadow-red-600/30 group-hover:scale-105 transition-transform">
-                <Play className="w-4 h-4 fill-white ml-0.5" />
-              </div>
+              <Music className="w-5 h-5 text-white" />
               <span className="font-bold text-white text-lg tracking-tight">UpBeat</span>
             </div>
           </div>

@@ -455,14 +455,9 @@ export default function Sidebar({
           </div>
         </div>
 
-        {/* Release Version Info */}
-        <div className="pt-2 text-[10px] font-mono text-zinc-500 flex flex-col gap-0.5 border-t border-white/[0.08]">
-          <span className="flex items-center justify-between">
-            <span className="text-zinc-400 font-medium">UpBeat v3.0+1.0</span>
-          </span>
-          <span className="text-zinc-500 tracking-wider" title="Evangelion: 3.0+1.0 Thrice Upon a Time">
-            :|| THRICE UPON A TIME
-          </span>
+        {/* App Info */}
+        <div className="pt-2 text-[10px] font-mono text-zinc-500 border-t border-white/[0.08]">
+          <span className="text-zinc-400 font-medium">UpBeat</span>
         </div>
       </div>
 
