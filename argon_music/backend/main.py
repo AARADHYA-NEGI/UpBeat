@@ -2,6 +2,7 @@ import os
 import re
 import json
 import time
+import unicodedata
 import urllib.parse
 from typing import Dict, List, Any, Optional
 import requests as ext_requests
@@ -456,6 +457,36 @@ def stream_audio_endpoint(video_id: str, request: Request):
     )
 
 
+def _make_content_disposition(filename: str) -> str:
+    """
+    Constructs an RFC 6266 / RFC 5987 compliant Content-Disposition header.
+    Guarantees the legacy 'filename=' parameter is 100% ASCII-safe (preventing
+    Starlette latin-1 UnicodeEncodeErrors on apostrophes/unicode), while providing
+    full Unicode fidelity via 'filename*=UTF-8\'\'...' for all modern browsers.
+    """
+    replacements = {
+        "\u2018": "'", "\u2019": "'",
+        "\u201c": '"', "\u201d": '"',
+        "\u2013": "-", "\u2014": "-",
+        "\u2026": "...",
+    }
+    ascii_cand = filename
+    for orig, rep in replacements.items():
+        ascii_cand = ascii_cand.replace(orig, rep)
+
+    ascii_clean = (
+        unicodedata.normalize("NFKD", ascii_cand)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
+    ascii_clean = re.sub(r'[\\/*?:"<>|;]', "", ascii_clean).strip() or "Track.m4a"
+    if not ascii_clean.endswith(".m4a"):
+        ascii_clean += ".m4a"
+
+    encoded_filename = urllib.parse.quote(filename, encoding="utf-8")
+    return f'attachment; filename="{ascii_clean}"; filename*=UTF-8\'\'{encoded_filename}'
+
+
 @app.api_route("/api/download/{video_id}", methods=["GET", "HEAD"])
 def download_audio_endpoint(
     video_id: str,
@@ -468,6 +499,15 @@ def download_audio_endpoint(
     and proper Content-Disposition: attachment header.
     Caches the audio file in data/downloads/ for instant offline playback.
     """
+    # Sanitize video_id in case it was passed as full URL or with extra query params
+    if "v=" in video_id:
+        video_id = video_id.split("v=")[1].split("&")[0].split("/")[0]
+    elif "youtu.be/" in video_id:
+        video_id = video_id.split("youtu.be/")[1].split("?")[0].split("/")[0]
+    elif "/" in video_id:
+        video_id = video_id.split("/")[-1].split("?")[0]
+    video_id = video_id.split("&")[0].split("?")[0].strip()
+
     local_path = os.path.join(DOWNLOADS_DIR, f"{video_id}.m4a")
 
     raw_title = (title or "Track").strip()
@@ -479,13 +519,11 @@ def download_audio_endpoint(
     else:
         filename = f"{clean_title}.m4a"
 
-    encoded_filename = urllib.parse.quote(filename)
-
     # 1. If file is already cached on disk, serve directly from disk
     if os.path.exists(local_path):
         file_size = os.path.getsize(local_path)
         resp_headers = {
-            "Content-Disposition": f'attachment; filename="{filename}"; filename*=UTF-8\'\'{encoded_filename}',
+            "Content-Disposition": _make_content_disposition(filename),
             "Accept-Ranges": "bytes",
             "Cache-Control": "public, max-age=86400",
             "Content-Length": str(file_size),
@@ -525,9 +563,8 @@ def download_audio_endpoint(
     else:
         filename = f"{clean_title}.m4a"
 
-    encoded_filename = urllib.parse.quote(filename)
     resp_headers = {
-        "Content-Disposition": f'attachment; filename="{filename}"; filename*=UTF-8\'\'{encoded_filename}',
+        "Content-Disposition": _make_content_disposition(filename),
         "Accept-Ranges": "bytes",
         "Cache-Control": "public, max-age=3600",
     }
@@ -566,19 +603,28 @@ def download_audio_endpoint(
                     timeout=20,
                 )
                 try:
-                    if r.status_code not in (200, 206):
+                    if r.status_code == 200:
+                        # Full content returned directly
+                        for piece in r.iter_content(chunk_size=65536):
+                            if piece:
+                                if file_writer:
+                                    file_writer.write(piece)
+                                yield piece
                         break
-                    received = 0
-                    for piece in r.iter_content(chunk_size=65536):
-                        if piece:
-                            received += len(piece)
-                            if file_writer:
-                                file_writer.write(piece)
-                            yield piece
-                    if received == 0:
-                        break
-                    pos += received
-                    if target_end is None and received < _STREAM_CHUNK_BYTES:
+                    elif r.status_code == 206:
+                        received = 0
+                        for piece in r.iter_content(chunk_size=65536):
+                            if piece:
+                                received += len(piece)
+                                if file_writer:
+                                    file_writer.write(piece)
+                                yield piece
+                        if received == 0:
+                            break
+                        pos += received
+                        if target_end is None and received < _STREAM_CHUNK_BYTES:
+                            break
+                    else:
                         break
                 finally:
                     r.close()

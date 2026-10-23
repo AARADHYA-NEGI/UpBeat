@@ -186,7 +186,12 @@ export default function PlayerBar({
         ? `${artist} - ${title}.m4a`
         : `${title}.m4a`
 
-      let downloadUrl = getTrackDownloadUrl(fullTrack)
+      let blobUrl = null
+      try {
+        blobUrl = await createOfflineAudioUrl(vid)
+      } catch {}
+
+      let downloadUrl = blobUrl || getTrackDownloadUrl(fullTrack)
       if (!downloadUrl) {
         const src = await getAudioSource(vid)
         downloadUrl = typeof src === 'string' ? src : src?.url
@@ -196,12 +201,14 @@ export default function PlayerBar({
         const a = document.createElement('a')
         a.href = downloadUrl
         a.download = cleanFileName
-        a.target = '_blank'
         document.body.appendChild(a)
         a.click()
         setTimeout(() => {
-          try { document.body.removeChild(a) } catch {}
-        }, 1000)
+          try {
+            document.body.removeChild(a)
+            if (blobUrl) URL.revokeObjectURL(blobUrl)
+          } catch {}
+        }, 1500)
       }
 
       setDownloadState('success')

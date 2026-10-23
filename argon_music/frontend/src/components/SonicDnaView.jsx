@@ -5,7 +5,7 @@ import {
   Sliders, Zap, ShieldCheck, Flame, Compass, ChevronRight, Disc
 } from 'lucide-react'
 import { getTrackDownloadUrl, getAudioSource } from '../standaloneApi'
-import { saveTrackOffline, getDownloadedVideoIds, subscribeOfflineChanges } from '../offlineStorage'
+import { saveTrackOffline, createOfflineAudioUrl, getDownloadedVideoIds, subscribeOfflineChanges } from '../offlineStorage'
 import YouTubeTasteSyncModal, { Youtube } from './YouTubeTasteSyncModal'
 import { GoogleIcon } from './GoogleAuthModal'
 
@@ -72,7 +72,12 @@ export default function SonicDnaView({
         ? `${artist} - ${title}.m4a`
         : `${title}.m4a`
 
-      let downloadUrl = getTrackDownloadUrl(t)
+      let blobUrl = null
+      try {
+        blobUrl = await createOfflineAudioUrl(vid)
+      } catch {}
+
+      let downloadUrl = blobUrl || getTrackDownloadUrl(t)
       if (!downloadUrl) {
         const src = await getAudioSource(vid)
         downloadUrl = typeof src === 'string' ? src : src?.url
@@ -81,12 +86,14 @@ export default function SonicDnaView({
         const a = document.createElement('a')
         a.href = downloadUrl
         a.download = cleanFileName
-        a.target = '_blank'
         document.body.appendChild(a)
         a.click()
         setTimeout(() => {
-          try { document.body.removeChild(a) } catch {}
-        }, 1000)
+          try {
+            document.body.removeChild(a)
+            if (blobUrl) URL.revokeObjectURL(blobUrl)
+          } catch {}
+        }, 1500)
       }
 
       setDownloadedVid(vid)

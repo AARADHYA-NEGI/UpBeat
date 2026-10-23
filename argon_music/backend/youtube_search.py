@@ -54,6 +54,13 @@ def _get_ydl() -> yt_dlp.YoutubeDL:
                 "no_warnings": True,
                 "noplaylist": True,
                 "skip_download": True,
+                "socket_timeout": 15,
+                "retries": 3,
+                "extractor_args": {
+                    "youtube": {
+                        "player_client": ["android", "ios", "web"],
+                    }
+                },
             }
         )
         _YDL_LOCAL.ydl = ydl
@@ -131,7 +138,7 @@ def _fast_innertube_audio(video_id: str) -> Optional[Dict[str, Any]]:
             resp = _SESSION.post(
                 "https://www.youtube.com/youtubei/v1/player?prettyPrint=false",
                 json=payload,
-                timeout=3.0,
+                timeout=3.5,
             )
             if resp.status_code == 200:
                 data = resp.json()
@@ -139,18 +146,27 @@ def _fast_innertube_audio(video_id: str) -> Optional[Dict[str, Any]]:
                     formats = data.get("streamingData", {}).get("adaptiveFormats", [])
                     audio_formats = [
                         f for f in formats
-                        if (f.get("mimeType") or "").startswith("audio/mp4") and f.get("url")
+                        if (f.get("mimeType") or "").startswith("audio/") and f.get("url")
                     ]
                     if audio_formats:
-                        audio_formats.sort(key=lambda x: -int(x.get("bitrate") or 0))
-                        best = audio_formats[0]
+                        # Prioritize m4a if available, otherwise best audio format
+                        m4a = [f for f in audio_formats if "audio/mp4" in (f.get("mimeType") or "")]
+                        cand = m4a if m4a else audio_formats
+                        cand.sort(key=lambda x: -int(x.get("bitrate") or 0))
+                        best = cand[0]
                         vdetails = data.get("videoDetails", {})
                         sec = int(vdetails.get("lengthSeconds") or 0)
                         clen = int(best.get("contentLength") or 0)
+                        ua = (
+                            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1"
+                            if client_name == "IOS"
+                            else "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36"
+                        )
                         return {
                             "url": best["url"],
                             "mime": best.get("mimeType", "audio/mp4").split(";")[0],
                             "clen": clen,
+                            "ua": ua,
                             "title": vdetails.get("title", ""),
                             "uploader": vdetails.get("author", ""),
                             "duration": sec,
@@ -170,18 +186,49 @@ def get_audio_stream_url(video_id: str) -> Optional[Dict[str, Any]]:
     if not video_id:
         return None
 
+    # Sanitize video_id if it was passed with URL prefixes or extra parameters
+    if "v=" in video_id:
+        video_id = video_id.split("v=")[1].split("&")[0].split("/")[0]
+    elif "youtu.be/" in video_id:
+        video_id = video_id.split("youtu.be/")[1].split("?")[0].split("/")[0]
+    elif "/" in video_id:
+        video_id = video_id.split("/")[-1].split("?")[0]
+    video_id = video_id.split("&")[0].split("?")[0].strip()
+
     now = time.time()
     cached = _STREAM_CACHE.get(video_id)
     if cached and (now - cached.get("ts", 0)) < 1500:
         return cached
 
-    # Robust resolution via persistent thread-local yt-dlp with full JS signature solving
+    # 1. Try ultra-fast direct Innertube player endpoint (0.35s)
+    try:
+        fast_info = _fast_innertube_audio(video_id)
+        if fast_info and fast_info.get("url"):
+            _STREAM_CACHE[video_id] = fast_info
+            return fast_info
+    except Exception as e:
+        print(f"Innertube fast audio error for {video_id}: {e}")
+
+    # 2. Robust fallback via persistent thread-local yt-dlp with full JS signature solving
     try:
         ydl = _get_ydl()
         info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
         stream_url = info.get("url")
+
+        # If direct url not at root level, scan formats
+        if not stream_url and info.get("formats"):
+            audio_formats = [
+                f for f in info["formats"]
+                if f.get("url") and (f.get("acodec") != "none" or "audio" in (f.get("mimeType") or ""))
+            ]
+            if audio_formats:
+                m4a_fmts = [f for f in audio_formats if f.get("ext") == "m4a"]
+                best_fmt = (m4a_fmts or audio_formats)[-1]
+                stream_url = best_fmt.get("url")
+
         if not stream_url:
             return None
+
         ext = info.get("ext", "m4a")
         mime = "audio/mp4" if ext == "m4a" else f"audio/{ext}"
         clen = int(info.get("filesize") or info.get("filesize_approx") or 0)

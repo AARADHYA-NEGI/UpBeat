@@ -180,33 +180,81 @@ async function cacheImageAsDataUrl(imgUrl) {
  * Downloads the audio stream data and stores the Blob locally.
  */
 export async function saveTrackOffline(track, onProgress = null) {
-  if (!track || !track.video_id) {
+  if (!track || (!track.video_id && !track.url)) {
     throw new Error('Invalid track: missing video_id')
   }
 
-  const vid = track.video_id
+  // Extract clean video_id
+  let vid = track.video_id
+  if (!vid && track.url) {
+    if (track.url.includes('v=')) {
+      vid = track.url.split('v=')[1].split('&')[0].split('/')[0]
+    } else if (track.url.includes('youtu.be/')) {
+      vid = track.url.split('youtu.be/')[1].split('?')[0].split('/')[0]
+    }
+  }
 
-  // 1. Resolve audio download URL
-  let downloadUrl = getTrackDownloadUrl(track)
-  if (!downloadUrl) {
+  if (!vid) {
+    throw new Error('Invalid track: unable to resolve video_id')
+  }
+
+  // 1. Build prioritized candidate download and stream URLs
+  const candidateUrls = []
+  const primaryDl = getTrackDownloadUrl({ ...track, video_id: vid })
+  if (primaryDl) candidateUrls.push(primaryDl)
+
+  // Direct backend stream endpoint
+  const streamEndpoint = `${getApiBase()}/stream/${encodeURIComponent(vid)}`
+  candidateUrls.push(streamEndpoint)
+
+  // Direct YouTube audio stream resolver
+  try {
     const src = await getAudioSource(vid)
-    downloadUrl = typeof src === 'string' ? src : src?.url
+    const directUrl = typeof src === 'string' ? src : src?.url
+    if (directUrl && !candidateUrls.includes(directUrl)) {
+      candidateUrls.push(directUrl)
+    }
+  } catch {}
+
+  // Fallback video IDs if present on track
+  if (Array.isArray(track.fallback_ids)) {
+    for (const fvid of track.fallback_ids) {
+      if (fvid && fvid !== vid) {
+        candidateUrls.push(`${getApiBase()}/download/${encodeURIComponent(fvid)}`)
+        candidateUrls.push(`${getApiBase()}/stream/${encodeURIComponent(fvid)}`)
+      }
+    }
   }
 
-  if (!downloadUrl) {
-    throw new Error('Unable to resolve audio stream for offline download')
-  }
-
-  // 2. Fetch the audio as Blob with progress if supported
+  // 2. Fetch the audio as Blob with multi-tier fallback
   if (onProgress) onProgress(10)
-  const res = await fetch(downloadUrl)
-  if (!res.ok) {
-    throw new Error(`Download failed with status ${res.status}`)
+  let audioBlob = null
+  let lastErr = null
+
+  for (let i = 0; i < candidateUrls.length; i++) {
+    const url = candidateUrls[i]
+    if (onProgress) onProgress(10 + Math.round((i / candidateUrls.length) * 35))
+    try {
+      const res = await fetch(url)
+      if (res.ok) {
+        const blob = await res.blob()
+        if (blob && blob.size > 20000) {
+          audioBlob = blob
+          break
+        }
+      } else {
+        lastErr = new Error(`Download failed with status ${res.status}`)
+      }
+    } catch (e) {
+      lastErr = e
+    }
   }
 
-  if (onProgress) onProgress(40)
-  const audioBlob = await res.blob()
-  if (onProgress) onProgress(80)
+  if (!audioBlob || audioBlob.size <= 20000) {
+    throw lastErr || new Error('Unable to resolve audio stream for offline download')
+  }
+
+  if (onProgress) onProgress(65)
 
   // 3. Cache thumbnail for offline view
   let offlineThumb = track.thumbnail || ''
