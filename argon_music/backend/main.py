@@ -17,6 +17,7 @@ from argon_music.backend.safari_bridge import (
     extract_all_safari_yt_tracks,
     get_safari_now_playing,
     control_safari,
+    get_safari_youtube_profile,
 )
 from argon_music.backend.curator import analyze_taste_dna, curate_playlist
 from argon_music.backend.youtube_search import (
@@ -129,6 +130,12 @@ def extract_safari_data(req: SafariExtractRequest):
 def get_now_playing():
     np = get_safari_now_playing()
     return {"now_playing": np}
+
+
+@app.get("/api/safari/profile")
+def get_safari_profile():
+    return get_safari_youtube_profile()
+
 
 
 @app.post("/api/safari/control")

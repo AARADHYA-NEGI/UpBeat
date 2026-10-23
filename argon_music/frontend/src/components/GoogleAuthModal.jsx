@@ -1,8 +1,11 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
-  X, Check, Sparkles, Heart, LogOut, ArrowRight, Loader2, Music, ShieldCheck
+  X, Check, Sparkles, Heart, LogOut, ArrowRight, Loader2, Music, ShieldCheck, RefreshCw, Image, User
 } from 'lucide-react'
 import { Youtube } from './YouTubeTasteSyncModal'
+import { getApiBase, hasBackend } from '../standaloneApi'
+
+export const AUTHENTIC_GOOGLE_AVATAR = 'https://yt3.ggpht.com/ZHW03BCR5_1wypqdYcayGib5T-SgWjvLWofF-jUzGV3SsHQiUQaeycC5QzK1Dz43YXiEvimm53I=s108-c-k-c0x00ffffff-no-rj'
 
 export function GoogleIcon({ className = 'w-4 h-4' }) {
   return (
@@ -38,41 +41,98 @@ export default function GoogleAuthModal({
 }) {
   const [customEmail, setCustomEmail] = useState('')
   const [customName, setCustomName] = useState('')
+  const [customPicUrl, setCustomPicUrl] = useState('')
+  const [showEditPic, setShowEditPic] = useState(false)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
-  const [mode, setMode] = useState('quick') // 'quick' | 'custom'
+  const [isSyncingProfile, setIsSyncingProfile] = useState(false)
+
+  // Try to sync authentic avatar from active Safari YouTube Music session
+  useEffect(() => {
+    if (isOpen && googleUser && hasBackend()) {
+      fetch(`${getApiBase()}/safari/profile`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.picture && data.picture !== googleUser.picture) {
+            onLogin({ ...googleUser, picture: data.picture })
+          }
+        })
+        .catch(() => {})
+    }
+  }, [isOpen, googleUser])
 
   if (!isOpen) return null
 
-  const handleQuickSignIn = () => {
+  const handleQuickSignIn = async () => {
     setIsLoggingIn(true)
+    let finalPic = AUTHENTIC_GOOGLE_AVATAR
+    if (hasBackend()) {
+      try {
+        const res = await fetch(`${getApiBase()}/safari/profile`)
+        if (res.ok) {
+          const data = await res.json()
+          if (data?.picture) finalPic = data.picture
+        }
+      } catch {}
+    }
     setTimeout(() => {
       onLogin({
         name: 'Aaradhya Negi',
         email: 'aaradhyanegi009@gmail.com',
-        picture: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
+        picture: finalPic,
         connectedAt: Date.now(),
         provider: 'google'
       })
       setIsLoggingIn(false)
       onClose()
-    }, 450)
+    }, 300)
   }
 
   const handleCustomSignIn = (e) => {
-    e.preventDefault()
+    if (e) e.preventDefault()
     if (!customEmail.trim()) return
     setIsLoggingIn(true)
     setTimeout(() => {
       onLogin({
         name: customName.trim() || customEmail.split('@')[0],
         email: customEmail.trim(),
-        picture: '',
+        picture: customPicUrl.trim() || AUTHENTIC_GOOGLE_AVATAR,
         connectedAt: Date.now(),
         provider: 'google'
       })
       setIsLoggingIn(false)
       onClose()
-    }, 400)
+    }, 300)
+  }
+
+  const handleRefreshFromSafari = async () => {
+    if (!hasBackend()) return
+    setIsSyncingProfile(true)
+    try {
+      const res = await fetch(`${getApiBase()}/safari/profile`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data?.picture) {
+          onLogin({ ...googleUser, picture: data.picture })
+        }
+      }
+    } catch (e) {
+      console.error('Profile refresh error:', e)
+    } finally {
+      setIsSyncingProfile(false)
+    }
+  }
+
+  const handleUseLetterAvatar = () => {
+    if (!googleUser) return
+    onLogin({ ...googleUser, picture: '' })
+    setShowEditPic(false)
+  }
+
+  const handleSaveCustomPic = (e) => {
+    if (e) e.preventDefault()
+    if (!googleUser) return
+    onLogin({ ...googleUser, picture: customPicUrl.trim() })
+    setShowEditPic(false)
   }
 
   return (
@@ -93,10 +153,10 @@ export default function GoogleAuthModal({
             </div>
             <div>
               <h3 className="text-sm font-semibold text-white">
-                {googleUser ? 'Google Account Connected' : 'Connect Google & YouTube'}
+                {googleUser ? 'Google Account Profile' : 'Connect Google & YouTube'}
               </h3>
               <p className="text-[11px] text-[#8e8e96] font-mono">
-                {googleUser ? 'YouTube Music taste synchronization' : 'Access your YouTube likes & curated taste'}
+                {googleUser ? 'Verified account & taste synchronization' : 'Access your YouTube likes & personal profile'}
               </p>
             </div>
           </div>
@@ -112,30 +172,30 @@ export default function GoogleAuthModal({
         {/* Content Body */}
         <div className="p-5 space-y-5">
           {googleUser ? (
-            /* Logged-in State */
+            /* Logged-in State with Verified Avatar */
             <div className="space-y-4">
               <div className="p-4 rounded-xl bg-[#14141c] border border-emerald-500/30 flex items-center gap-3.5">
                 {googleUser.picture ? (
                   <img
                     src={googleUser.picture}
                     alt=""
-                    className="w-12 h-12 rounded-full object-cover border border-emerald-500/40"
+                    className="w-12 h-12 rounded-full object-cover border-2 border-emerald-500/50 shadow-md"
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-600 text-white font-bold text-base flex items-center justify-center border border-white/15">
-                    {(googleUser.name || 'G')[0].toUpperCase()}
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-rose-500 via-purple-600 to-indigo-600 text-white font-bold text-lg flex items-center justify-center border-2 border-white/20 shadow-md">
+                    {(googleUser.name || 'A')[0].toUpperCase()}
                   </div>
                 )}
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-semibold text-white truncate">
-                      {googleUser.name}
+                      {googleUser.name || 'Aaradhya Negi'}
                     </span>
                     <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title="Connected" />
                   </div>
                   <div className="text-xs text-[#8e8e96] truncate mt-0.5 font-mono">
-                    {googleUser.email}
+                    {googleUser.email || 'aaradhyanegi009@gmail.com'}
                   </div>
                   <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono mt-1">
                     <ShieldCheck className="w-3 h-3" />
@@ -143,6 +203,57 @@ export default function GoogleAuthModal({
                   </div>
                 </div>
               </div>
+
+              {/* Avatar Management Options */}
+              <div className="flex items-center justify-between text-[11px] font-mono px-1">
+                {hasBackend() && (
+                  <button
+                    onClick={handleRefreshFromSafari}
+                    disabled={isSyncingProfile}
+                    className="text-sky-400 hover:text-sky-300 flex items-center gap-1 cursor-pointer"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${isSyncingProfile ? 'animate-spin' : ''}`} />
+                    <span>Sync from Safari Tab</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowEditPic((p) => !p)}
+                  className="text-zinc-400 hover:text-white cursor-pointer ml-auto"
+                >
+                  {showEditPic ? 'Close Editor' : 'Customize Avatar'}
+                </button>
+              </div>
+
+              {/* Avatar Editor Drawer */}
+              {showEditPic && (
+                <div className="p-3 rounded-xl bg-[#121218] border border-white/10 space-y-2.5 animate-in fade-in duration-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-white">Profile Photo Controls</span>
+                    <button
+                      onClick={handleUseLetterAvatar}
+                      className="text-[11px] font-mono text-zinc-400 hover:text-rose-300 cursor-pointer"
+                    >
+                      Use Letter Avatar ("A")
+                    </button>
+                  </div>
+                  <form onSubmit={handleSaveCustomPic} className="flex gap-2">
+                    <input
+                      type="url"
+                      value={customPicUrl}
+                      onChange={(e) => setCustomPicUrl(e.target.value)}
+                      placeholder="Paste image URL (e.g. https://...)"
+                      className="flex-1 bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-rose-500 font-mono"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!customPicUrl.trim()}
+                      className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-xs text-white font-medium cursor-pointer"
+                    >
+                      Apply
+                    </button>
+                  </form>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="space-y-2 pt-1">

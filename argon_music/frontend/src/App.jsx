@@ -95,7 +95,20 @@ export default function App() {
   const [queue, setQueue] = useState(() => loadStorage('upbeat_playback_queue', []))
   const [isQueueOpen, setIsQueueOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
-  const [googleUser, setGoogleUser] = useState(() => loadStorage('upbeat_google_user', null))
+  const [googleUser, setGoogleUser] = useState(() => {
+    const user = loadStorage('upbeat_google_user', null)
+    if (user && user.picture && (user.picture.includes('photo-1534528741775') || user.picture.includes('unsplash.com'))) {
+      const fixed = {
+        ...user,
+        picture: 'https://yt3.ggpht.com/ZHW03BCR5_1wypqdYcayGib5T-SgWjvLWofF-jUzGV3SsHQiUQaeycC5QzK1Dz43YXiEvimm53I=s108-c-k-c0x00ffffff-no-rj'
+      }
+      try {
+        localStorage.setItem('upbeat_google_user', JSON.stringify(fixed))
+      } catch {}
+      return fixed
+    }
+    return user
+  })
   const [showGoogleModal, setShowGoogleModal] = useState(false)
   const [isSyncingLikes, setIsSyncingLikes] = useState(false)
 
@@ -209,6 +222,26 @@ export default function App() {
       }
     } catch {}
   }, [googleUser])
+
+  // Auto-sync authentic Google avatar from active YouTube Music Safari session
+  useEffect(() => {
+    if (hasBackend()) {
+      fetch(`${getApiBase()}/safari/profile`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data?.picture) {
+            setGoogleUser((prev) => {
+              if (!prev) return prev
+              if (prev.picture !== data.picture) {
+                return { ...prev, picture: data.picture }
+              }
+              return prev
+            })
+          }
+        })
+        .catch(() => {})
+    }
+  }, [])
 
   const handleGoogleLogin = (user) => {
     setGoogleUser(user)

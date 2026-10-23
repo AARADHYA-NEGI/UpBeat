@@ -400,3 +400,37 @@ def control_safari(action: str, window_idx: Optional[int] = None, tab_idx: Optio
         return {"status": "success", "result": res}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+
+def get_safari_youtube_profile() -> Dict[str, Any]:
+    """Extracts actual YouTube Music / Google profile picture and name from active Safari session."""
+    script = '''
+    tell application "Safari"
+        repeat with w in windows
+            repeat with t in tabs of w
+                set u to URL of t
+                if u contains "music.youtube.com" or u contains "youtube.com" then
+                    try
+                        set p to (do JavaScript "
+                            (function() {
+                                var img = document.querySelector('button.ytmusic-settings-button img') ||
+                                          document.querySelector('ytmusic-settings-button img') ||
+                                          document.querySelector('button#avatar-btn yt-img-shadow img') ||
+                                          document.querySelector('#avatar-btn img');
+                                return img && img.src ? img.src : '';
+                            })();
+                        " in t)
+                        if p is not \"\" and p is not \"none\" then return p
+                    end try
+                end if
+            end repeat
+        end repeat
+        return \"\"
+    end tell
+    '''
+    try:
+        pic = run_applescript(script, timeout=4.0)
+        return {"picture": pic} if pic else {}
+    except Exception:
+        return {}
+
