@@ -13,6 +13,8 @@ argon_music/frontend/android/.gradle/
 argon_music/frontend/android/build/
 argon_music/frontend/android/app/build/
 argon_music/frontend/android/local.properties
+downloads/
+downloads
 argon_music/backend/data/downloads/*.m4a
 argon_music/backend/data/downloads/*.part*
 **/__pycache__/

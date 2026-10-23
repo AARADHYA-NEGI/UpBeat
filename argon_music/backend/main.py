@@ -642,6 +642,19 @@ def delete_offline_track_endpoint(video_id: str):
     return {"status": "ok", "deleted": video_id}
 
 
+@app.api_route("/api/open-downloads", methods=["GET", "POST"])
+def open_downloads_folder_endpoint():
+    """
+    Opens the dedicated UpBeat downloads folder in macOS Finder.
+    """
+    downloads_path = os.path.expanduser("~/Downloads/UpBeat")
+    os.makedirs(downloads_path, exist_ok=True)
+    if os.name == "posix":
+        import subprocess
+        subprocess.Popen(["open", downloads_path])
+    return {"status": "ok", "path": downloads_path}
+
+
 frontend_dist = os.path.join(os.path.dirname(__file__), "../frontend/dist")
 if os.path.exists(frontend_dist):
     app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="static")

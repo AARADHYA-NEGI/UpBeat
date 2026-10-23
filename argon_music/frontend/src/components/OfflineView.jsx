@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   DownloadCloud, Play, Pause, Trash2, Search, HardDrive,
-  WifiOff, Wifi, Sparkles, Heart, RefreshCw, FileAudio, Check, AlertCircle
+  WifiOff, Wifi, Sparkles, Heart, RefreshCw, FileAudio, Check, AlertCircle, Folder
 } from 'lucide-react'
 import {
   getOfflineTracks, deleteOfflineTrack, clearAllOfflineTracks,
   formatBytes, getOfflineStorageStats, isOfflineModeActive,
   setOfflineModeActive, subscribeOfflineChanges
 } from '../offlineStorage'
-import { getTrackDownloadUrl } from '../standaloneApi'
+import { getTrackDownloadUrl, hasBackend, getApiBase } from '../standaloneApi'
 
 export default function OfflineView({
   currentTrack,
@@ -89,6 +89,16 @@ export default function OfflineView({
     }, 1000)
   }
 
+  const handleOpenDownloadsFolder = async () => {
+    if (hasBackend()) {
+      try {
+        await fetch(`${getApiBase()}/open-downloads`, { method: 'POST' })
+      } catch (err) {
+        console.error('Failed to open downloads folder:', err)
+      }
+    }
+  }
+
   const filteredTracks = useMemo(() => {
     if (!searchQuery.trim()) return tracks
     const q = searchQuery.toLowerCase().trim()
@@ -156,6 +166,18 @@ export default function OfflineView({
                 </>
               )}
             </button>
+
+            {hasBackend() && (
+              <button
+                onClick={handleOpenDownloadsFolder}
+                className="px-3 py-1.5 rounded-lg bg-[#141418] hover:bg-[#1c1c24] border border-[#25252e] hover:border-[#353540] text-xs font-mono text-[#a1a1aa] hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Open UpBeat downloads folder in macOS Finder"
+              >
+                <Folder className="w-3.5 h-3.5 text-sky-400" />
+                <span className="hidden sm:inline">Open in Finder</span>
+                <span className="sm:hidden">Folder</span>
+              </button>
+            )}
 
             {tracks.length > 0 && (
               <>

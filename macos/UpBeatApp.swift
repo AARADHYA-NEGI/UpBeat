@@ -263,6 +263,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         appMenu.addItem(withTitle: "Quit UpBeat", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appMenuItem.submenu = appMenu
 
+        // File Menu
+        let fileMenuItem = NSMenuItem()
+        mainMenu.addItem(fileMenuItem)
+        let fileMenu = NSMenu(title: "File")
+        fileMenu.addItem(withTitle: "Open UpBeat Downloads Folder", action: #selector(openDownloadsFolder), keyEquivalent: "O")
+        fileMenuItem.submenu = fileMenu
+
         // Edit Menu (Cmd+C, Cmd+V, Cmd+A, Cmd+X in text fields)
         let editMenuItem = NSMenuItem()
         mainMenu.addItem(editMenuItem)
@@ -591,17 +598,30 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
     @available(macOS 11.3, *)
     func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String, completionHandler: @escaping (URL?) -> Void) {
-        let downloadsDir = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
-        let dest = downloadsDir.appendingPathComponent(suggestedFilename)
+        let downloadsBase = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
+        let upbeatDownloadsDir = downloadsBase.appendingPathComponent("UpBeat")
+        if !FileManager.default.fileExists(atPath: upbeatDownloadsDir.path) {
+            try? FileManager.default.createDirectory(at: upbeatDownloadsDir, withIntermediateDirectories: true, attributes: nil)
+        }
+        let dest = upbeatDownloadsDir.appendingPathComponent(suggestedFilename)
         var finalDest = dest
         var counter = 1
         let ext = dest.pathExtension
         let base = dest.deletingPathExtension().lastPathComponent
         while FileManager.default.fileExists(atPath: finalDest.path) {
-            finalDest = downloadsDir.appendingPathComponent("\(base) (\(counter)).\(ext)")
+            finalDest = upbeatDownloadsDir.appendingPathComponent("\(base) (\(counter)).\(ext)")
             counter += 1
         }
         completionHandler(finalDest)
+    }
+
+    @objc func openDownloadsFolder() {
+        let downloadsBase = FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first!
+        let upbeatDownloadsDir = downloadsBase.appendingPathComponent("UpBeat")
+        if !FileManager.default.fileExists(atPath: upbeatDownloadsDir.path) {
+            try? FileManager.default.createDirectory(at: upbeatDownloadsDir, withIntermediateDirectories: true, attributes: nil)
+        }
+        NSWorkspace.shared.open(upbeatDownloadsDir)
     }
 
     @available(macOS 11.3, *)
