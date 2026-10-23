@@ -18,6 +18,9 @@
     "SystemBars": {
       "insetsHandling": "css",
       "style": "DARK"
+    },
+    "CapacitorUpdater": {
+      "autoUpdate": "off"
     }
   }
 }

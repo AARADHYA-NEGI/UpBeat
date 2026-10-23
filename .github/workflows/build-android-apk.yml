@@ -51,10 +51,15 @@ jobs:
           name: UpBeat-Android-APK
           path: argon_music/frontend/android/app/build/outputs/apk/debug/UpBeat.apk
 
-      - name: Package macOS App Bundle
+      - name: Package macOS App Bundle & OTA Live Update Bundle
         run: |
           if [ -d "UpBeat.app" ]; then
             zip -r -y UpBeat-macOS.zip UpBeat.app
+          fi
+          if [ -d "argon_music/frontend/dist" ]; then
+            cd argon_music/frontend/dist
+            zip -r ../../../dist.zip .
+            cd ../../..
           fi
 
       - name: Publish UpBeat.apk and macOS Release to GitHub
@@ -65,5 +70,6 @@ jobs:
           files: |
             argon_music/frontend/android/app/build/outputs/apk/debug/UpBeat.apk
             UpBeat-macOS.zip
+            dist.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

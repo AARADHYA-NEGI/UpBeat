@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
-  RefreshCw, Menu, Settings, Sparkles, ChevronDown, Search, Loader2, X, Check, Music, ArrowLeft
+  RefreshCw, Menu, Settings, Sparkles, ChevronDown, Search, Loader2, X, Check, Music, ArrowLeft, ExternalLink
 } from 'lucide-react'
 import { getStoredApiKey, setStoredApiKey, getStoredServerUrl, setStoredServerUrl, hasBackend } from '../standaloneApi'
 import { GoogleIcon } from './GoogleAuthModal'
+import { checkOtaUpdate, getCurrentOtaVersion, applyOtaBundle } from '../otaUpdater'
 
 export default function Navbar({
   models = [],
@@ -36,6 +37,34 @@ export default function Navbar({
   const [savedBanner, setSavedBanner] = useState(false)
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
+  const [otaVer, setOtaVer] = useState('v4.0.0')
+  const [isCheckingOta, setIsCheckingOta] = useState(false)
+  const [otaStatusMsg, setOtaStatusMsg] = useState('')
+
+  useEffect(() => {
+    getCurrentOtaVersion().then(v => setOtaVer(v))
+  }, [showKeyModal])
+
+  const handleManualOtaCheck = async () => {
+    setIsCheckingOta(true)
+    setOtaStatusMsg('')
+    try {
+      const res = await checkOtaUpdate({ silent: false })
+      if (res.updateAvailable && res.downloadUrl) {
+        setOtaStatusMsg(`Downloading update ${res.latestTag}...`)
+        await applyOtaBundle(res.downloadUrl, res.latestTag)
+        setOtaStatusMsg(`Update applied! Reloading...`)
+      } else if (res.error) {
+        setOtaStatusMsg(`Check status: ${res.error}`)
+      } else {
+        setOtaStatusMsg(`UpBeat is up to date (${res.currentVer || otaVer})`)
+      }
+    } catch (e) {
+      setOtaStatusMsg('Error checking update: ' + (e?.message || 'Check connection'))
+    } finally {
+      setIsCheckingOta(false)
+    }
+  }
 
   const hasYT = safariStatus?.has_yt
   const hasKeyOrServer = Boolean(getStoredApiKey()) || hasBackend()
@@ -409,6 +438,52 @@ export default function Navbar({
                   placeholder="http://192.168.1.4:8000"
                   className="w-full bg-[#0d0d10] border border-[#262630] focus:border-rose-500 rounded-xl px-3 py-2.5 text-xs font-mono text-[#f4f4f5] focus:outline-none"
                 />
+              </div>
+
+              {/* Over-The-Air (OTA) Live Updates */}
+              <div className="pt-3 border-t border-[#22222c]">
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                    <span className="text-xs font-semibold text-white">Live Over-The-Air (OTA) Updates</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    {otaVer}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#8e8e96] leading-relaxed mb-2.5">
+                  UpBeat pulls instant UI improvements and fixes Over-The-Air without downloading or installing a new APK.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleManualOtaCheck}
+                    disabled={isCheckingOta}
+                    className="flex-1 py-2 px-3 rounded-xl bg-purple-600/25 hover:bg-purple-600/35 border border-purple-500/40 text-purple-200 text-xs font-medium flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs disabled:opacity-50"
+                  >
+                    {isCheckingOta ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-400" />
+                    ) : (
+                      <RefreshCw className="w-3.5 h-3.5 text-purple-400" />
+                    )}
+                    <span>{isCheckingOta ? 'Checking GitHub...' : 'Check for Live Update'}</span>
+                  </button>
+
+                  <a
+                    href="https://github.com/AaradhyaNegi009/UpBeat/releases"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="py-2 px-3 rounded-xl bg-[#181820] hover:bg-[#22222a] border border-[#2a2a35] text-zinc-400 hover:text-white text-xs font-mono transition-colors flex items-center justify-center gap-1"
+                  >
+                    <span>Releases</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+                {otaStatusMsg && (
+                  <p className="text-[11px] text-purple-300 mt-2 font-mono bg-purple-950/40 border border-purple-500/30 rounded-lg px-2.5 py-1.5">
+                    {otaStatusMsg}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">

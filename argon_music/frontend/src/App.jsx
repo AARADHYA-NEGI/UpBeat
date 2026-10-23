@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Sparkles, Heart, Sliders, Disc, Dna, DownloadCloud } from 'lucide-react'
+import { Sparkles, Heart, Sliders, Disc, Dna, DownloadCloud, Loader2, X } from 'lucide-react'
 import Navbar from './components/Navbar'
 import Sidebar, { PRESET_MODES } from './components/Sidebar'
 import CuratorPrompt from './components/CuratorPrompt'
@@ -10,6 +10,7 @@ import PlayerBar from './components/PlayerBar'
 import QueueDrawer from './components/QueueDrawer'
 import GoogleAuthModal from './components/GoogleAuthModal'
 import { getOfflineTracks, getOfflineStorageStats, subscribeOfflineChanges } from './offlineStorage'
+import { initOtaUpdater } from './otaUpdater'
 import {
   getApiBase,
   curateStandalone,
@@ -117,6 +118,15 @@ export default function App() {
   })
   const [showGoogleModal, setShowGoogleModal] = useState(false)
   const [isSyncingLikes, setIsSyncingLikes] = useState(false)
+  const [otaUpdate, setOtaUpdate] = useState(null)
+  const [isApplyingOta, setIsApplyingOta] = useState(false)
+
+  // Initialize Over-The-Air (OTA) live updater on startup
+  useEffect(() => {
+    initOtaUpdater((updateInfo) => {
+      setOtaUpdate(updateInfo)
+    })
+  }, [])
 
   // Universal offline storage subscription & connection listener
   useEffect(() => {
@@ -1345,6 +1355,55 @@ export default function App() {
           <span className="text-[10px]">Profile</span>
         </button>
       </nav>
+
+      {/* Floating Over-The-Air (OTA) Live Update Banner */}
+      {otaUpdate && (
+        <div className="fixed bottom-20 left-3 right-3 sm:left-auto sm:right-6 sm:bottom-24 z-50 animate-in fade-in slide-in-from-bottom-4 duration-200 select-none">
+          <div className="bg-[#12121a]/95 backdrop-blur-md border border-purple-500/40 rounded-2xl p-3 sm:px-4 sm:py-3 shadow-2xl flex items-center justify-between gap-3 text-white max-w-md mx-auto">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center shrink-0 text-purple-400">
+                <Sparkles className="w-4 h-4 animate-pulse" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-semibold truncate flex items-center gap-1.5">
+                  <span>Live Update Available</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 bg-purple-500/30 text-purple-200 rounded-full">{otaUpdate.latestVersion}</span>
+                </div>
+                <div className="text-[11px] text-zinc-400 truncate">
+                  {isApplyingOta ? 'Downloading & applying live update...' : 'No APK reinstall needed • Tap to update'}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={async () => {
+                  setIsApplyingOta(true)
+                  try {
+                    await otaUpdate.autoApply()
+                  } catch (e) {
+                    setIsApplyingOta(false)
+                    showNotify('Update failed: ' + (e?.message || 'Check connection'), 'error')
+                  }
+                }}
+                disabled={isApplyingOta}
+                className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white text-xs font-semibold transition-all cursor-pointer shadow-md active:scale-95 flex items-center gap-1.5"
+              >
+                {isApplyingOta && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>{isApplyingOta ? 'Updating...' : 'Update'}</span>
+              </button>
+
+              <button
+                onClick={() => setOtaUpdate(null)}
+                className="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
