@@ -9,7 +9,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     let serverURL = URL(string: "http://127.0.0.1:8000")!
     let workspacePath = "/Users/aaradhya/Documents/Programming/random"
     let appVersion = "3.0+1.0"
-    let githubRepo = "AARADHYA-NEGI/UpBeat"
+    let githubRepo = "AaradhyaNegi009/UpBeat"
 
     var updateTimer: Timer?
     var isUpdating = false
