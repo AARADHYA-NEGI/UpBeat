@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import {
   RefreshCw, ExternalLink, PanelLeft, Heart, KeyRound,
-  X, Check, Settings, Sparkles, Layers, Fingerprint, ChevronDown
+  X, Check, Settings, Sparkles, Layers, Fingerprint, ChevronDown, DownloadCloud
 } from 'lucide-react'
 import { getStoredApiKey, setStoredApiKey, getStoredServerUrl, setStoredServerUrl, hasBackend } from '../standaloneApi'
 
@@ -18,6 +18,7 @@ export default function Navbar({
   setActiveTab,
   extractedCount = 0,
   favoritesCount = 0,
+  offlineCount = 0,
   isSidebarOpen = true,
   onToggleSidebar,
   showKeyModal: controlledShowModal,
@@ -50,6 +51,7 @@ export default function Navbar({
     if (activeTab === 'favorites') return 'Liked Favorites'
     if (activeTab === 'library') return 'Seed Library'
     if (activeTab === 'dna') return 'Taste Profile'
+    if (activeTab === 'offline') return 'Offline Downloads'
     return 'Curator Studio'
   }
 
@@ -147,6 +149,23 @@ export default function Navbar({
             >
               <Fingerprint className="w-3 h-3 text-emerald-400" />
               <span>Taste DNA</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('offline')}
+              className={`px-3 py-1 rounded-md transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'offline'
+                  ? 'bg-[#1e1e26] text-[#f4f4f5] font-medium shadow-xs border border-emerald-500/30'
+                  : 'text-[#8e8e96] hover:text-[#e4e4e7]'
+              }`}
+            >
+              <DownloadCloud className="w-3 h-3 text-emerald-400" />
+              <span>Offline</span>
+              {offlineCount > 0 && (
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+                  {offlineCount}
+                </span>
+              )}
             </button>
           </nav>
 

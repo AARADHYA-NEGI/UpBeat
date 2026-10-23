@@ -1,5 +1,5 @@
 import React from 'react'
-import { RefreshCw, ExternalLink, X, Heart, RotateCcw, Plus, Radio, Sliders } from 'lucide-react'
+import { RefreshCw, ExternalLink, X, Heart, RotateCcw, Plus, Radio, Sliders, DownloadCloud } from 'lucide-react'
 
 export const PRESET_MODES = [
   {
@@ -108,7 +108,10 @@ export default function Sidebar({
   onNewSession,
   extractedCount = 0,
   favoritesCount = 0,
+  offlineCount = 0,
+  offlineStorageSize = '0 B',
   onOpenFavoritesTab,
+  onOpenOfflineTab,
   onSyncSafari,
   isSyncing,
   onOpenSafari,
@@ -199,6 +202,34 @@ export default function Sidebar({
               <ExternalLink className="w-3 h-3 text-[#71717a]" />
             </button>
           </div>
+        </div>
+
+        {/* Offline Storage Section */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-[#71717a] font-semibold">
+              Offline Storage
+            </span>
+            <div className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400">
+              <DownloadCloud className="w-3 h-3" />
+              <span>{offlineCount} {offlineCount === 1 ? 'song' : 'songs'}</span>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              if (onOpenOfflineTab) onOpenOfflineTab()
+              if (isOpenMobile && onCloseMobile) onCloseMobile()
+            }}
+            title="Open Offline Downloads library"
+            className="w-full py-2 px-3 bg-[#131317] hover:bg-[#1b1b22] border border-[#22222a] hover:border-emerald-500/30 rounded-lg text-xs text-[#f4f4f5] font-medium flex items-center justify-between transition-colors cursor-pointer group"
+          >
+            <div className="flex items-center gap-2">
+              <DownloadCloud className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
+              <span>Offline Library</span>
+            </div>
+            <span className="text-[10px] font-mono text-[#8e8e96]">{offlineStorageSize}</span>
+          </button>
         </div>
 
         <div className="h-[1px] bg-[#1c1c24]" />

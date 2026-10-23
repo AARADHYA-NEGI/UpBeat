@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Sparkles, Heart, Sliders, Disc, Dna } from 'lucide-react'
+import { Sparkles, Heart, Sliders, Disc, Dna, DownloadCloud } from 'lucide-react'
 import Navbar from './components/Navbar'
 import Sidebar, { PRESET_MODES } from './components/Sidebar'
 import CuratorPrompt from './components/CuratorPrompt'
 import PlaylistView from './components/PlaylistView'
 import SonicDnaView from './components/SonicDnaView'
+import OfflineView from './components/OfflineView'
 import PlayerBar from './components/PlayerBar'
+import { getOfflineTracks, getOfflineStorageStats, subscribeOfflineChanges } from './offlineStorage'
 import {
   getApiBase,
   curateStandalone,
@@ -85,6 +87,42 @@ export default function App() {
   })
   const [showKeyModal, setShowKeyModal] = useState(false)
   const [notification, setNotification] = useState(null)
+  const [offlineTracks, setOfflineTracks] = useState([])
+  const [offlineStats, setOfflineStats] = useState({ count: 0, totalBytes: 0, formattedSize: '0 B' })
+
+  // Universal offline storage subscription & connection listener
+  useEffect(() => {
+    let active = true
+    const loadOffline = async () => {
+      try {
+        const list = await getOfflineTracks()
+        const st = await getOfflineStorageStats()
+        if (active) {
+          setOfflineTracks(list)
+          setOfflineStats(st)
+        }
+      } catch (err) {
+        console.error('Offline loader error:', err)
+      }
+    }
+    loadOffline()
+    const unsub = subscribeOfflineChanges(() => loadOffline())
+
+    const handleOnline = () => showNotify('Internet connection restored', 'info')
+    const handleOffline = () => {
+      showNotify('Device is offline. Showing downloaded tracks.', 'info')
+      setActiveTab('offline')
+    }
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      active = false
+      unsub()
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
 
   const initialBootRef = useRef(false)
 
@@ -676,6 +714,7 @@ export default function App() {
   const getActiveTrackList = () => {
     if (activeTab === 'library') return extractedTracks
     if (activeTab === 'favorites') return favorites
+    if (activeTab === 'offline') return offlineTracks
     return playlist?.tracks || []
   }
 
@@ -832,6 +871,7 @@ export default function App() {
         setActiveTab={setActiveTab}
         extractedCount={extractedTracks.length}
         favoritesCount={favorites.length}
+        offlineCount={offlineStats.count}
         isSidebarOpen={isSidebarOpen}
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
         showKeyModal={showKeyModal}
@@ -855,7 +895,10 @@ export default function App() {
           }}
           extractedCount={extractedTracks.length}
           favoritesCount={favorites.length}
+          offlineCount={offlineStats.count}
+          offlineStorageSize={offlineStats.formattedSize}
           onOpenFavoritesTab={() => setActiveTab('favorites')}
+          onOpenOfflineTab={() => setActiveTab('offline')}
           onSyncSafari={() => handleSyncSafari(false)}
           isSyncing={isSyncing}
           onOpenSafari={handleOpenSafari}
@@ -903,6 +946,13 @@ export default function App() {
                 onOpenSettings={() => setShowKeyModal(true)}
               />
             </>
+          ) : activeTab === 'offline' ? (
+            <OfflineView
+              currentTrack={currentTrack}
+              isPlaying={isPlaying}
+              onPlayTrack={handlePlayTrack}
+              onNavigateTab={(tab) => setActiveTab(tab)}
+            />
           ) : (
             <SonicDnaView
               mode={activeTab}
@@ -953,7 +1003,7 @@ export default function App() {
       />
 
       {/* Mobile Bottom Navigation Bar - Antigravity Minimal */}
-      <nav className="sm:hidden pb-safe bg-[#0a0a0d] border-t border-[#1c1c22] grid grid-cols-5 items-center shrink-0 z-30 select-none">
+      <nav className="sm:hidden pb-safe bg-[#0a0a0d] border-t border-[#1c1c22] grid grid-cols-6 items-center shrink-0 z-30 select-none">
         <button
           onClick={() => { setActiveTab('curator'); setIsSidebarOpen(false) }}
           className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
@@ -979,6 +1029,23 @@ export default function App() {
             )}
           </div>
           <span className="text-[10px]">Liked</span>
+        </button>
+
+        <button
+          onClick={() => { setActiveTab('offline'); setIsSidebarOpen(false) }}
+          className={`relative flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+            activeTab === 'offline' && !isSidebarOpen ? 'text-emerald-400 font-medium' : 'text-[#71717a]'
+          }`}
+        >
+          <div className="relative">
+            <DownloadCloud className={`w-4 h-4 ${offlineStats.count > 0 ? 'text-emerald-400' : ''}`} />
+            {offlineStats.count > 0 && (
+              <span className="absolute -top-1.5 -right-2.5 text-[9px] font-mono px-1 rounded-full bg-emerald-500/20 text-emerald-300">
+                {offlineStats.count}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px]">Offline</span>
         </button>
 
         <button

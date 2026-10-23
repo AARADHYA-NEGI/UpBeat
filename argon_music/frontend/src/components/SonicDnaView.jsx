@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { RefreshCw, ExternalLink, Search, Music, Heart, Play, Sparkles, Download, Check, Loader2 } from 'lucide-react'
 import { getTrackDownloadUrl, getAudioSource } from '../standaloneApi'
+import { saveTrackOffline, getDownloadedVideoIds, subscribeOfflineChanges } from '../offlineStorage'
 
 export default function SonicDnaView({
   mode = 'dna',
@@ -19,6 +20,21 @@ export default function SonicDnaView({
   const [filter, setFilter] = useState('')
   const [downloadingVid, setDownloadingVid] = useState(null)
   const [downloadedVid, setDownloadedVid] = useState(null)
+  const [downloadedSet, setDownloadedSet] = useState(new Set())
+
+  useEffect(() => {
+    let active = true
+    const updateIds = async () => {
+      const ids = await getDownloadedVideoIds()
+      if (active) setDownloadedSet(ids)
+    }
+    updateIds()
+    const unsub = subscribeOfflineChanges(() => updateIds())
+    return () => {
+      active = false
+      unsub()
+    }
+  }, [])
 
   const handleDownloadTrack = async (t, e) => {
     e.stopPropagation()
@@ -28,6 +44,10 @@ export default function SonicDnaView({
 
     setDownloadingVid(vid)
     try {
+      // 1. Save directly to client IndexedDB offline storage
+      await saveTrackOffline(t)
+
+      // 2. Also trigger native file download
       const title = (t.title || 'Track').replace(/[\\/*?:"<>|]/g, '').trim()
       const artist = (t.artist || '').replace(/[\\/*?:"<>|]/g, '').trim()
       const cleanFileName = artist && !title.toLowerCase().includes(artist.toLowerCase())
@@ -39,17 +59,17 @@ export default function SonicDnaView({
         const src = await getAudioSource(vid)
         downloadUrl = typeof src === 'string' ? src : src?.url
       }
-      if (!downloadUrl) throw new Error('Audio stream unavailable')
-
-      const a = document.createElement('a')
-      a.href = downloadUrl
-      a.download = cleanFileName
-      a.target = '_blank'
-      document.body.appendChild(a)
-      a.click()
-      setTimeout(() => {
-        try { document.body.removeChild(a) } catch {}
-      }, 1000)
+      if (downloadUrl) {
+        const a = document.createElement('a')
+        a.href = downloadUrl
+        a.download = cleanFileName
+        a.target = '_blank'
+        document.body.appendChild(a)
+        a.click()
+        setTimeout(() => {
+          try { document.body.removeChild(a) } catch {}
+        }, 1000)
+      }
 
       setDownloadedVid(vid)
       setTimeout(() => setDownloadedVid(null), 2200)
@@ -211,12 +231,14 @@ export default function SonicDnaView({
                           <button
                             onClick={(e) => handleDownloadTrack(t, e)}
                             disabled={downloadingVid === t.video_id}
-                            title={downloadingVid === t.video_id ? 'Downloading...' : downloadedVid === t.video_id ? 'Downloaded!' : 'Download Track'}
-                            className="p-1.5 rounded hover:bg-[#22222a] text-[#a1a1aa] hover:text-white transition-colors cursor-pointer"
+                            title={downloadingVid === t.video_id ? 'Downloading...' : (downloadedSet.has(t.video_id) || downloadedVid === t.video_id) ? 'Downloaded (Offline ready)' : 'Download Track'}
+                            className={`p-1.5 rounded hover:bg-[#22222a] transition-colors cursor-pointer ${
+                              (downloadedSet.has(t.video_id) || downloadedVid === t.video_id) ? 'text-emerald-400' : 'text-[#a1a1aa] hover:text-white'
+                            }`}
                           >
                             {downloadingVid === t.video_id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-                            ) : downloadedVid === t.video_id ? (
+                            ) : (downloadedSet.has(t.video_id) || downloadedVid === t.video_id) ? (
                               <Check className="w-3.5 h-3.5 text-emerald-400" />
                             ) : (
                               <Download className="w-3.5 h-3.5" />
@@ -375,12 +397,14 @@ export default function SonicDnaView({
                           <button
                             onClick={(e) => handleDownloadTrack(t, e)}
                             disabled={downloadingVid === t.video_id}
-                            title={downloadingVid === t.video_id ? 'Downloading...' : downloadedVid === t.video_id ? 'Downloaded!' : 'Download Track'}
-                            className="p-1.5 rounded hover:bg-[#22222a] text-[#a1a1aa] hover:text-white transition-colors cursor-pointer"
+                            title={downloadingVid === t.video_id ? 'Downloading...' : (downloadedSet.has(t.video_id) || downloadedVid === t.video_id) ? 'Downloaded (Offline ready)' : 'Download Track'}
+                            className={`p-1.5 rounded hover:bg-[#22222a] transition-colors cursor-pointer ${
+                              (downloadedSet.has(t.video_id) || downloadedVid === t.video_id) ? 'text-emerald-400' : 'text-[#a1a1aa] hover:text-white'
+                            }`}
                           >
                             {downloadingVid === t.video_id ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-                            ) : downloadedVid === t.video_id ? (
+                            ) : (downloadedSet.has(t.video_id) || downloadedVid === t.video_id) ? (
                               <Check className="w-3.5 h-3.5 text-emerald-400" />
                             ) : (
                               <Download className="w-3.5 h-3.5" />

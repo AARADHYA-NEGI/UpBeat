@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Play, Pause, ExternalLink, Loader2, Music,
   ChevronDown, ChevronUp, Heart, Info, KeyRound, ListMusic, Disc, Sparkles, Download, Check
 } from 'lucide-react'
 import { getTrackDownloadUrl, getAudioSource } from '../standaloneApi'
+import { saveTrackOffline, getDownloadedVideoIds, subscribeOfflineChanges } from '../offlineStorage'
 
 function cleanMusicalRationale(text) {
   if (!text) return 'Selected for its harmonic and rhythmic alignment.'
@@ -93,6 +94,21 @@ export default function PlaylistView({
   const [showModelDetails, setShowModelDetails] = useState(false)
   const [downloadingVid, setDownloadingVid] = useState(null)
   const [downloadedVid, setDownloadedVid] = useState(null)
+  const [downloadedSet, setDownloadedSet] = useState(new Set())
+
+  useEffect(() => {
+    let active = true
+    const updateIds = async () => {
+      const ids = await getDownloadedVideoIds()
+      if (active) setDownloadedSet(ids)
+    }
+    updateIds()
+    const unsub = subscribeOfflineChanges(() => updateIds())
+    return () => {
+      active = false
+      unsub()
+    }
+  }, [])
 
   const handleDownloadTrack = async (track, e) => {
     e.stopPropagation()
@@ -102,6 +118,10 @@ export default function PlaylistView({
 
     setDownloadingVid(vid)
     try {
+      // 1. Save directly into client IndexedDB offline storage
+      await saveTrackOffline(track)
+
+      // 2. Also trigger native file download
       const title = (track.title || 'Track').replace(/[\\/*?:"<>|]/g, '').trim()
       const artist = (track.artist || '').replace(/[\\/*?:"<>|]/g, '').trim()
       const cleanFileName = artist && !title.toLowerCase().includes(artist.toLowerCase())
@@ -113,17 +133,17 @@ export default function PlaylistView({
         const src = await getAudioSource(vid)
         downloadUrl = typeof src === 'string' ? src : src?.url
       }
-      if (!downloadUrl) throw new Error('Audio stream unavailable')
-
-      const a = document.createElement('a')
-      a.href = downloadUrl
-      a.download = cleanFileName
-      a.target = '_blank'
-      document.body.appendChild(a)
-      a.click()
-      setTimeout(() => {
-        try { document.body.removeChild(a) } catch {}
-      }, 1000)
+      if (downloadUrl) {
+        const a = document.createElement('a')
+        a.href = downloadUrl
+        a.download = cleanFileName
+        a.target = '_blank'
+        document.body.appendChild(a)
+        a.click()
+        setTimeout(() => {
+          try { document.body.removeChild(a) } catch {}
+        }, 1000)
+      }
 
       setDownloadedVid(vid)
       setTimeout(() => setDownloadedVid(null), 2200)
@@ -486,13 +506,15 @@ export default function PlaylistView({
                     <button
                       onClick={(e) => handleDownloadTrack(track, e)}
                       disabled={downloadingVid === track.video_id}
-                      title={downloadingVid === track.video_id ? 'Downloading...' : downloadedVid === track.video_id ? 'Downloaded!' : 'Download Track'}
-                      className="p-2 rounded-md text-[#71717a] hover:text-white"
+                      title={downloadingVid === track.video_id ? 'Downloading...' : (downloadedSet.has(track.video_id) || downloadedVid === track.video_id) ? 'Downloaded (Offline ready)' : 'Download Track'}
+                      className={`p-2 rounded-md ${
+                        (downloadedSet.has(track.video_id) || downloadedVid === track.video_id) ? 'text-emerald-400' : 'text-[#71717a] hover:text-white'
+                      }`}
                       aria-label="Download"
                     >
                       {downloadingVid === track.video_id ? (
                         <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
-                      ) : downloadedVid === track.video_id ? (
+                      ) : (downloadedSet.has(track.video_id) || downloadedVid === track.video_id) ? (
                         <Check className="w-4 h-4 text-emerald-400" />
                       ) : (
                         <Download className="w-4 h-4" />
@@ -645,12 +667,14 @@ export default function PlaylistView({
                         <button
                           onClick={(e) => handleDownloadTrack(track, e)}
                           disabled={downloadingVid === track.video_id}
-                          title={downloadingVid === track.video_id ? 'Downloading...' : downloadedVid === track.video_id ? 'Downloaded!' : 'Download Track'}
-                          className="p-1.5 rounded-md hover:bg-[#1a1a22] text-[#71717a] hover:text-white transition-colors cursor-pointer"
+                          title={downloadingVid === track.video_id ? 'Downloading...' : (downloadedSet.has(track.video_id) || downloadedVid === track.video_id) ? 'Downloaded (Offline ready)' : 'Download Track'}
+                          className={`p-1.5 rounded-md hover:bg-[#1a1a22] transition-colors cursor-pointer ${
+                            (downloadedSet.has(track.video_id) || downloadedVid === track.video_id) ? 'text-emerald-400' : 'text-[#71717a] hover:text-white'
+                          }`}
                         >
                           {downloadingVid === track.video_id ? (
                             <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-                          ) : downloadedVid === track.video_id ? (
+                          ) : (downloadedSet.has(track.video_id) || downloadedVid === track.video_id) ? (
                             <Check className="w-3.5 h-3.5 text-emerald-400" />
                           ) : (
                             <Download className="w-3.5 h-3.5" />

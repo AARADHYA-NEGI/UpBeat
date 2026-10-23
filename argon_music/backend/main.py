@@ -1,5 +1,7 @@
 import os
 import re
+import json
+import time
 import urllib.parse
 from typing import Dict, List, Any, Optional
 import requests as ext_requests
@@ -226,6 +228,55 @@ def audio_info_endpoint(video_id: str):
     }
 
 
+DOWNLOADS_DIR = os.path.join(os.path.dirname(__file__), "data", "downloads")
+DOWNLOADS_META_FILE = os.path.join(os.path.dirname(__file__), "data", "downloads.json")
+os.makedirs(DOWNLOADS_DIR, exist_ok=True)
+
+
+def _load_downloads_meta() -> List[Dict[str, Any]]:
+    if not os.path.exists(DOWNLOADS_META_FILE):
+        return []
+    try:
+        with open(DOWNLOADS_META_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def _save_download_meta(track_info: Dict[str, Any]):
+    items = _load_downloads_meta()
+    items = [x for x in items if x.get("video_id") != track_info.get("video_id")]
+    items.insert(0, track_info)
+    try:
+        with open(DOWNLOADS_META_FILE, "w", encoding="utf-8") as f:
+            json.dump(items, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error saving download metadata: {e}")
+
+
+def _delete_download_meta(video_id: str):
+    items = _load_downloads_meta()
+    items = [x for x in items if x.get("video_id") != video_id]
+    try:
+        with open(DOWNLOADS_META_FILE, "w", encoding="utf-8") as f:
+            json.dump(items, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error deleting download metadata: {e}")
+
+
+def _stream_local_file(filepath: str, start: int = 0, end: Optional[int] = None, chunk_size: int = 65536):
+    with open(filepath, "rb") as f:
+        f.seek(start)
+        pos = start
+        while end is None or pos <= end:
+            read_len = min(chunk_size, end - pos + 1) if end is not None else chunk_size
+            data = f.read(read_len)
+            if not data:
+                break
+            pos += len(data)
+            yield data
+
+
 _STREAM_HTTP_SESSION = ext_requests.Session()
 _STREAM_HTTP_SESSION.mount(
     "https://",
@@ -237,10 +288,54 @@ _STREAM_CHUNK_BYTES = 1024 * 1024  # 1 MB bounded ranges for stable streaming
 @app.api_route("/api/audio/{video_id}", methods=["GET", "HEAD"])
 def stream_audio_endpoint(video_id: str, request: Request):
     """
-    Streams the exact official audio track (m4a/mp4) directly from YouTube.
-    Fetches upstream in bounded 2 MB Range chunks so googlevideo.com never throttles
-    open-ended Range: bytes=0- requests on long mixes or DASH streams.
+    Streams the exact official audio track (m4a/mp4).
+    If the track has been downloaded locally, streams instantly from disk with zero network latency.
+    Otherwise fetches upstream from YouTube in bounded 1 MB Range chunks.
     """
+    local_path = os.path.join(DOWNLOADS_DIR, f"{video_id}.m4a")
+    if os.path.exists(local_path):
+        file_size = os.path.getsize(local_path)
+        range_header = request.headers.get("range") or request.headers.get("Range")
+        start = 0
+        end = file_size - 1
+        is_partial = False
+
+        if range_header and range_header.strip().lower().startswith("bytes="):
+            is_partial = True
+            spec = range_header.strip()[6:].split(",")[0].strip()
+            parts = spec.split("-", 1)
+            if parts[0]:
+                start = int(parts[0])
+                if len(parts) > 1 and parts[1]:
+                    end = int(parts[1])
+            elif len(parts) > 1 and parts[1]:
+                suffix = int(parts[1])
+                start = max(0, file_size - suffix)
+
+        end = min(end, file_size - 1)
+        content_len = max(0, end - start + 1)
+        status_code = 206 if (is_partial or file_size > 0) else 200
+
+        headers = {
+            "Accept-Ranges": "bytes",
+            "Content-Length": str(content_len),
+            "Content-Type": "audio/mp4",
+            "Cache-Control": "public, max-age=86400",
+            "X-From-Offline-Cache": "true",
+        }
+        if status_code == 206:
+            headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+
+        if request.method == "HEAD":
+            return Response(status_code=status_code, headers=headers)
+
+        return StreamingResponse(
+            _stream_local_file(local_path, start, end),
+            status_code=status_code,
+            media_type="audio/mp4",
+            headers=headers,
+        )
+
     info = get_audio_stream_url(video_id)
     if not info or not info.get("url"):
         raise HTTPException(status_code=404, detail="Audio stream unavailable")
@@ -360,7 +455,42 @@ def download_audio_endpoint(
     """
     Downloads high-quality m4a audio file directly with a clean filename
     and proper Content-Disposition: attachment header.
+    Caches the audio file in data/downloads/ for instant offline playback.
     """
+    local_path = os.path.join(DOWNLOADS_DIR, f"{video_id}.m4a")
+
+    raw_title = (title or "Track").strip()
+    raw_artist = (artist or "").strip()
+    clean_title = re.sub(r'[\\/*?:"<>|]', "", raw_title).strip() or "Track"
+    clean_artist = re.sub(r'[\\/*?:"<>|]', "", raw_artist).strip()
+    if clean_artist and clean_artist.lower() not in clean_title.lower():
+        filename = f"{clean_artist} - {clean_title}.m4a"
+    else:
+        filename = f"{clean_title}.m4a"
+
+    encoded_filename = urllib.parse.quote(filename)
+
+    # 1. If file is already cached on disk, serve directly from disk
+    if os.path.exists(local_path):
+        file_size = os.path.getsize(local_path)
+        resp_headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"; filename*=UTF-8\'\'{encoded_filename}',
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "public, max-age=86400",
+            "Content-Length": str(file_size),
+            "X-From-Offline-Cache": "true",
+        }
+        if request.method == "HEAD":
+            return Response(status_code=200, media_type="audio/mp4", headers=resp_headers)
+
+        return StreamingResponse(
+            _stream_local_file(local_path, 0, file_size - 1),
+            status_code=200,
+            media_type="audio/mp4",
+            headers=resp_headers,
+        )
+
+    # 2. Otherwise fetch from YouTube stream and cache to disk
     info = get_audio_stream_url(video_id)
     if not info or not info.get("url"):
         raise HTTPException(status_code=404, detail="Audio stream unavailable for download")
@@ -372,11 +502,12 @@ def download_audio_endpoint(
     )
     total_size = int(info.get("clen") or 0)
 
-    # Format a clean, valid filename for the user's OS
-    raw_title = (title or info.get("title") or "Track").strip()
-    raw_artist = (artist or info.get("uploader") or "").strip()
-    clean_title = re.sub(r'[\\/*?:"<>|]', "", raw_title).strip() or "Track"
-    clean_artist = re.sub(r'[\\/*?:"<>|]', "", raw_artist).strip()
+    if not title:
+        raw_title = (info.get("title") or "Track").strip()
+        clean_title = re.sub(r'[\\/*?:"<>|]', "", raw_title).strip() or "Track"
+    if not artist:
+        raw_artist = (info.get("uploader") or "").strip()
+        clean_artist = re.sub(r'[\\/*?:"<>|]', "", raw_artist).strip()
 
     if clean_artist and clean_artist.lower() not in clean_title.lower():
         filename = f"{clean_artist} - {clean_title}.m4a"
@@ -399,43 +530,112 @@ def download_audio_endpoint(
             headers=resp_headers,
         )
 
-    def _iter_download_chunks():
+    temp_path = f"{local_path}.part_{int(time.time())}"
+
+    def _iter_download_and_cache():
         pos = 0
         target_end = (total_size - 1) if total_size > 0 else None
-        while target_end is None or pos <= target_end:
-            chunk_end = (
-                min(pos + _STREAM_CHUNK_BYTES - 1, target_end)
-                if target_end is not None
-                else (pos + _STREAM_CHUNK_BYTES - 1)
-            )
-            r = _STREAM_HTTP_SESSION.get(
-                stream_url,
-                headers={"User-Agent": ua, "Range": f"bytes={pos}-{chunk_end}"},
-                stream=True,
-                timeout=20,
-            )
-            try:
-                if r.status_code not in (200, 206):
-                    break
-                received = 0
-                for piece in r.iter_content(chunk_size=65536):
-                    if piece:
-                        received += len(piece)
-                        yield piece
-                if received == 0:
-                    break
-                pos += received
-                if target_end is None and received < _STREAM_CHUNK_BYTES:
-                    break
-            finally:
-                r.close()
+        file_writer = None
+        try:
+            file_writer = open(temp_path, "wb")
+        except Exception as e:
+            print(f"Warning: unable to create local cache file {temp_path}: {e}")
+
+        try:
+            while target_end is None or pos <= target_end:
+                chunk_end = (
+                    min(pos + _STREAM_CHUNK_BYTES - 1, target_end)
+                    if target_end is not None
+                    else (pos + _STREAM_CHUNK_BYTES - 1)
+                )
+                r = _STREAM_HTTP_SESSION.get(
+                    stream_url,
+                    headers={"User-Agent": ua, "Range": f"bytes={pos}-{chunk_end}"},
+                    stream=True,
+                    timeout=20,
+                )
+                try:
+                    if r.status_code not in (200, 206):
+                        break
+                    received = 0
+                    for piece in r.iter_content(chunk_size=65536):
+                        if piece:
+                            received += len(piece)
+                            if file_writer:
+                                file_writer.write(piece)
+                            yield piece
+                    if received == 0:
+                        break
+                    pos += received
+                    if target_end is None and received < _STREAM_CHUNK_BYTES:
+                        break
+                finally:
+                    r.close()
+
+            # Successfully completed streaming: close and atomically save
+            if file_writer:
+                file_writer.close()
+                file_writer = None
+                if os.path.exists(temp_path) and os.path.getsize(temp_path) > 0:
+                    os.replace(temp_path, local_path)
+                    _save_download_meta({
+                        "video_id": video_id,
+                        "title": clean_title,
+                        "artist": clean_artist,
+                        "filename": filename,
+                        "size": os.path.getsize(local_path),
+                        "duration": info.get("duration") or 0,
+                        "downloaded_at": int(time.time()),
+                    })
+        finally:
+            if file_writer:
+                try:
+                    file_writer.close()
+                except Exception:
+                    pass
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
 
     return StreamingResponse(
-        _iter_download_chunks(),
+        _iter_download_and_cache(),
         status_code=200,
         media_type=info.get("mime", "audio/mp4"),
         headers=resp_headers,
     )
+
+
+@app.get("/api/offline/tracks")
+def get_offline_tracks_endpoint():
+    """
+    Returns list of all tracks cached locally on backend disk.
+    """
+    meta_list = _load_downloads_meta()
+    valid_items = []
+    for item in meta_list:
+        vid = item.get("video_id")
+        filepath = os.path.join(DOWNLOADS_DIR, f"{vid}.m4a")
+        if os.path.exists(filepath):
+            item["size"] = os.path.getsize(filepath)
+            valid_items.append(item)
+    return {"tracks": valid_items}
+
+
+@app.delete("/api/offline/tracks/{video_id}")
+def delete_offline_track_endpoint(video_id: str):
+    """
+    Deletes an offline cached track from backend disk.
+    """
+    filepath = os.path.join(DOWNLOADS_DIR, f"{video_id}.m4a")
+    if os.path.exists(filepath):
+        try:
+            os.remove(filepath)
+        except Exception as e:
+            print(f"Error removing cached file {filepath}: {e}")
+    _delete_download_meta(video_id)
+    return {"status": "ok", "deleted": video_id}
 
 
 frontend_dist = os.path.join(os.path.dirname(__file__), "../frontend/dist")

@@ -4,6 +4,7 @@ import {
   ExternalLink, Video, Music, Heart, Loader2, Download, Check
 } from 'lucide-react'
 import { getApiBase, hasBackend, getAudioSource, searchYouTubeStandalone, getTrackDownloadUrl } from '../standaloneApi'
+import { isTrackDownloaded, saveTrackOffline, createOfflineAudioUrl, subscribeOfflineChanges } from '../offlineStorage'
 
 function formatTime(sec) {
   if (!sec || isNaN(sec) || sec < 0) return '0:00'
@@ -134,6 +135,28 @@ export default function PlayerBar({
   const volumeVal = isMuted ? 0 : volume
   const isFav = track && isTrackFavorite ? isTrackFavorite(track) : false
   const [downloadState, setDownloadState] = useState('idle')
+  const [isDownloaded, setIsDownloaded] = useState(false)
+  const [isPlayingOffline, setIsPlayingOffline] = useState(false)
+
+  // Track whether currently selected track is downloaded
+  useEffect(() => {
+    let active = true
+    const checkDl = async () => {
+      const vid = track?.video_id || resolvedVid
+      if (!vid) {
+        if (active) setIsDownloaded(false)
+        return
+      }
+      const downloaded = await isTrackDownloaded(vid)
+      if (active) setIsDownloaded(downloaded)
+    }
+    checkDl()
+    const unsub = subscribeOfflineChanges(() => checkDl())
+    return () => {
+      active = false
+      unsub()
+    }
+  }, [track?.video_id, resolvedVid])
 
   const handleDownload = async (targetTrack = track) => {
     if (!targetTrack) return
@@ -142,31 +165,42 @@ export default function PlayerBar({
 
     setDownloadState('downloading')
     try {
-      const title = (targetTrack.title || 'Track').replace(/[\\/*?:"<>|]/g, '').trim()
-      const artist = (targetTrack.artist || '').replace(/[\\/*?:"<>|]/g, '').trim()
+      const fullTrack = {
+        ...targetTrack,
+        video_id: vid,
+        thumbnail: targetTrack.thumbnail || thumbUrl || ''
+      }
+
+      // 1. Save directly into client IndexedDB offline storage (for instant offline playback on Mac & Android)
+      await saveTrackOffline(fullTrack)
+
+      // 2. Also trigger native file download (saves to ~/Downloads in macOS app or browser)
+      const title = (fullTrack.title || 'Track').replace(/[\\/*?:"<>|]/g, '').trim()
+      const artist = (fullTrack.artist || '').replace(/[\\/*?:"<>|]/g, '').trim()
       const cleanFileName = artist && !title.toLowerCase().includes(artist.toLowerCase())
         ? `${artist} - ${title}.m4a`
         : `${title}.m4a`
 
-      let downloadUrl = getTrackDownloadUrl({ ...targetTrack, video_id: vid })
+      let downloadUrl = getTrackDownloadUrl(fullTrack)
       if (!downloadUrl) {
         const src = await getAudioSource(vid)
         downloadUrl = typeof src === 'string' ? src : src?.url
       }
 
-      if (!downloadUrl) throw new Error('Audio stream unavailable')
-
-      const a = document.createElement('a')
-      a.href = downloadUrl
-      a.download = cleanFileName
-      a.target = '_blank'
-      document.body.appendChild(a)
-      a.click()
-      setTimeout(() => {
-        try { document.body.removeChild(a) } catch {}
-      }, 1000)
+      if (downloadUrl) {
+        const a = document.createElement('a')
+        a.href = downloadUrl
+        a.download = cleanFileName
+        a.target = '_blank'
+        document.body.appendChild(a)
+        a.click()
+        setTimeout(() => {
+          try { document.body.removeChild(a) } catch {}
+        }, 1000)
+      }
 
       setDownloadState('success')
+      setIsDownloaded(true)
       setTimeout(() => setDownloadState('idle'), 2200)
     } catch (err) {
       console.error('Download error:', err)
@@ -402,18 +436,32 @@ export default function PlayerBar({
         return
       }
 
-      const isMacBackend = hasBackend()
-      let streamSrc = isMacBackend ? `${getApiBase()}/audio/${resolvedVid}` : null
+      let streamSrc = null
 
-      // In standalone mode (or if backend is missing), resolve audio asynchronously
+      // Check if track is available in local offline storage (IndexedDB)
+      try {
+        const offlineUrl = await createOfflineAudioUrl(resolvedVid)
+        if (offlineUrl) {
+          streamSrc = offlineUrl
+          setIsPlayingOffline(true)
+        }
+      } catch {}
+
       if (!streamSrc) {
-        setIsLoadingStream(true)
-        try {
-          const streamInfo = await getAudioSource(resolvedVid)
-          if (cancelled) return
-          streamSrc = typeof streamInfo === 'string' ? streamInfo : streamInfo?.url
-        } catch {} finally {
-          setIsLoadingStream(false)
+        setIsPlayingOffline(false)
+        const isMacBackend = hasBackend()
+        streamSrc = isMacBackend ? `${getApiBase()}/audio/${resolvedVid}` : null
+
+        // In standalone mode (or if backend is missing), resolve audio asynchronously
+        if (!streamSrc) {
+          setIsLoadingStream(true)
+          try {
+            const streamInfo = await getAudioSource(resolvedVid)
+            if (cancelled) return
+            streamSrc = typeof streamInfo === 'string' ? streamInfo : streamInfo?.url
+          } catch {} finally {
+            setIsLoadingStream(false)
+          }
         }
       }
 
@@ -974,6 +1022,11 @@ export default function PlayerBar({
                     <div className="text-xs sm:text-[13px] font-semibold text-[#f4f4f5] truncate">
                       {track.title}
                     </div>
+                    {isPlayingOffline && (
+                      <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0" title="Offline playback from local storage">
+                        OFFLINE
+                      </span>
+                    )}
                   </div>
                   <div className="text-[11px] sm:text-xs text-[#8e8e96] truncate mt-0.5 pl-3">
                     {track.artist}
@@ -995,13 +1048,15 @@ export default function PlayerBar({
                   <button
                     onClick={() => handleDownload(track)}
                     disabled={downloadState === 'downloading'}
-                    title={downloadState === 'downloading' ? 'Downloading...' : downloadState === 'success' ? 'Downloaded!' : 'Download Track'}
+                    title={downloadState === 'downloading' ? 'Downloading...' : (downloadState === 'success' || isDownloaded) ? 'Downloaded (Offline ready)' : 'Download Track'}
                     aria-label="Download Track"
-                    className="p-1.5 rounded-md hover:bg-[#1a1a22] text-[#71717a] hover:text-white transition-colors cursor-pointer flex-shrink-0"
+                    className={`p-1.5 rounded-md hover:bg-[#1a1a22] transition-colors cursor-pointer flex-shrink-0 ${
+                      isDownloaded ? 'text-emerald-400' : 'text-[#71717a] hover:text-white'
+                    }`}
                   >
                     {downloadState === 'downloading' ? (
                       <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
-                    ) : downloadState === 'success' ? (
+                    ) : (downloadState === 'success' || isDownloaded) ? (
                       <Check className="w-4 h-4 text-emerald-400" />
                     ) : (
                       <Download className="w-4 h-4" />
@@ -1163,9 +1218,9 @@ export default function PlayerBar({
               <button
                 onClick={() => handleDownload(track)}
                 disabled={downloadState === 'downloading'}
-                title={downloadState === 'downloading' ? 'Downloading audio...' : downloadState === 'success' ? 'Downloaded!' : 'Download Track'}
+                title={downloadState === 'downloading' ? 'Downloading audio...' : (downloadState === 'success' || isDownloaded) ? 'Downloaded (Offline ready)' : 'Download Track'}
                 className={`p-1.5 rounded-md transition-all cursor-pointer ${
-                  downloadState === 'success'
+                  (downloadState === 'success' || isDownloaded)
                     ? 'text-emerald-400 bg-emerald-500/15'
                     : downloadState === 'downloading'
                     ? 'text-emerald-300 animate-pulse bg-emerald-500/10'
@@ -1174,7 +1229,7 @@ export default function PlayerBar({
               >
                 {downloadState === 'downloading' ? (
                   <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
-                ) : downloadState === 'success' ? (
+                ) : (downloadState === 'success' || isDownloaded) ? (
                   <Check className="w-4 h-4 text-emerald-400" />
                 ) : (
                   <Download className="w-4 h-4" />
