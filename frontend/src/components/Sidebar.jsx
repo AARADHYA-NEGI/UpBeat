@@ -130,7 +130,7 @@ export default function Sidebar({
 
   // 1. YouTube Music Slim Vertical Left Rail (Icon + Text Stack)
   const slimRail = (
-    <nav className="w-18 bg-[#030305]/95 backdrop-blur-md border-r border-white/[0.06] flex flex-col items-center py-3 select-none h-full shrink-0">
+    <nav className="w-18 bg-black/40 backdrop-blur-xl border-r border-white/[0.06] flex flex-col items-center py-3 select-none h-full shrink-0">
       <div className="flex flex-col items-center gap-2 w-full px-2">
         {/* Home / Curator */}
         <button
@@ -463,7 +463,7 @@ export default function Sidebar({
 
       {/* Bottom Profile Snapshot */}
       {tasteDna && (
-        <div className="p-3.5 border-t border-white/[0.08] bg-[#030305]/80">
+        <div className="p-3.5 border-t border-white/[0.08] bg-black/60">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-mono uppercase text-zinc-500 font-semibold">
               Profile

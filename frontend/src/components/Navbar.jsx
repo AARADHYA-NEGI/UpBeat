@@ -38,7 +38,7 @@ export default function Navbar({
   const [savedBanner, setSavedBanner] = useState(false)
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
-  const [otaVer, setOtaVer] = useState('v4.3.3')
+  const [otaVer, setOtaVer] = useState('v4.3.4')
   const [isCheckingOta, setIsCheckingOta] = useState(false)
   const [otaStatusMsg, setOtaStatusMsg] = useState('')
 
@@ -98,7 +98,7 @@ export default function Navbar({
 
   return (
     <>
-      <header className="pt-safe-top bg-[#030305]/95 backdrop-blur-xl border-b border-white/[0.06] select-none flex-shrink-0 z-30 sticky top-0 transition-colors">
+      <header className="pt-safe-top bg-black/40 backdrop-blur-xl border-b border-white/[0.06] select-none flex-shrink-0 z-30 sticky top-0 transition-colors">
         {/* Mobile Full-Width Search Header (when search is open on mobile) */}
         {isMobileSearchOpen ? (
           <div className="sm:hidden flex flex-col">
@@ -173,7 +173,7 @@ export default function Navbar({
 
             {/* AI Model Sub-Bar on Mobile (Only when AI curate is on) */}
             {isAiMode && models.length > 0 && (
-              <div className="px-4 py-1.5 bg-[#0a0a0f] border-t border-white/[0.06] flex items-center justify-between text-xs animate-in fade-in duration-100">
+              <div className="px-4 py-1.5 bg-black/60 backdrop-blur-md border-t border-white/[0.06] flex items-center justify-between text-xs animate-in fade-in duration-100">
                 <div className="flex items-center gap-1.5 text-purple-300 text-[11px] font-mono">
                   <Sparkles className="w-3 h-3" />
                   <span>Curator Model:</span>
@@ -231,7 +231,7 @@ export default function Navbar({
                   title={`Atmosphere: ${themeInfo.label} (${themeInfo.timeSlot})`}
                 >
                   <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: themeInfo.color }} />
-                  <span className="font-medium">{themeInfo.type === 'morning' ? 'Sunrise' : themeInfo.type === 'afternoon' ? 'Daylight' : 'Cosmic Night'}</span>
+                  <span className="font-medium">{themeInfo.type === 'morning' ? 'Sunrise' : themeInfo.type === 'afternoon' ? 'Slight Green' : 'Cosmic Night'}</span>
                 </div>
               )}
             </div>
@@ -381,7 +381,7 @@ export default function Navbar({
                         {(googleUser.name || googleUser.email || 'U')[0].toUpperCase()}
                       </div>
                     )}
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-[#030305]" />
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-black" />
                   </button>
                 ) : (
                   <>

@@ -120,7 +120,7 @@ export default function SonicDnaView({
 
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-transparent gpu-scroll">
-        <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06] bg-gradient-to-b from-[var(--atm-accent)]/15 via-[#030305]/85 to-[#030305]/95 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06] bg-black/40 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center text-rose-500 shrink-0">
               <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
@@ -186,7 +186,7 @@ export default function SonicDnaView({
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-[#9ca3af] bg-[#030305]/80 backdrop-blur-md sticky top-0 z-10">
+                <tr className="border-b border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-[#9ca3af] bg-black/80 backdrop-blur-md sticky top-0 z-10">
                   <th className="py-2.5 pl-3.5 sm:pl-6 pr-2 w-8 sm:w-10">#</th>
                   <th className="py-2.5 px-2 sm:px-3">Track</th>
                   <th className="py-2.5 px-3 hidden md:table-cell">Artist</th>
@@ -349,7 +349,7 @@ export default function SonicDnaView({
 
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-transparent gpu-scroll" onClick={() => setQueueMenuIdx(null)}>
-        <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06] bg-gradient-to-b from-[var(--atm-accent)]/15 via-[#030305]/85 to-[#030305]/95 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06] bg-black/40 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-sky-500/15 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0">
               <Disc className="w-4 h-4 text-sky-400" />
@@ -435,7 +435,7 @@ export default function SonicDnaView({
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-[#9ca3af] bg-[#030305]/80 backdrop-blur-md sticky top-0 z-10">
+                <tr className="border-b border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-[#9ca3af] bg-black/80 backdrop-blur-md sticky top-0 z-10">
                   <th className="py-2.5 pl-3.5 sm:pl-6 pr-2 w-8 sm:w-10">#</th>
                   <th className="py-2.5 px-2 sm:px-3">Track</th>
                   <th className="py-2.5 px-3 hidden md:table-cell">Channel / Artist</th>

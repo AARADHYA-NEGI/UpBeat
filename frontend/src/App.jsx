@@ -1588,7 +1588,7 @@ export default function App() {
       />
 
       {/* Mobile Floating Pill Dock Navigation - Inspired by Modern Floating Capsule System */}
-      <nav className="sm:hidden pb-safe px-3 pt-1 pb-2 bg-gradient-to-t from-[#030305] via-[#030305]/90 to-transparent flex items-center justify-center shrink-0 z-30 select-none">
+      <nav className="sm:hidden pb-safe px-3 pt-1 pb-2 bg-gradient-to-t from-black via-black/80 to-transparent flex items-center justify-center shrink-0 z-30 select-none">
         <div className="w-full max-w-sm floating-dock rounded-full p-1.5 px-2 flex items-center justify-around shadow-2xl">
           {/* Curator / Home */}
           <button
