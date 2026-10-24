@@ -33,8 +33,8 @@ from backend.favorites_store import get_favorites, toggle_favorite
 
 app = FastAPI(
     title="UpBeat Music API",
-    version="4.3.1",
-    description="UpBeat v4.3.1 - Offline Music & AI Studio"
+    version="4.3.1.2",
+    description="UpBeat v4.3.1.2 - Offline Music & AI Studio"
 )
 
 app.add_middleware(
