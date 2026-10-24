@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   RefreshCw, ExternalLink, X, Heart, RotateCcw, Sliders, DownloadCloud,
-  Home, Compass, Sparkles, Disc, Dna
+  Home, Compass, Sparkles, Disc, Dna, ChevronDown
 } from 'lucide-react'
 
 export const PRESET_MODES = [
@@ -123,7 +123,10 @@ export default function Sidebar({
   isOpenDesktop = true,
   isOpenMobile,
   onCloseMobile,
-  onToggleSidebar
+  onToggleSidebar,
+  models = [],
+  selectedModel,
+  onSelectModel
 }) {
   const activePreset = PRESET_MODES.find((p) => p.id === activePresetId)
   const isPresetCustomized = activePreset && energyLevel !== activePreset.energy
@@ -255,6 +258,39 @@ export default function Sidebar({
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {/* AI Curation Model Section (Argon priority) */}
+        {models && models.length > 0 && (
+          <div className="p-4 rounded-3xl bg-[#0a0a0d] border border-white/10 shadow-sm relative overflow-hidden flex flex-col gap-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-purple-400" />
+                <span>AI Curation Model</span>
+              </span>
+              <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                Argon Priority
+              </span>
+            </div>
+
+            <div className="relative">
+              <select
+                value={selectedModel}
+                onChange={(e) => onSelectModel && onSelectModel(e.target.value)}
+                className="w-full py-2.5 px-3 bg-white/[0.05] hover:bg-white/[0.08] border border-white/10 hover:border-purple-500/40 rounded-2xl text-xs text-purple-200 font-medium transition-all cursor-pointer appearance-none focus:outline-none focus:border-purple-400 pr-8"
+              >
+                {models.map((m) => (
+                  <option key={m.id} value={m.id} className="bg-[#121216] text-white">
+                    {m.name || m.id}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-4 h-4 text-purple-400 pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" />
+            </div>
+            <p className="text-[10px] font-mono text-zinc-500 leading-tight">
+              Curates vibe, tempo & track matching with high-speed intelligence.
+            </p>
+          </div>
+        )}
 
         {/* Taste Memory Section */}
         <div className="p-4 rounded-3xl bg-[#0a0a0d] border border-white/10 shadow-sm relative overflow-hidden flex flex-col gap-3">
@@ -399,7 +435,7 @@ export default function Sidebar({
         {/* App Info */}
         <div className="pt-2 text-[10px] font-mono text-zinc-500 border-t border-white/10 flex items-center justify-between">
           <span className="text-zinc-400 font-medium">UpBeat Music</span>
-          <span className="text-emerald-400/80 font-mono">v4.4.0</span>
+          <span className="text-emerald-400/80 font-mono">v4.4.1</span>
         </div>
       </div>
 

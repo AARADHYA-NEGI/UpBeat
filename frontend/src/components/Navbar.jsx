@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import {
-  RefreshCw, Menu, Settings, Sparkles, ChevronDown, Search, Loader2, X, Check, Music, ArrowLeft, ExternalLink, Moon
+  RefreshCw, Menu, Settings, Sparkles, ChevronDown, Search, Loader2, X, Check, Music, ArrowLeft, ExternalLink, Moon, Sliders
 } from 'lucide-react'
 import { getStoredApiKey, setStoredApiKey, getStoredServerUrl, setStoredServerUrl, hasBackend } from '../standaloneApi'
 import { GoogleIcon } from './GoogleAuthModal'
@@ -38,7 +38,7 @@ export default function Navbar({
   const [savedBanner, setSavedBanner] = useState(false)
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
-  const [otaVer, setOtaVer] = useState('v4.4.0')
+  const [otaVer, setOtaVer] = useState('v4.4.1')
   const [isCheckingOta, setIsCheckingOta] = useState(false)
   const [otaStatusMsg, setOtaStatusMsg] = useState('')
 
@@ -203,10 +203,10 @@ export default function Navbar({
               <button
                 onClick={onToggleSidebar}
                 className="p-2 rounded-full hover:bg-white/[0.08] active:bg-white/[0.12] text-zinc-300 hover:text-white transition-all cursor-pointer"
-                title="Toggle sidebar (Cmd+B)"
-                aria-label="Toggle navigation drawer"
+                title="Taste Controls"
+                aria-label="Taste Controls"
               >
-                <Menu className="w-5 h-5" />
+                <Sliders className="w-5 h-5 text-white" />
               </button>
 
               <div

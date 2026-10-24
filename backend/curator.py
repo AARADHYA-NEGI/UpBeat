@@ -151,16 +151,16 @@ def _call_gemini_rest(model_id: str, prompt: str, timeout: float = 20.0) -> Dict
     return parsed
 
 
-def generate_fast_with_fallback(prompt: str, preferred_model: str = "gemini-3.8-flash") -> Dict[str, Any]:
+def generate_fast_with_fallback(prompt: str, preferred_model: str = "gemini-4-argon") -> Dict[str, Any]:
     """
     Calls preferred_model first; if rate-limited or unavailable, falls back through
-    active un-rate-limited Gemini 3.x models (3.8-flash, 3.1-flash-lite, 3.5-flash-lite,
-    gemini-4-argon / ER-2, flash-lite-latest) before touching Gemma 4.
+    active un-rate-limited Gemini models (gemini-4-argon 1s fastest, gemini-3.8-flash,
+    gemini-3.1-flash-lite, gemini-3.5-flash-lite, flash-lite-latest) before touching Gemma 4.
     """
     fallback_pool = [
+        "gemini-4-argon",
         "gemini-3.8-flash",
         "gemini-3.1-flash-lite",
-        "gemini-4-argon",
         "gemini-3.5-flash-lite",
         "gemini-flash-lite-latest",
         "gemini-3-flash-preview",

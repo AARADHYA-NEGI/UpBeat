@@ -33,8 +33,8 @@ from backend.favorites_store import get_favorites, toggle_favorite
 
 app = FastAPI(
     title="UpBeat Music API",
-    version="4.4.0",
-    description="UpBeat v4.4.0 - Offline Music & AI Studio"
+    version="4.4.1",
+    description="UpBeat v4.4.1 - Offline Music & AI Studio"
 )
 
 app.add_middleware(
@@ -67,12 +67,12 @@ class CurateRequest(BaseModel):
     mood_prompt: str = Field("Focused late night session")
     energy_level: int = Field(78, ge=0, le=100)
     count: int = Field(8, ge=3, le=25)
-    model_name: str = Field("gemini-3.8-flash")
+    model_name: str = Field("gemini-4-argon")
 
 
 class TasteDnaRequest(BaseModel):
     tracks: List[Dict[str, Any]] = Field(default_factory=list)
-    model_name: str = Field("gemini-3.8-flash")
+    model_name: str = Field("gemini-4-argon")
 
 
 @app.get("/api/status")
@@ -81,8 +81,8 @@ def get_status():
         "status": "online",
         "app": "UpBeat",
         "models": [
-            {"id": "gemini-3.8-flash", "name": "Gemini 3.8 Flash (Active)", "recommended": True},
-            {"id": "gemini-4-argon", "name": "Gemini 4 Argon / ER-2 (1s Fast)", "recommended": True},
+            {"id": "gemini-4-argon", "name": "Gemini 4 Argon (⚡ 1s Fastest)", "recommended": True},
+            {"id": "gemini-3.8-flash", "name": "Gemini 3.8 Flash (Active)", "recommended": False},
             {"id": "gemini-3.1-flash-lite", "name": "Gemini 3.1 Flash Lite (2s Fast)", "recommended": False},
             {"id": "gemini-3.5-flash-lite", "name": "Gemini 3.5 Flash Lite (Active)", "recommended": False},
             {"id": "gemini-flash-lite-latest", "name": "Gemini Flash Lite Latest", "recommended": False},

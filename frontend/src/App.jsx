@@ -57,8 +57,8 @@ export default function App() {
   }, [])
 
   const [models] = useState([
+    { id: 'gemini-4-argon', name: 'Gemini 4 Argon (⚡ 1s Fastest)' },
     { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (Active)' },
-    { id: 'gemini-4-argon', name: 'Gemini 4 Argon / ER-2 (1s Fast)' },
     { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite (2s Fast)' },
     { id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite (Active)' },
     { id: 'gemini-flash-lite-latest', name: 'Gemini Flash Lite Latest' },
@@ -66,7 +66,16 @@ export default function App() {
     { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash' },
     { id: 'gemma-4-26b-a4b-it', name: 'Gemma 4 26B MoE' }
   ])
-  const [selectedModel, setSelectedModel] = useState('gemini-3.8-flash')
+  const [selectedModel, setSelectedModel] = useState(() => {
+    return localStorage.getItem('argon_selected_model') || 'gemini-4-argon'
+  })
+
+  const handleSelectModel = (modelId) => {
+    setSelectedModel(modelId)
+    try {
+      localStorage.setItem('argon_selected_model', modelId)
+    } catch {}
+  }
   const [safariStatus, setSafariStatus] = useState(null)
   const [safariNowPlaying, setSafariNowPlaying] = useState(null)
   const [extractedTracks, setExtractedTracks] = useState(() => {
@@ -1374,7 +1383,7 @@ export default function App() {
         themeInfo={themeInfo}
         models={models}
         selectedModel={selectedModel}
-        onSelectModel={setSelectedModel}
+        onSelectModel={handleSelectModel}
         lastModelStatus={lastModelStatus}
         safariStatus={safariStatus}
         onSyncSafari={() => handleSyncSafari(false)}
@@ -1431,6 +1440,9 @@ export default function App() {
           isOpenMobile={isSidebarOpen}
           onCloseMobile={() => setIsSidebarOpen(false)}
           onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+          models={models}
+          selectedModel={selectedModel}
+          onSelectModel={handleSelectModel}
         />
 
         <main className="flex-1 flex flex-col min-w-0 min-h-0 bg-transparent">
@@ -1654,20 +1666,6 @@ export default function App() {
             aria-label="Seeds Library"
           >
             <Disc className="w-5 h-5" />
-          </button>
-
-          {/* Taste Controls Sidebar */}
-          <button
-            onClick={() => setIsSidebarOpen((prev) => !prev)}
-            className={`transition-all cursor-pointer ${
-              isSidebarOpen
-                ? 'w-11 h-11 rounded-full bg-white text-emerald-600 shadow-lg shadow-white/20 flex items-center justify-center scale-105'
-                : 'w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white'
-            }`}
-            title="Taste Controls"
-            aria-label="Taste Controls"
-          >
-            <Sliders className="w-5 h-5" />
           </button>
 
           {/* Taste Profile */}

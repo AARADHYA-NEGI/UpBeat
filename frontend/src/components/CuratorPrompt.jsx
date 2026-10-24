@@ -40,9 +40,9 @@ export default function CuratorPrompt({
   }
 
   return (
-    <div className="bg-transparent px-3.5 sm:px-6 pt-3 pb-1 select-none flex-shrink-0 z-20">
-      {/* Horizontal Mood / Activity Chips Carousel */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+    <div className="w-full bg-transparent pt-3 pb-1 select-none flex-shrink-0 z-20 overflow-hidden">
+      {/* Horizontal Mood / Activity Chips Carousel - Full-Bleed Edge-to-Edge like YouTube */}
+      <div className="w-full flex items-center gap-2 overflow-x-auto no-scrollbar px-3.5 sm:px-6 py-1 scroll-smooth">
         {MOOD_CHIPS.map((chip) => {
           const isSelected = activeChip === chip.id
           return (
@@ -60,6 +60,8 @@ export default function CuratorPrompt({
             </button>
           )
         })}
+        {/* Trailing spacer for end margin when scrolled to the rightmost edge */}
+        <div className="w-2 shrink-0 pointer-events-none" />
       </div>
     </div>
   )
