@@ -1136,7 +1136,7 @@ export default function PlayerBar({
             {track ? (
               <>
                 <div
-                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-md bg-[#14141a] border overflow-hidden flex-shrink-0 relative transition-all duration-300 group-hover:scale-105"
+                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#14141a] border overflow-hidden flex-shrink-0 relative transition-all duration-300 group-hover:scale-105"
                   style={{
                     borderColor: isPlaying ? albumColor.border : '#22222a',
                     boxShadow: isPlaying ? `0 0 14px ${albumColor.subtle}` : 'none'
@@ -1160,16 +1160,16 @@ export default function PlayerBar({
                         backgroundColor: isPlaying ? albumColor.primary : '#52525b'
                       }}
                     />
-                    <div className="text-xs sm:text-[13px] font-semibold text-[#f4f4f5] truncate group-hover:text-white transition-colors">
+                    <div className="text-xs sm:text-[13px] font-bold text-[#f4f4f5] tracking-tight truncate group-hover:text-white transition-colors">
                       {track.title}
                     </div>
                     {isPlayingOffline && (
-                      <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0" title="Offline playback from local storage">
+                      <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0" title="Offline playback from local storage">
                         OFFLINE
                       </span>
                     )}
                   </div>
-                  <div className="text-[11px] sm:text-xs text-[#8e8e96] truncate mt-0.5 pl-3 group-hover:text-zinc-300 transition-colors">
+                  <div className="text-[11px] sm:text-xs text-[#8e8e96] font-medium truncate mt-0.5 pl-3 group-hover:text-zinc-300 transition-colors">
                     {track.artist}
                   </div>
                 </div>
@@ -1178,7 +1178,7 @@ export default function PlayerBar({
                     onClick={(e) => { e.stopPropagation(); onToggleFavorite(track) }}
                     title={isFav ? 'Remove from Favorites' : 'Save to Favorites'}
                     aria-label="Toggle Favorite"
-                    className={`p-1.5 rounded-md hover:bg-[#1a1a22] transition-colors cursor-pointer flex-shrink-0 ${
+                    className={`p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer flex-shrink-0 ${
                       isFav ? 'text-rose-400' : 'text-[#71717a] hover:text-rose-300'
                     }`}
                   >
@@ -1191,7 +1191,7 @@ export default function PlayerBar({
                     disabled={downloadState === 'downloading'}
                     title={downloadState === 'downloading' ? 'Downloading...' : (downloadState === 'success' || isDownloaded) ? 'Downloaded (Offline ready)' : 'Download Track'}
                     aria-label="Download Track"
-                    className={`p-1.5 rounded-md hover:bg-[#1a1a22] transition-colors cursor-pointer flex-shrink-0 ${
+                    className={`p-1.5 rounded-full hover:bg-white/10 transition-colors cursor-pointer flex-shrink-0 ${
                       isDownloaded ? 'text-emerald-400' : 'text-[#71717a] hover:text-white'
                     }`}
                   >

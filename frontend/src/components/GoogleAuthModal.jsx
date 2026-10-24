@@ -274,18 +274,18 @@ export default function GoogleAuthModal({
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-md bg-[#0e0e13] border border-[#242432] rounded-2xl shadow-2xl flex flex-col z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90vh]">
+      <div className="relative w-full max-w-md bg-[#0e0e13]/95 border border-white/10 rounded-3xl shadow-2xl flex flex-col z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] backdrop-blur-2xl">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-[#20202c] flex items-center justify-between bg-[#13131a] shrink-0">
+        <div className="p-4 sm:p-5 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.03] shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shadow-xs">
+            <div className="w-9 h-9 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shadow-xs">
               <GoogleIcon className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">
+              <h3 className="text-sm font-bold text-white tracking-tight">
                 {googleUser ? 'Google Account & YouTube Taste' : 'Connect Google & YouTube'}
               </h3>
-              <p className="text-[11px] text-[#8e8e96] font-mono">
+              <p className="text-[11px] text-zinc-400 font-mono">
                 {googleUser ? 'Authentic listener profile & seeds sync' : 'Sync real YouTube likes & personalize Taste DNA'}
               </p>
             </div>
@@ -293,7 +293,7 @@ export default function GoogleAuthModal({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#71717a] hover:text-white hover:bg-[#1c1c24] transition-colors cursor-pointer"
+            className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>

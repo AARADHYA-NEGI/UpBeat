@@ -127,19 +127,19 @@ export default function OfflineView({
       <div className="px-3.5 py-3 sm:px-6 sm:py-4 border-b border-white/[0.06] bg-gradient-to-b from-[var(--atm-accent)]/15 via-[#030305]/85 to-[#030305]/95 backdrop-blur-xl sticky top-0 z-20">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
-                <DownloadCloud className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center text-emerald-400 shrink-0">
+                <DownloadCloud className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
               </div>
-              <h1 className="text-sm sm:text-base font-bold text-white tracking-tight">
+              <h1 className="text-base sm:text-lg font-bold text-white tracking-tight">
                 Downloads
               </h1>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#181820] text-emerald-400 border border-emerald-500/20">
+              <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
                 {stats.count}
               </span>
             </div>
-            <p className="text-[11px] text-[#8e8e96] mt-0.5 flex items-center gap-1.5 font-mono">
-              <HardDrive className="w-3 h-3 text-[#71717a]" />
+            <p className="text-[11px] text-zinc-400 mt-1 flex items-center gap-1.5 font-medium">
+              <HardDrive className="w-3 h-3 text-zinc-500" />
               <span>{stats.count} {stats.count === 1 ? 'track' : 'tracks'} • {stats.formattedSize} stored locally</span>
             </p>
           </div>
@@ -150,24 +150,24 @@ export default function OfflineView({
               <>
                 <button
                   onClick={handleShuffle}
-                  className="px-3 py-1.5 rounded-xl bg-[#15151c] hover:bg-[#1f1f28] border border-[#262632] text-xs font-mono text-[#f4f4f5] flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
+                  className="px-4 py-2 rounded-full bg-white text-black hover:bg-zinc-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 shadow-md shadow-white/10"
                   title="Shuffle offline songs"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600 fill-emerald-600" />
                   <span>Shuffle</span>
                 </button>
 
                 {confirmClear ? (
-                  <div className="flex items-center gap-1 bg-[#201014] border border-rose-500/40 rounded-lg p-0.5">
+                  <div className="flex items-center gap-1 bg-[#201014] border border-rose-500/40 rounded-full p-1">
                     <button
                       onClick={handleClearAll}
-                      className="px-2 py-1 text-[11px] font-mono text-rose-300 hover:text-rose-100 font-semibold cursor-pointer"
+                      className="px-2.5 py-1 text-[11px] text-rose-300 hover:text-rose-100 font-bold cursor-pointer"
                     >
                       Confirm Clear
                     </button>
                     <button
                       onClick={() => setConfirmClear(false)}
-                      className="px-2 py-1 text-[11px] font-mono text-[#a1a1aa] hover:text-white cursor-pointer"
+                      className="px-2 py-1 text-[11px] text-zinc-400 hover:text-white cursor-pointer font-medium"
                     >
                       Cancel
                     </button>
@@ -175,7 +175,7 @@ export default function OfflineView({
                 ) : (
                   <button
                     onClick={() => setConfirmClear(true)}
-                    className="p-1.5 rounded-xl text-[#71717a] hover:text-rose-400 hover:bg-[#1a1418] border border-transparent hover:border-rose-500/20 transition-colors cursor-pointer"
+                    className="p-2 rounded-full text-zinc-400 hover:text-rose-400 hover:bg-white/10 border border-transparent hover:border-rose-500/20 transition-all cursor-pointer"
                     title="Clear all offline storage"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -187,7 +187,7 @@ export default function OfflineView({
             {hasBackend() && (
               <button
                 onClick={handleOpenDownloadsFolder}
-                className="hidden sm:flex px-2.5 py-1.5 rounded-xl bg-[#141418] hover:bg-[#1c1c24] border border-[#25252e] hover:border-[#353540] text-xs font-mono text-[#a1a1aa] hover:text-white items-center gap-1.5 transition-colors cursor-pointer"
+                className="hidden sm:flex px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs text-zinc-300 hover:text-white items-center gap-1.5 transition-colors cursor-pointer font-medium"
                 title="Open UpBeat downloads folder in macOS Finder"
               >
                 <Folder className="w-3.5 h-3.5 text-sky-400" />
@@ -199,20 +199,20 @@ export default function OfflineView({
 
         {/* Search & Filter Bar */}
         {tracks.length > 0 && (
-          <div className="mt-2.5 flex items-center gap-2">
+          <div className="mt-3 flex items-center gap-2">
             <div className="relative flex-1">
-              <Search className="w-3.5 h-3.5 text-[#71717a] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <Search className="w-3.5 h-3.5 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search downloaded songs by title, artist..."
-                className="w-full bg-[#131317] border border-[#22222c] focus:border-emerald-500/60 rounded-xl pl-9 pr-8 py-1.5 text-xs text-[#f4f4f5] placeholder-[#71717a] font-mono focus:outline-none transition-colors"
+                className="w-full bg-white/[0.06] border border-white/10 focus:border-emerald-500/50 rounded-full pl-9 pr-8 py-2 text-xs text-white placeholder-zinc-400 font-medium focus:outline-none transition-colors"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#71717a] hover:text-white"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-white"
                 >
                   ✕
                 </button>
@@ -425,14 +425,14 @@ export default function OfflineView({
                   <div
                     key={t.video_id || idx}
                     onClick={() => onPlayTrack(t, idx, filteredTracks)}
-                    className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 fast-row ${
+                    className={`p-3 sm:p-3.5 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 fast-row ${
                       isCur
-                        ? 'bg-[#151522]/90 border-emerald-500/40 shadow-sm backdrop-blur-md'
-                        : 'bg-[#0f0f13]/70 border-white/[0.08] hover:bg-[#14141a]/90 backdrop-blur-md'
+                        ? 'bg-emerald-500/15 border-emerald-500/40 shadow-lg shadow-emerald-950/20 backdrop-blur-xl'
+                        : 'bg-white/[0.035] border-white/[0.08] hover:bg-white/[0.07] backdrop-blur-md'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="relative w-11 h-11 rounded-lg bg-[#181820] overflow-hidden shrink-0 border border-[#242430]">
+                      <div className="relative w-12 h-12 rounded-xl bg-zinc-900 overflow-hidden shrink-0 border border-white/10 shadow-sm">
                         {t.thumbnail ? (
                           <img
                             src={t.thumbnail}
@@ -440,7 +440,7 @@ export default function OfflineView({
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-[#71717a]">
+                          <div className="w-full h-full flex items-center justify-center text-zinc-500">
                             <FileAudio className="w-5 h-5" />
                           </div>
                         )}
@@ -452,16 +452,16 @@ export default function OfflineView({
                       </div>
 
                       <div className="min-w-0">
-                        <div className={`text-xs font-medium truncate ${isCur ? 'text-emerald-400 font-semibold' : 'text-[#f4f4f5]'}`}>
+                        <div className={`text-sm font-bold tracking-tight truncate ${isCur ? 'text-emerald-300' : 'text-white'}`}>
                           {t.title}
                         </div>
-                        <div className="text-[11px] text-[#8e8e96] truncate mt-0.5">
+                        <div className="text-xs text-zinc-400 truncate mt-0.5 font-medium">
                           {t.artist}
                         </div>
-                        <div className="flex items-center gap-2 text-[10px] font-mono text-[#71717a] mt-1">
+                        <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500 mt-1">
                           <span>{t.duration_text || '--:--'}</span>
                           <span>•</span>
-                          <span className="text-emerald-400/90">{formatBytes(t.size)}</span>
+                          <span className="text-emerald-400 font-semibold">{formatBytes(t.size)}</span>
                         </div>
                       </div>
                     </div>

@@ -6,6 +6,15 @@ export default {
   ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"Plus Jakarta Sans"', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
+      },
+      borderRadius: {
+        '4xl': '2rem',
+        '3xl': '1.5rem',
+        '2xl': '1.125rem',
+      },
       colors: {
         argon: {
           900: '#07090e',

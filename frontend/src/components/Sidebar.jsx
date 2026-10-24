@@ -135,15 +135,15 @@ export default function Sidebar({
         {/* Home / Curator */}
         <button
           onClick={() => setActiveTab && setActiveTab('curator')}
-          className={`w-full py-3 rounded-xl flex flex-col items-center gap-1 transition-all cursor-pointer ${
+          className={`w-full py-2.5 rounded-2xl flex flex-col items-center gap-1 transition-all cursor-pointer ${
             activeTab === 'curator'
-              ? 'bg-white/10 text-white font-medium shadow-xs'
-              : 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
+              ? 'bg-white/15 text-white font-bold shadow-md shadow-white/5'
+              : 'text-zinc-400 hover:text-white hover:bg-white/[0.08]'
           }`}
           title="Home / Quick picks"
         >
           <Home className="w-5 h-5" />
-          <span className="text-[10px] tracking-tight">Home</span>
+          <span className="text-[10px] tracking-tight font-semibold">Home</span>
         </button>
 
         {/* Liked Favorites */}
@@ -152,10 +152,10 @@ export default function Sidebar({
             if (onOpenFavoritesTab) onOpenFavoritesTab()
             else if (setActiveTab) setActiveTab('favorites')
           }}
-          className={`w-full py-3 rounded-xl flex flex-col items-center gap-1 transition-all cursor-pointer relative ${
+          className={`w-full py-2.5 rounded-2xl flex flex-col items-center gap-1 transition-all cursor-pointer relative ${
             activeTab === 'favorites'
-              ? 'bg-white/10 text-rose-300 font-medium shadow-xs'
-              : 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
+              ? 'bg-rose-500/20 text-rose-300 font-bold shadow-md'
+              : 'text-zinc-400 hover:text-white hover:bg-white/[0.08]'
           }`}
           title="Liked Songs"
         >
@@ -167,7 +167,7 @@ export default function Sidebar({
               </span>
             )}
           </div>
-          <span className="text-[10px] tracking-tight">Liked</span>
+          <span className="text-[10px] tracking-tight font-semibold">Liked</span>
         </button>
 
         {/* Offline Downloads */}
@@ -176,10 +176,10 @@ export default function Sidebar({
             if (onOpenOfflineTab) onOpenOfflineTab()
             else if (setActiveTab) setActiveTab('offline')
           }}
-          className={`w-full py-3 rounded-xl flex flex-col items-center gap-1 transition-all cursor-pointer relative ${
+          className={`w-full py-2.5 rounded-2xl flex flex-col items-center gap-1 transition-all cursor-pointer relative ${
             activeTab === 'offline'
-              ? 'bg-white/10 text-emerald-300 font-medium shadow-xs'
-              : 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
+              ? 'bg-emerald-500/20 text-emerald-300 font-bold shadow-md'
+              : 'text-zinc-400 hover:text-white hover:bg-white/[0.08]'
           }`}
           title="Offline Downloads"
         >
@@ -191,35 +191,35 @@ export default function Sidebar({
               </span>
             )}
           </div>
-          <span className="text-[10px] tracking-tight">Offline</span>
+          <span className="text-[10px] tracking-tight font-semibold">Offline</span>
         </button>
 
         {/* Seeds Library */}
         <button
           onClick={() => setActiveTab && setActiveTab('library')}
-          className={`w-full py-3 rounded-xl flex flex-col items-center gap-1 transition-all cursor-pointer relative ${
+          className={`w-full py-2.5 rounded-2xl flex flex-col items-center gap-1 transition-all cursor-pointer relative ${
             activeTab === 'library'
-              ? 'bg-white/10 text-white font-medium shadow-xs'
-              : 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
+              ? 'bg-sky-500/20 text-sky-300 font-bold shadow-md'
+              : 'text-zinc-400 hover:text-white hover:bg-white/[0.08]'
           }`}
           title="Seed Library"
         >
           <Disc className="w-5 h-5" />
-          <span className="text-[10px] tracking-tight">Seeds</span>
+          <span className="text-[10px] tracking-tight font-semibold">Seeds</span>
         </button>
 
         {/* Taste Profile */}
         <button
           onClick={() => setActiveTab && setActiveTab('dna')}
-          className={`w-full py-3 rounded-xl flex flex-col items-center gap-1 transition-all cursor-pointer relative ${
+          className={`w-full py-2.5 rounded-2xl flex flex-col items-center gap-1 transition-all cursor-pointer relative ${
             activeTab === 'dna'
-              ? 'bg-white/10 text-white font-medium shadow-xs'
-              : 'text-zinc-400 hover:text-white hover:bg-white/[0.06]'
+              ? 'bg-purple-500/20 text-purple-300 font-bold shadow-md'
+              : 'text-zinc-400 hover:text-white hover:bg-white/[0.08]'
           }`}
           title="Sonic Taste Profile"
         >
           <Dna className="w-5 h-5" />
-          <span className="text-[10px] tracking-tight">Profile</span>
+          <span className="text-[10px] tracking-tight font-semibold">Profile</span>
         </button>
 
         {/* Modes Drawer Toggle */}
@@ -369,10 +369,10 @@ export default function Sidebar({
                     onSelectPreset(p)
                     if (isOpenMobile && onCloseMobile) onCloseMobile()
                   }}
-                  className={`w-full p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                  className={`w-full p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                     isSelected
                       ? `${theme.selected} shadow-md`
-                      : `bg-white/[0.03] border-white/[0.06] ${theme.hover} text-zinc-300`
+                      : `bg-white/[0.035] border-white/[0.08] ${theme.hover} text-zinc-300`
                   }`}
                 >
                   <div className="flex items-center justify-between gap-1 mb-1">
@@ -412,10 +412,10 @@ export default function Sidebar({
                 <button
                   key={count}
                   onClick={() => setTrackCount(count)}
-                  className={`flex-1 py-1 rounded-lg text-xs font-mono font-medium transition-colors cursor-pointer border ${
+                  className={`flex-1 py-1.5 rounded-full text-xs font-mono font-semibold transition-all cursor-pointer border ${
                     trackCount === count
-                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
-                      : 'bg-white/[0.03] border-white/[0.06] text-zinc-400 hover:text-white hover:bg-white/[0.08]'
+                      ? 'bg-white text-black border-white shadow-md'
+                      : 'bg-white/[0.04] border-white/[0.08] text-zinc-400 hover:text-white hover:bg-white/[0.08]'
                   }`}
                 >
                   {count}

@@ -50,10 +50,10 @@ export default function CuratorPrompt({
               key={chip.id}
               onClick={() => handleChipClick(chip)}
               disabled={busy}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all cursor-pointer shrink-0 border ${
+              className={`px-4 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer shrink-0 border ${
                 isSelected
-                  ? 'bg-white text-black font-semibold border-white shadow-sm'
-                  : 'bg-white/[0.08] hover:bg-white/[0.15] text-zinc-300 hover:text-white border-white/[0.06]'
+                  ? 'bg-white text-black font-bold border-white shadow-md shadow-white/10 scale-[1.02]'
+                  : 'bg-white/[0.06] hover:bg-white/[0.14] text-zinc-300 hover:text-white border-white/[0.08]'
               }`}
             >
               {chip.label}

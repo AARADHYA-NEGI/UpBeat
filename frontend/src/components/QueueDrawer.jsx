@@ -25,21 +25,21 @@ export default function QueueDrawer({
       {/* Drawer Panel */}
       <div className="relative w-full max-w-md bg-[#0d0d12] border-l border-[#202028] h-full flex flex-col z-10 shadow-2xl animate-in slide-in-from-right duration-200">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-[#202028] flex items-center justify-between bg-[#111116]">
+        <div className="p-4 sm:p-5 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.03]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400">
+            <div className="w-9 h-9 rounded-2xl bg-sky-500/15 border border-sky-500/25 flex items-center justify-center text-sky-400 shadow-xs">
               <ListMusic className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-semibold text-white">Playback Queue</h3>
+                <h3 className="text-sm font-bold text-white tracking-tight">Playback Queue</h3>
                 {queue.length > 0 && (
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">
                     {queue.length}
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-[#71717a] font-mono mt-0.5">
+              <p className="text-[11px] text-zinc-400 font-mono mt-0.5">
                 Tracks will play sequentially
               </p>
             </div>
@@ -49,7 +49,7 @@ export default function QueueDrawer({
             {queue.length > 0 && (
               <button
                 onClick={onClearQueue}
-                className="text-[11px] font-mono text-[#a1a1aa] hover:text-rose-400 px-2 py-1 rounded hover:bg-[#1a1418] transition-colors cursor-pointer"
+                className="text-xs font-semibold text-zinc-400 hover:text-rose-400 px-3 py-1 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
                 title="Clear all queued songs"
               >
                 Clear Queue
@@ -57,7 +57,7 @@ export default function QueueDrawer({
             )}
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-[#71717a] hover:text-white hover:bg-[#1c1c24] transition-colors cursor-pointer"
+              className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               title="Close Queue"
             >
               <X className="w-4 h-4" />
@@ -66,15 +66,15 @@ export default function QueueDrawer({
         </div>
 
         {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-5 divide-y divide-[#1a1a24] space-y-5">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 divide-y divide-white/[0.06] space-y-5">
           {/* Section: Now Playing */}
           {currentTrack && (
             <div>
               <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-semibold block mb-2.5">
                 Now Playing
               </span>
-              <div className="p-3 rounded-xl bg-[#14141d] border border-emerald-500/30 flex items-center gap-3 shadow-inner">
-                <div className="relative w-11 h-11 rounded-lg bg-[#181822] overflow-hidden shrink-0 border border-[#262634]">
+              <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-emerald-500/40 flex items-center gap-3.5 shadow-lg backdrop-blur-xl">
+                <div className="relative w-12 h-12 rounded-xl bg-zinc-900 overflow-hidden shrink-0 border border-white/10">
                   {currentTrack.thumbnail ? (
                     <img src={currentTrack.thumbnail} alt="" className="w-full h-full object-cover" />
                   ) : (

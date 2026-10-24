@@ -120,30 +120,35 @@ export default function SonicDnaView({
 
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-transparent gpu-scroll">
-        <div className="px-3.5 sm:px-6 py-2.5 sm:py-3.5 border-b border-white/[0.06] bg-gradient-to-b from-[var(--atm-accent)]/15 via-[#030305]/85 to-[#030305]/95 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4">
-          <div className="flex items-center gap-2">
-            <Heart className="w-4 h-4 fill-rose-500 text-rose-500 shrink-0" />
-            <h2 className="text-sm sm:text-base font-semibold text-[#f5f5f5]">
-              Favourites ({favorites.length})
+        <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06] bg-gradient-to-b from-[var(--atm-accent)]/15 via-[#030305]/85 to-[#030305]/95 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center text-rose-500 shrink-0">
+              <Heart className="w-4 h-4 fill-rose-500 text-rose-500" />
+            </div>
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+              Favourites
             </h2>
+            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30">
+              {favorites.length}
+            </span>
           </div>
 
           {favorites.length > 0 && (
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <div className="flex-1 sm:w-48 flex items-center bg-[#141418] border border-[#282830] rounded-xl px-3 py-1.5">
-                <Search className="w-3.5 h-3.5 text-[#8e8e93] mr-2 shrink-0" />
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              <div className="flex-1 sm:w-52 flex items-center bg-white/[0.06] border border-white/10 rounded-full px-3.5 py-1.5 focus-within:border-rose-500/40 transition-colors">
+                <Search className="w-3.5 h-3.5 text-zinc-400 mr-2 shrink-0" />
                 <input
                   type="text"
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  placeholder="Filter favourites..."
-                  className="bg-transparent text-xs text-[#f5f5f5] placeholder:text-[#73737a] focus:outline-none w-full"
+                  placeholder="Search favourites..."
+                  className="bg-transparent text-xs text-white placeholder-zinc-400 font-medium focus:outline-none w-full"
                 />
                 {Boolean(filter) && (
                   <button
                     type="button"
                     onClick={() => setFilter('')}
-                    className="text-zinc-500 hover:text-white p-0.5 cursor-pointer shrink-0"
+                    className="text-zinc-400 hover:text-white p-0.5 cursor-pointer shrink-0"
                     title="Clear filter"
                   >
                     <X className="w-3 h-3" />
@@ -155,9 +160,9 @@ export default function SonicDnaView({
                 <button
                   onClick={onCurateFromFavorites}
                   title="Generate a fresh playlist inspired by your hearted songs"
-                  className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shadow-sm active:scale-[0.98] shrink-0"
+                  className="px-4 py-2 rounded-full bg-white text-black hover:bg-zinc-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shadow-md shadow-white/10 active:scale-95 shrink-0"
                 >
-                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                  <Sparkles className="w-3.5 h-3.5 fill-black shrink-0" />
                   <span>Curate from Favs</span>
                 </button>
               )}
@@ -344,28 +349,34 @@ export default function SonicDnaView({
 
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-transparent gpu-scroll" onClick={() => setQueueMenuIdx(null)}>
-        <div className="px-3.5 sm:px-6 py-2.5 sm:py-3.5 border-b border-white/[0.06] bg-gradient-to-b from-[var(--atm-accent)]/15 via-[#030305]/85 to-[#030305]/95 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm sm:text-base font-semibold text-[#f5f5f5]">
-              YouTube Seeds & Library ({extractedTracks.length})
+        <div className="px-3.5 sm:px-6 py-3 sm:py-4 border-b border-white/[0.06] bg-gradient-to-b from-[var(--atm-accent)]/15 via-[#030305]/85 to-[#030305]/95 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-2xl bg-sky-500/15 border border-sky-500/25 flex items-center justify-center text-sky-400 shrink-0">
+              <Disc className="w-4 h-4 text-sky-400" />
+            </div>
+            <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+              Seeds & Library
             </h2>
+            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/30">
+              {extractedTracks.length}
+            </span>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <div className="flex-1 sm:w-48 flex items-center bg-[#141418] border border-[#282830] rounded-xl px-3 py-1.5">
-              <Search className="w-3.5 h-3.5 text-[#8e8e93] mr-2 shrink-0" />
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <div className="flex-1 sm:w-52 flex items-center bg-white/[0.06] border border-white/10 rounded-full px-3.5 py-1.5 focus-within:border-sky-500/40 transition-colors">
+              <Search className="w-3.5 h-3.5 text-zinc-400 mr-2 shrink-0" />
               <input
                 type="text"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder="Filter tracks..."
-                className="bg-transparent text-xs text-[#f5f5f5] placeholder:text-[#73737a] focus:outline-none w-full"
+                placeholder="Search tracks..."
+                className="bg-transparent text-xs text-white placeholder-zinc-400 font-medium focus:outline-none w-full"
               />
               {Boolean(filter) && (
                 <button
                   type="button"
                   onClick={() => setFilter('')}
-                  className="text-zinc-500 hover:text-white p-0.5 cursor-pointer shrink-0"
+                  className="text-zinc-400 hover:text-white p-0.5 cursor-pointer shrink-0"
                   title="Clear filter"
                 >
                   <X className="w-3 h-3" />
@@ -376,9 +387,9 @@ export default function SonicDnaView({
             <button
               onClick={() => setIsTasteSyncOpen(true)}
               title="Add seeds from YouTube search or playlist URL"
-              className="px-3.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap active:scale-[0.98] shrink-0"
+              className="px-4 py-2 rounded-full bg-white text-black hover:bg-zinc-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shadow-md shadow-white/10 active:scale-95 shrink-0"
             >
-              <Youtube className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <Youtube className="w-3.5 h-3.5 text-red-600 fill-red-600 shrink-0" />
               <span>Sync YouTube Seeds</span>
             </button>
 
@@ -386,9 +397,9 @@ export default function SonicDnaView({
               <button
                 onClick={onClearSeeds}
                 title="Clear all seed tracks from your Library"
-                className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-rose-500/15 border border-white/[0.08] hover:border-rose-500/30 text-zinc-400 hover:text-rose-300 transition-colors cursor-pointer shrink-0"
+                className="p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-rose-400 transition-colors cursor-pointer shrink-0"
               >
-                <Trash2 className="w-3.5 h-3.5" />
+                <Trash2 className="w-4 h-4" />
               </button>
             )}
 
@@ -642,7 +653,7 @@ export default function SonicDnaView({
             <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setIsTasteSyncOpen(true)}
-                className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-medium flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                className="px-3.5 py-1.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
               >
                 <Youtube className="w-3.5 h-3.5 text-rose-400" />
                 <span>Sync YouTube Seeds</span>
@@ -652,7 +663,7 @@ export default function SonicDnaView({
                 onClick={() => onAnalyzeTaste && onAnalyzeTaste()}
                 disabled={isSyncing}
                 title="Re-run deep musical taste analysis with Gemini"
-                className="px-3 py-1.5 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/35 text-xs text-indigo-200 font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 rounded-full bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/35 text-xs text-indigo-200 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Sparkles className={`w-3.5 h-3.5 text-indigo-400 ${isSyncing ? 'animate-spin' : ''}`} />
                 <span>Analyze DNA</span>
@@ -662,7 +673,7 @@ export default function SonicDnaView({
                 <button
                   onClick={onResetTasteDna}
                   title="Reset Taste DNA profile"
-                  className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-400 hover:text-white text-xs font-mono transition-colors cursor-pointer"
+                  className="p-2 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-400 hover:text-white transition-colors cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                 </button>
@@ -672,7 +683,7 @@ export default function SonicDnaView({
 
           {/* Archetype Title & Summary */}
           <div className="max-w-2xl">
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
+            <h2 className="text-xl sm:text-2xl font-extrabold tracking-tight text-white flex items-center gap-2.5">
               <span className="bg-gradient-to-r from-white via-indigo-200 to-purple-300 bg-clip-text text-transparent">
                 {googleUser?.name ? `${googleUser.name} • ${derivedArchetype}` : derivedArchetype}
               </span>
@@ -683,13 +694,13 @@ export default function SonicDnaView({
           </div>
 
           {/* 1-Tap Curate from DNA Actions */}
-          <div className="flex flex-wrap items-center gap-2.5 mt-5 pt-4 border-t border-[#1f1f2a]">
+          <div className="flex flex-wrap items-center gap-2.5 mt-5 pt-4 border-t border-white/[0.08]">
             {onCurateFromFavorites && (
               <button
                 onClick={onCurateFromFavorites}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-indigo-500/20 active:scale-98"
+                className="px-4 py-2 rounded-full bg-white text-black hover:bg-zinc-200 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-white/10 active:scale-95"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-3.5 h-3.5 fill-black" />
                 <span>Curate My DNA Mix (0 AI Tokens)</span>
               </button>
             )}
@@ -697,32 +708,32 @@ export default function SonicDnaView({
             <button
               onClick={() => onCurateSimilar && favorites[0] && onCurateSimilar(favorites[0])}
               disabled={!favorites.length}
-              className="px-3.5 py-2 rounded-xl bg-[#161622] hover:bg-[#1d1d2c] border border-[#28283a] text-xs text-[#e4e4e7] flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
+              className="px-4 py-2 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-xs text-white font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
             >
               <Compass className="w-3.5 h-3.5 text-sky-400" />
-              <span>Explore Acoustic Boundaries</span>
+              <span>Explore Boundaries</span>
             </button>
           </div>
         </div>
 
         {/* Google & YouTube Sync Status Card */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-[#0f0f15] border border-[#22222e] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+        <div className="p-5 rounded-3xl bg-white/[0.04] border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 backdrop-blur-xl shadow-lg">
+          <div className="flex items-center gap-3.5 min-w-0">
+            <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0">
               <GoogleIcon className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-xs sm:text-sm font-semibold text-white">
+                <span className="text-sm font-bold text-white tracking-tight">
                   {googleUser ? `Connected: ${googleUser.name}` : 'Connect Google & YouTube Music'}
                 </span>
                 {googleUser && (
-                  <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                     ONLINE
                   </span>
                 )}
               </div>
-              <p className="text-[11px] text-[#8e8e96] truncate mt-0.5">
+              <p className="text-xs text-zinc-400 truncate mt-0.5">
                 {googleUser
                   ? `${googleUser.email} • YouTube likes & listening habits synced`
                   : 'Import your personal YouTube music likes, private mixes, and curated history'}
@@ -735,7 +746,7 @@ export default function SonicDnaView({
               <button
                 onClick={onSyncYouTubeLikes}
                 disabled={isSyncingLikes}
-                className="px-3.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-full bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
               >
                 {isSyncingLikes ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400" />
@@ -747,7 +758,7 @@ export default function SonicDnaView({
             ) : (
               <button
                 onClick={onOpenGoogleModal}
-                className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#eaeaea] text-[#1f1f1f] text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
+                className="px-4 py-2 rounded-full bg-white hover:bg-zinc-200 text-black text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-white/10 active:scale-95"
               >
                 <GoogleIcon className="w-3.5 h-3.5" />
                 <span>Sign in with Google</span>

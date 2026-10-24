@@ -1587,81 +1587,103 @@ export default function App() {
         isSyncingLikes={isSyncingLikes}
       />
 
-      {/* Mobile Bottom Navigation Bar - Antigravity Minimal */}
-      <nav className="sm:hidden pb-safe bg-[#0a0a0d] border-t border-[#1c1c22] grid grid-cols-6 items-center shrink-0 z-30 select-none">
-        <button
-          onClick={() => { setActiveTab('curator'); setIsSidebarOpen(false) }}
-          className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-            activeTab === 'curator' && !isSidebarOpen ? 'text-sky-400 font-medium' : 'text-[#71717a]'
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-          <span className="text-[10px]">Curator</span>
-        </button>
+      {/* Mobile Floating Pill Dock Navigation - Inspired by Modern Floating Capsule System */}
+      <nav className="sm:hidden pb-safe px-3 pt-1 pb-2 bg-gradient-to-t from-[#030305] via-[#030305]/90 to-transparent flex items-center justify-center shrink-0 z-30 select-none">
+        <div className="w-full max-w-sm floating-dock rounded-full p-1.5 px-2 flex items-center justify-around shadow-2xl">
+          {/* Curator / Home */}
+          <button
+            onClick={() => { setActiveTab('curator'); setIsSidebarOpen(false) }}
+            className={`transition-all cursor-pointer ${
+              activeTab === 'curator' && !isSidebarOpen
+                ? 'w-11 h-11 rounded-full bg-white text-black shadow-lg shadow-white/20 flex items-center justify-center scale-105'
+                : 'w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white'
+            }`}
+            title="AI Curator"
+            aria-label="AI Curator"
+          >
+            <Sparkles className="w-5 h-5" />
+          </button>
 
-        <button
-          onClick={() => { setActiveTab('favorites'); setIsSidebarOpen(false) }}
-          className={`relative flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-            activeTab === 'favorites' && !isSidebarOpen ? 'text-rose-400 font-medium' : 'text-[#71717a]'
-          }`}
-        >
-          <div className="relative">
-            <Heart className={`w-4 h-4 ${favorites.length > 0 ? 'fill-rose-500/40 text-rose-400' : ''}`} />
-            {favorites.length > 0 && (
-              <span className="absolute -top-1.5 -right-2.5 text-[9px] font-mono px-1 rounded-full bg-rose-500/20 text-rose-300">
-                {favorites.length}
-              </span>
-            )}
-          </div>
-          <span className="text-[10px]">Liked</span>
-        </button>
+          {/* Favourites */}
+          <button
+            onClick={() => { setActiveTab('favorites'); setIsSidebarOpen(false) }}
+            className={`relative transition-all cursor-pointer ${
+              activeTab === 'favorites' && !isSidebarOpen
+                ? 'w-11 h-11 rounded-full bg-white text-rose-600 shadow-lg shadow-white/20 flex items-center justify-center scale-105'
+                : 'w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white'
+            }`}
+            title="Favourites"
+            aria-label="Favourites"
+          >
+            <div className="relative">
+              <Heart className={`w-5 h-5 ${favorites.length > 0 ? 'fill-rose-500 text-rose-500' : ''}`} />
+              {favorites.length > 0 && activeTab !== 'favorites' && (
+                <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-[#0a0a0e]" />
+              )}
+            </div>
+          </button>
 
-        <button
-          onClick={() => { setActiveTab('offline'); setIsSidebarOpen(false) }}
-          className={`relative flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-            activeTab === 'offline' && !isSidebarOpen ? 'text-emerald-400 font-medium' : 'text-[#71717a]'
-          }`}
-        >
-          <div className="relative">
-            <DownloadCloud className={`w-4 h-4 ${offlineStats.count > 0 ? 'text-emerald-400' : ''}`} />
-            {offlineStats.count > 0 && (
-              <span className="absolute -top-1.5 -right-2.5 text-[9px] font-mono px-1 rounded-full bg-emerald-500/20 text-emerald-300">
-                {offlineStats.count}
-              </span>
-            )}
-          </div>
-          <span className="text-[10px]">Offline</span>
-        </button>
+          {/* Offline Downloads */}
+          <button
+            onClick={() => { setActiveTab('offline'); setIsSidebarOpen(false) }}
+            className={`relative transition-all cursor-pointer ${
+              activeTab === 'offline' && !isSidebarOpen
+                ? 'w-11 h-11 rounded-full bg-white text-emerald-600 shadow-lg shadow-white/20 flex items-center justify-center scale-105'
+                : 'w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white'
+            }`}
+            title="Offline Downloads"
+            aria-label="Offline Downloads"
+          >
+            <div className="relative">
+              <DownloadCloud className={`w-5 h-5 ${offlineStats.count > 0 ? 'text-emerald-500' : ''}`} />
+              {offlineStats.count > 0 && activeTab !== 'offline' && (
+                <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-[#0a0a0e]" />
+              )}
+            </div>
+          </button>
 
-        <button
-          onClick={() => setIsSidebarOpen((prev) => !prev)}
-          className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-            isSidebarOpen ? 'text-sky-400 font-medium' : 'text-[#71717a]'
-          }`}
-        >
-          <Sliders className="w-4 h-4" />
-          <span className="text-[10px]">Modes</span>
-        </button>
+          {/* Seeds Library */}
+          <button
+            onClick={() => { setActiveTab('library'); setIsSidebarOpen(false) }}
+            className={`transition-all cursor-pointer ${
+              activeTab === 'library' && !isSidebarOpen
+                ? 'w-11 h-11 rounded-full bg-white text-sky-600 shadow-lg shadow-white/20 flex items-center justify-center scale-105'
+                : 'w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white'
+            }`}
+            title="Seeds Library"
+            aria-label="Seeds Library"
+          >
+            <Disc className="w-5 h-5" />
+          </button>
 
-        <button
-          onClick={() => { setActiveTab('library'); setIsSidebarOpen(false) }}
-          className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-            activeTab === 'library' && !isSidebarOpen ? 'text-sky-400 font-medium' : 'text-[#71717a]'
-          }`}
-        >
-          <Disc className="w-4 h-4" />
-          <span className="text-[10px]">Seeds</span>
-        </button>
+          {/* Modes Sidebar */}
+          <button
+            onClick={() => setIsSidebarOpen((prev) => !prev)}
+            className={`transition-all cursor-pointer ${
+              isSidebarOpen
+                ? 'w-11 h-11 rounded-full bg-white text-purple-600 shadow-lg shadow-white/20 flex items-center justify-center scale-105'
+                : 'w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white'
+            }`}
+            title="Listening Modes"
+            aria-label="Listening Modes"
+          >
+            <Sliders className="w-5 h-5" />
+          </button>
 
-        <button
-          onClick={() => { setActiveTab('dna'); setIsSidebarOpen(false) }}
-          className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
-            activeTab === 'dna' && !isSidebarOpen ? 'text-sky-400 font-medium' : 'text-[#71717a]'
-          }`}
-        >
-          <Dna className="w-4 h-4" />
-          <span className="text-[10px]">Profile</span>
-        </button>
+          {/* Taste Profile */}
+          <button
+            onClick={() => { setActiveTab('dna'); setIsSidebarOpen(false) }}
+            className={`transition-all cursor-pointer ${
+              activeTab === 'dna' && !isSidebarOpen
+                ? 'w-11 h-11 rounded-full bg-white text-indigo-600 shadow-lg shadow-white/20 flex items-center justify-center scale-105'
+                : 'w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white'
+            }`}
+            title="Sonic Profile"
+            aria-label="Sonic Profile"
+          >
+            <Dna className="w-5 h-5" />
+          </button>
+        </div>
       </nav>
 
       {/* Floating Over-The-Air (OTA) Live Update Banner */}

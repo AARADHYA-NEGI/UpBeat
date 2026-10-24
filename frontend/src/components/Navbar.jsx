@@ -38,7 +38,7 @@ export default function Navbar({
   const [savedBanner, setSavedBanner] = useState(false)
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
-  const [otaVer, setOtaVer] = useState('v4.3.2')
+  const [otaVer, setOtaVer] = useState('v4.3.3')
   const [isCheckingOta, setIsCheckingOta] = useState(false)
   const [otaStatusMsg, setOtaStatusMsg] = useState('')
 
@@ -413,16 +413,21 @@ export default function Navbar({
 
       {/* Settings Modal */}
       {showKeyModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#131317] border border-[#262630] rounded-2xl p-5 shadow-2xl">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Settings className="w-4 h-4 text-rose-400" />
-                <h3 className="text-sm font-semibold text-[#f4f4f5]">Studio Settings & Setup</h3>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-[#101015]/95 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center text-rose-400">
+                  <Settings className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white tracking-tight">Studio Settings</h3>
+                  <p className="text-[11px] text-zinc-400 font-mono">Configuration & Updates</p>
+                </div>
               </div>
               <button
                 onClick={() => setShowKeyModal(false)}
-                className="p-1 rounded-md text-[#71717a] hover:text-white hover:bg-[#1c1c24] cursor-pointer"
+                className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -505,17 +510,17 @@ export default function Navbar({
                 )}
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2.5 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowKeyModal(false)}
-                  className="px-3 py-2 rounded-xl text-xs font-mono text-[#a1a1aa] hover:text-white hover:bg-[#181820] cursor-pointer"
+                  className="px-4 py-2 rounded-full text-xs font-semibold text-zinc-400 hover:text-white hover:bg-white/10 cursor-pointer transition-colors"
                 >
                   Close
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-xs font-mono font-medium text-white flex items-center gap-1.5 cursor-pointer shadow-md"
+                  className="px-5 py-2 rounded-full bg-white text-black hover:bg-zinc-200 active:scale-95 text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-white/10 transition-all"
                 >
                   {savedBanner ? <Check className="w-3.5 h-3.5" /> : null}
                   <span>{savedBanner ? 'Saved' : 'Save Changes'}</span>

@@ -217,7 +217,7 @@ export default function PlaylistView({
             <div
               key={station.id}
               onClick={() => onSelectStarter && onSelectStarter(station.query)}
-              className="group relative h-40 rounded-2xl overflow-hidden cursor-pointer border border-white/[0.08] hover:border-white/30 transition-all shadow-lg"
+              className="group relative h-44 rounded-3xl overflow-hidden cursor-pointer border border-white/10 hover:border-white/30 transition-all shadow-xl hover:shadow-2xl hover:scale-[1.01]"
             >
               <img
                 src={station.thumbnail}
@@ -226,20 +226,20 @@ export default function PlaylistView({
               />
               <div className={`absolute inset-0 bg-gradient-to-t ${station.color} via-black/40`} />
               
-              <div className="absolute inset-0 p-4 flex flex-col justify-between">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-rose-300 font-bold px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/30 w-fit">
+              <div className="absolute inset-0 p-5 flex flex-col justify-between">
+                <span className="text-[11px] font-bold tracking-tight text-white px-3 py-1 rounded-full bg-white/15 backdrop-blur-md border border-white/20 w-fit">
                   Radio Station
                 </span>
                 
                 <div className="flex items-end justify-between">
                   <div>
-                    <h3 className="text-base font-bold text-white group-hover:text-rose-300 transition-colors">
+                    <h3 className="text-lg font-bold text-white group-hover:text-rose-200 transition-colors tracking-tight">
                       {station.title}
                     </h3>
-                    <p className="text-xs text-zinc-300 mt-0.5">{station.subtitle}</p>
+                    <p className="text-xs text-zinc-300 mt-1 font-medium">{station.subtitle}</p>
                   </div>
 
-                  <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all shadow-md shadow-white/30 shrink-0 ml-2">
+                  <div className="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-all shadow-lg shadow-black/40 shrink-0 ml-2">
                     <Play className="w-4 h-4 fill-black ml-0.5" />
                   </div>
                 </div>
@@ -249,14 +249,19 @@ export default function PlaylistView({
         </div>
 
         {needsSetup && onOpenSettings && (
-          <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-between gap-3 max-w-xl">
-            <div>
-              <p className="text-xs font-semibold text-white">Gemini AI Key Setup</p>
-              <p className="text-[11px] text-zinc-400 mt-0.5">Configure your Gemini API key for custom prompt curation.</p>
+          <div className="p-5 rounded-3xl bg-white/[0.04] border border-white/10 flex items-center justify-between gap-4 max-w-xl backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center text-rose-400 shrink-0">
+                <KeyRound className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-white tracking-tight">Gemini AI Key Setup</p>
+                <p className="text-xs text-zinc-400 mt-0.5">Configure your Gemini API key for custom prompt curation.</p>
+              </div>
             </div>
             <button
               onClick={onOpenSettings}
-              className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-medium text-white shrink-0 cursor-pointer"
+              className="px-4 py-2 rounded-full bg-white text-black hover:bg-zinc-200 text-xs font-bold shrink-0 cursor-pointer shadow-md transition-all active:scale-95"
             >
               Configure
             </button>
@@ -440,15 +445,15 @@ export default function PlaylistView({
                 <div
                   key={idx}
                   onClick={() => onPlayTrack(track, idx)}
-                  className={`group flex items-center justify-between gap-3 p-1.5 pr-3 rounded-xl transition-all cursor-pointer w-[300px] sm:w-[350px] lg:w-[380px] border ${
+                  className={`group flex items-center justify-between gap-3 p-2 pr-3.5 rounded-2xl transition-all cursor-pointer w-[310px] sm:w-[360px] lg:w-[390px] border ${
                     isSelected
-                      ? 'bg-white/[0.12] border-rose-500/40 shadow-md shadow-rose-950/30'
-                      : 'bg-white/[0.03] hover:bg-white/[0.08] border-transparent hover:border-white/[0.08]'
+                      ? 'bg-white/[0.12] border-rose-500/40 shadow-lg shadow-rose-950/30 scale-[1.01]'
+                      : 'bg-white/[0.035] hover:bg-white/[0.08] border-white/[0.06] hover:border-white/15'
                   }`}
                 >
                   {/* Left: Artwork with Hover Play Triangle Overlay */}
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-12 h-12 rounded-lg bg-zinc-900 border border-white/10 overflow-hidden shrink-0 relative">
+                    <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-white/10 overflow-hidden shrink-0 relative shadow-sm">
                       {thumbUrl ? (
                         <img src={thumbUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
                       ) : (
@@ -475,12 +480,12 @@ export default function PlaylistView({
 
                     {/* Middle: Title & Artist / Details */}
                     <div className="min-w-0">
-                      <div className={`text-sm font-semibold truncate transition-colors ${
+                      <div className={`text-sm font-bold tracking-tight truncate transition-colors ${
                         isSelected ? 'text-rose-300' : 'text-white group-hover:text-rose-300'
                       }`}>
                         {track.title}
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-zinc-400 truncate mt-0.5">
+                      <div className="flex items-center gap-1.5 text-xs text-zinc-400 font-medium truncate mt-0.5">
                         <span className="truncate">{track.artist}</span>
                         {track.duration_text && (
                           <>

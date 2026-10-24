@@ -77,18 +77,18 @@ export default function YouTubeTasteSyncModal({
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-lg bg-[#0e0e13] border border-[#242430] rounded-2xl shadow-2xl flex flex-col max-h-[85vh] z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-lg bg-[#0e0e13]/95 border border-white/10 rounded-3xl shadow-2xl flex flex-col max-h-[85vh] z-10 overflow-hidden animate-in fade-in zoom-in-95 duration-150 backdrop-blur-2xl">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-[#20202a] flex items-center justify-between bg-[#131319]">
+        <div className="p-4 sm:p-5 border-b border-white/[0.08] flex items-center justify-between bg-white/[0.03]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500">
+            <div className="w-9 h-9 rounded-2xl bg-rose-500/15 border border-rose-500/25 flex items-center justify-center text-rose-500 shadow-xs">
               <Youtube className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">
+              <h3 className="text-sm font-bold text-white tracking-tight">
                 Sync YouTube Taste & Seeds
               </h3>
-              <p className="text-[11px] text-[#8e8e96] font-mono">
+              <p className="text-[11px] text-zinc-400 font-mono">
                 Curate your Taste Profile on Android & Mac
               </p>
             </div>
@@ -96,7 +96,7 @@ export default function YouTubeTasteSyncModal({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[#71717a] hover:text-white hover:bg-[#1c1c24] transition-colors cursor-pointer"
+            className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
