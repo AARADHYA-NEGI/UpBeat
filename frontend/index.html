@@ -18,11 +18,9 @@
     <script>
       (function() {
         try {
-          var m = localStorage.getItem('upbeat_theme_mode');
-          if (m === 'light') {
-            document.documentElement.classList.add('theme-light');
-            document.documentElement.classList.remove('dark');
-          }
+          localStorage.removeItem('upbeat_theme_mode');
+          document.documentElement.classList.remove('theme-light');
+          document.documentElement.classList.add('dark');
         } catch(e) {}
       })();
     </script>

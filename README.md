@@ -10,11 +10,10 @@ Built as a clean cross-platform project for **Android**, **macOS**, and the **We
 
 ## ✨ Highlights
 
-- **Dynamic Day / Night Atmosphere**: The app shifts ambient gradient lighting and cyber grid reflections automatically based on your local time, with full support for both **Dark Cyber Mode** and **Light Studio Mode**:
+- **Dynamic Day / Night Atmosphere**: The app shifts ambient gradient lighting and cyber grid reflections automatically based on your local time:
   - 🌅 **Sunrise Crimson** (4:00 AM – 11:59 AM)
   - ☀️ **Radiant Azure & Gold** (12:00 PM – 7:59 PM)
   - 🌌 **Cosmic Midnight Violet** (8:00 PM – 3:59 AM)
-  - 💡 **Light Mode**: Clean, daylight ivory & slate aesthetic with soft diffused glows, selectable anytime in Settings.
 - **Authentic Google Sign-In & YouTube Sync**: Connect with official Google OAuth 2.0 or YouTube playlist link to accurately import your real Liked Videos, refresh seeds, and generate a customized **Sonic Taste DNA profile** tailored directly to your individual listening habits.
 - **Android Native App & Android Auto**:
   - Full foreground media playback with responsive notification controls.

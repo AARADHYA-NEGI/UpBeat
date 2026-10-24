@@ -11,7 +11,7 @@ import QueueDrawer from './components/QueueDrawer'
 import GoogleAuthModal from './components/GoogleAuthModal'
 import { getOfflineTracks, getOfflineStorageStats, subscribeOfflineChanges } from './offlineStorage'
 import { initOtaUpdater } from './otaUpdater'
-import { getDayNightThemeInfo, getStoredThemeMode, applyThemeMode } from './utils/themeCycle'
+import { getDayNightThemeInfo } from './utils/themeCycle'
 import {
   getApiBase,
   curateStandalone,
@@ -155,9 +155,8 @@ export default function App() {
   const [otaUpdate, setOtaUpdate] = useState(null)
   const [isApplyingOta, setIsApplyingOta] = useState(false)
 
-  // Initialize Over-The-Air (OTA) live updater & active appearance on startup
+  // Initialize Over-The-Air (OTA) live updater on startup
   useEffect(() => {
-    applyThemeMode(getStoredThemeMode())
     initOtaUpdater((updateInfo) => {
       setOtaUpdate(updateInfo)
     })

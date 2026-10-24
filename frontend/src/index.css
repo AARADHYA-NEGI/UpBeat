@@ -55,37 +55,6 @@ html, body, #root {
   --atm-grid: rgba(139, 92, 246, 0.058);
 }
 
-/* Light Mode Overrides */
-html.theme-light, body.theme-light {
-  background-color: #f8fafc !important;
-  color: #0f172a !important;
-  color-scheme: light;
-}
-
-html.theme-light.theme-morning, :root.theme-light.theme-morning {
-  --atm-glow-1: rgba(239, 68, 68, 0.18);
-  --atm-glow-2: rgba(244, 63, 94, 0.10);
-  --atm-glow-3: rgba(251, 146, 60, 0.04);
-  --atm-accent: rgba(225, 29, 72, 0.07);
-  --atm-grid: rgba(239, 68, 68, 0.05);
-}
-
-html.theme-light.theme-afternoon, :root.theme-light.theme-afternoon {
-  --atm-glow-1: rgba(14, 165, 233, 0.18);
-  --atm-glow-2: rgba(245, 158, 11, 0.10);
-  --atm-glow-3: rgba(16, 185, 129, 0.04);
-  --atm-accent: rgba(14, 165, 233, 0.07);
-  --atm-grid: rgba(14, 165, 233, 0.05);
-}
-
-html.theme-light.theme-night, :root.theme-light.theme-night {
-  --atm-glow-1: rgba(139, 92, 246, 0.18);
-  --atm-glow-2: rgba(99, 102, 241, 0.10);
-  --atm-glow-3: rgba(236, 72, 153, 0.04);
-  --atm-accent: rgba(124, 58, 237, 0.07);
-  --atm-grid: rgba(139, 92, 246, 0.05);
-}
-
 /* Broadened Cyber Atmosphere with Seamless Edge Spread */
 .ytm-atmosphere {
   background-color: #030305;
@@ -102,22 +71,6 @@ html.theme-light.theme-night, :root.theme-light.theme-night {
   background-attachment: fixed;
   transition: background-image 1.2s ease-in-out;
 }
-
-html.theme-light .ytm-atmosphere {
-  background-color: #f8fafc;
-}
-
-html.theme-light .bg-\[\#030305\] { background-color: #f8fafc !important; }
-html.theme-light .bg-\[\#0d0d0f\], html.theme-light .bg-\[\#0d0d11\] { background-color: #ffffff !important; }
-html.theme-light .bg-\[\#0e0e13\], html.theme-light .bg-\[\#0f0f13\] { background-color: #f8fafc !important; }
-html.theme-light .bg-\[\#121217\], html.theme-light .bg-\[\#131317\], html.theme-light .bg-\[\#141418\] { background-color: #ffffff !important; }
-html.theme-light .bg-\[\#15151c\], html.theme-light .bg-\[\#181820\], html.theme-light .bg-\[\#1c1c24\] { background-color: #f1f5f9 !important; }
-html.theme-light .text-\[\#f4f4f5\], html.theme-light .text-\[\#f5f5f5\], html.theme-light .text-white { color: #0f172a !important; }
-html.theme-light .text-\[\#8e8e96\], html.theme-light .text-\[\#a1a1aa\] { color: #475569 !important; }
-html.theme-light .text-\[\#71717a\] { color: #64748b !important; }
-html.theme-light .border-white\/\[0\.06\], html.theme-light .border-white\/\[0\.08\], html.theme-light .border-white\/10 { border-color: rgba(0, 0, 0, 0.08) !important; }
-html.theme-light .border-\[\#202028\], html.theme-light .border-\[\#22222c\], html.theme-light .border-\[\#242432\], html.theme-light .border-\[\#262630\], html.theme-light .border-\[\#262634\] { border-color: #e2e8f0 !important; }
-html.theme-light .border-\[\#181820\], html.theme-light .border-\[\#1c1c22\] { border-color: #e2e8f0 !important; }
 
 .ytm-grid-overlay {
   background-image: 
