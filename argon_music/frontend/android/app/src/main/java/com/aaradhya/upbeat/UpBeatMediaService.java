@@ -97,7 +97,10 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
 
-    private boolean isCurrentlyPlaying = false;
+    private volatile boolean isCurrentlyPlaying = false;
+    private volatile long lastUserActionTime = 0;
+    private volatile boolean lastUserActionWasPause = false;
+
     private String currentTitle = "UpBeat";
     private String currentArtist = "Curated Stream";
     private String currentArtUrl = "";
@@ -140,25 +143,33 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
     private class MediaSessionCallback extends MediaSessionCompat.Callback {
         @Override
         public void onPlay() {
-            updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING, currentPositionMs, true);
+            isCurrentlyPlaying = true;
+            lastUserActionTime = SystemClock.elapsedRealtime();
+            lastUserActionWasPause = false;
+            updatePlaybackState(PlaybackStateCompat.STATE_PLAYING, currentPositionMs, true);
+            notifyNotification();
             dispatchToApp("play", "");
         }
 
         @Override
         public void onPause() {
+            isCurrentlyPlaying = false;
+            lastUserActionTime = SystemClock.elapsedRealtime();
+            lastUserActionWasPause = true;
             updatePlaybackState(PlaybackStateCompat.STATE_PAUSED, currentPositionMs, false);
+            notifyNotification();
             dispatchToApp("pause", "");
         }
 
         @Override
         public void onSkipToNext() {
-            updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING, 0, true);
+            updatePlaybackState(PlaybackStateCompat.STATE_SKIPPING_TO_NEXT, 0, true);
             dispatchToApp("next", "");
         }
 
         @Override
         public void onSkipToPrevious() {
-            updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING, 0, true);
+            updatePlaybackState(PlaybackStateCompat.STATE_SKIPPING_TO_PREVIOUS, 0, true);
             dispatchToApp("prev", "");
         }
 
@@ -371,18 +382,48 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
         if (intent != null && intent.getAction() != null) {
             String act = intent.getAction();
             if (ACTION_TOGGLE_PLAY.equals(act)) {
-                dispatchToApp(isCurrentlyPlaying ? "pause" : "play", "");
+                boolean nextPlaying = !isCurrentlyPlaying;
+                isCurrentlyPlaying = nextPlaying;
+                lastUserActionTime = SystemClock.elapsedRealtime();
+                lastUserActionWasPause = !nextPlaying;
+                updatePlaybackState(
+                    nextPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED,
+                    currentPositionMs,
+                    nextPlaying
+                );
+                notifyNotification();
+                dispatchToApp(nextPlaying ? "play" : "pause", "");
                 return START_STICKY;
             } else if (ACTION_PLAY.equals(act)) {
+                isCurrentlyPlaying = true;
+                lastUserActionTime = SystemClock.elapsedRealtime();
+                lastUserActionWasPause = false;
+                updatePlaybackState(
+                    PlaybackStateCompat.STATE_PLAYING,
+                    currentPositionMs,
+                    true
+                );
+                notifyNotification();
                 dispatchToApp("play", "");
                 return START_STICKY;
             } else if (ACTION_PAUSE.equals(act)) {
+                isCurrentlyPlaying = false;
+                lastUserActionTime = SystemClock.elapsedRealtime();
+                lastUserActionWasPause = true;
+                updatePlaybackState(
+                    PlaybackStateCompat.STATE_PAUSED,
+                    currentPositionMs,
+                    false
+                );
+                notifyNotification();
                 dispatchToApp("pause", "");
                 return START_STICKY;
             } else if (ACTION_NEXT.equals(act)) {
+                updatePlaybackState(PlaybackStateCompat.STATE_SKIPPING_TO_NEXT, 0, true);
                 dispatchToApp("next", "");
                 return START_STICKY;
             } else if (ACTION_PREV.equals(act)) {
+                updatePlaybackState(PlaybackStateCompat.STATE_SKIPPING_TO_PREVIOUS, 0, true);
                 dispatchToApp("prev", "");
                 return START_STICKY;
             } else if (ACTION_REWIND.equals(act)) {
@@ -394,6 +435,8 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
                 dispatchToApp("seek", String.valueOf(targetSec));
                 return START_STICKY;
             } else if (ACTION_STOP.equals(act)) {
+                isCurrentlyPlaying = false;
+                updatePlaybackState(PlaybackStateCompat.STATE_STOPPED, 0, false);
                 dispatchToApp("pause", "");
                 stopForeground(true);
                 stopSelf();
@@ -441,6 +484,22 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
 
         boolean trackChanged = !cleanTitle.equals(currentTitle)
             || (!cleanArt.isEmpty() && !cleanArt.equals(currentArtUrl));
+
+        long timeSinceUserAction = SystemClock.elapsedRealtime() - lastUserActionTime;
+        if (timeSinceUserAction < 2500) {
+            if (lastUserActionWasPause && isPlaying) {
+                // User explicitly pressed pause in notification controls within last 2.5s.
+                // Do NOT allow a delayed in-flight progress report from JS to revert back to playing!
+                isPlaying = false;
+            } else if (!lastUserActionWasPause && !isPlaying) {
+                // User explicitly pressed play in notification controls within last 2.5s.
+                // Do NOT allow a delayed in-flight pause report from JS to revert back to paused!
+                isPlaying = true;
+            } else {
+                // Desired state confirmed by JS, clear override
+                lastUserActionTime = 0;
+            }
+        }
 
         currentTitle = cleanTitle;
         currentArtist = cleanArtist;

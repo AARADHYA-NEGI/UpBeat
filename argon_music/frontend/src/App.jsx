@@ -326,12 +326,18 @@ export default function App() {
           if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
             navigator.mediaSession.playbackState = 'playing'
           }
+          document.querySelectorAll('audio').forEach((el) => {
+            if (el.src) try { el.play().catch(() => {}) } catch {}
+          })
           break
         case 'pause':
           setIsPlaying(false)
           if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
             navigator.mediaSession.playbackState = 'paused'
           }
+          document.querySelectorAll('audio').forEach((el) => {
+            try { el.pause() } catch {}
+          })
           break
         case 'next':
           handleNext()

@@ -16,8 +16,16 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
 
     public static MainActivity sInstance = null;
-    private static volatile String sPendingAction = null;
-    private static volatile String sPendingPayload = null;
+    private static class CarActionItem {
+        final String action;
+        final String payload;
+        CarActionItem(String action, String payload) {
+            this.action = action;
+            this.payload = payload;
+        }
+    }
+    private static final java.util.concurrent.ConcurrentLinkedQueue<CarActionItem> sPendingActionsQueue =
+        new java.util.concurrent.ConcurrentLinkedQueue<>();
     private final Handler mHandler = new Handler(Looper.getMainLooper());
 
     @Override
@@ -62,13 +70,12 @@ public class MainActivity extends BridgeActivity {
 
     public synchronized void dispatchCarAction(final String action, final String payload) {
         if (action == null) return;
-        sPendingAction = action;
-        sPendingPayload = payload != null ? payload : "";
+        sPendingActionsQueue.add(new CarActionItem(action, payload != null ? payload : ""));
         tryDeliverPendingCarAction(0);
     }
 
     public synchronized void tryDeliverPendingCarAction(final int attempt) {
-        if (sPendingAction == null) return;
+        if (sPendingActionsQueue.isEmpty()) return;
         if (this.bridge == null || this.bridge.getWebView() == null) {
             if (attempt < 25) {
                 mHandler.postDelayed(() -> tryDeliverPendingCarAction(attempt + 1), 300);
@@ -78,26 +85,22 @@ public class MainActivity extends BridgeActivity {
 
         final WebView wv = this.bridge.getWebView();
         wv.post(() -> {
-            if (sPendingAction == null) return;
-            final String action = sPendingAction;
-            final String payload = sPendingPayload != null ? sPendingPayload : "";
-            final String safeAction = action.replace("'", "\\'");
-            final String safePayload = payload.replace("'", "\\'");
+            if (sPendingActionsQueue.isEmpty()) return;
+            final java.util.List<CarActionItem> batch = new java.util.ArrayList<>(sPendingActionsQueue);
+            StringBuilder sb = new StringBuilder();
+            sb.append("(function() {");
+            sb.append("  if (typeof window.onUpBeatCarAction !== 'function') return 'retry';");
+            for (CarActionItem item : batch) {
+                String safeAction = item.action.replace("'", "\\'");
+                String safePayload = item.payload.replace("'", "\\'");
+                sb.append("  window.onUpBeatCarAction('").append(safeAction).append("', '").append(safePayload).append("');");
+            }
+            sb.append("  return 'ok';");
+            sb.append("})();");
 
-            final String script = "(function() {" +
-                "  if (typeof window.onUpBeatCarAction === 'function') {" +
-                "    window.onUpBeatCarAction('" + safeAction + "', '" + safePayload + "');" +
-                "    return 'ok';" +
-                "  }" +
-                "  return 'retry';" +
-                "})();";
-
-            wv.evaluateJavascript(script, value -> {
+            wv.evaluateJavascript(sb.toString(), value -> {
                 if (value != null && value.contains("ok")) {
-                    synchronized (MainActivity.this) {
-                        sPendingAction = null;
-                        sPendingPayload = null;
-                    }
+                    sPendingActionsQueue.removeAll(batch);
                 } else {
                     if (attempt < 25) {
                         mHandler.postDelayed(() -> tryDeliverPendingCarAction(attempt + 1), 350);
