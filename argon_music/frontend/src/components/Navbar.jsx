@@ -7,6 +7,7 @@ import { GoogleIcon } from './GoogleAuthModal'
 import { checkOtaUpdate, getCurrentOtaVersion, applyOtaBundle } from '../otaUpdater'
 
 export default function Navbar({
+  themeInfo,
   models = [],
   selectedModel,
   onSelectModel,
@@ -37,7 +38,7 @@ export default function Navbar({
   const [savedBanner, setSavedBanner] = useState(false)
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
-  const [otaVer, setOtaVer] = useState('v4.1.3')
+  const [otaVer, setOtaVer] = useState('v4.2.0')
   const [isCheckingOta, setIsCheckingOta] = useState(false)
   const [otaStatusMsg, setOtaStatusMsg] = useState('')
 
@@ -217,6 +218,22 @@ export default function Navbar({
                 {/* Text is hidden on mobile screens, shown on desktop */}
                 <span className="hidden sm:inline font-bold text-white text-lg tracking-tight">UpBeat</span>
               </div>
+
+              {/* Day / Night Atmosphere Status Indicator */}
+              {themeInfo && (
+                <div
+                  className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-mono tracking-tight transition-all select-none"
+                  style={{
+                    backgroundColor: `${themeInfo.color}15`,
+                    borderColor: `${themeInfo.color}35`,
+                    color: themeInfo.color
+                  }}
+                  title={`Atmosphere: ${themeInfo.label} (${themeInfo.timeSlot})`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: themeInfo.color }} />
+                  <span className="font-medium">{themeInfo.type === 'morning' ? 'Sunrise' : themeInfo.type === 'afternoon' ? 'Daylight' : 'Cosmic Night'}</span>
+                </div>
+              )}
             </div>
 
             {/* Center: Desktop-only Spacious Search Bar */}

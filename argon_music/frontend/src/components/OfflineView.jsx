@@ -122,9 +122,9 @@ export default function OfflineView({
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0d] overflow-y-auto select-none">
+    <div className="flex-1 flex flex-col min-h-0 bg-transparent overflow-y-auto select-none gpu-scroll">
       {/* Sticky Header */}
-      <div className="p-4 sm:p-6 border-b border-[#1f1f26] bg-[#0d0d10]/95 backdrop-blur-md sticky top-0 z-20">
+      <div className="p-4 sm:p-6 border-b border-white/[0.06] bg-[#030305]/75 backdrop-blur-xl sticky top-0 z-20">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
@@ -313,10 +313,10 @@ export default function OfflineView({
         ) : (
           <>
             {/* Desktop Table View */}
-            <div className="hidden md:block overflow-hidden rounded-xl border border-[#1f1f26] bg-[#0d0d11]">
+            <div className="hidden md:block overflow-hidden rounded-xl border border-white/[0.08] bg-[#0d0d11]/75 backdrop-blur-md">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-[#1f1f26] text-[11px] font-mono uppercase tracking-wider text-[#71717a] bg-[#121217]">
+                  <tr className="border-b border-white/[0.08] text-[11px] font-mono uppercase tracking-wider text-[#71717a] bg-[#121217]/80 backdrop-blur-sm">
                     <th className="py-2.5 px-4 w-12 text-center">#</th>
                     <th className="py-2.5 px-4">Title & Artist</th>
                     <th className="py-2.5 px-4 w-24">Duration</th>
@@ -469,10 +469,10 @@ export default function OfflineView({
                   <div
                     key={t.video_id || idx}
                     onClick={() => onPlayTrack(t, filteredTracks)}
-                    className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                    className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 fast-row ${
                       isCur
-                        ? 'bg-[#151522] border-emerald-500/40 shadow-sm'
-                        : 'bg-[#0f0f13] border-[#1f1f26] hover:bg-[#14141a]'
+                        ? 'bg-[#151522]/90 border-emerald-500/40 shadow-sm backdrop-blur-md'
+                        : 'bg-[#0f0f13]/70 border-white/[0.08] hover:bg-[#14141a]/90 backdrop-blur-md'
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">

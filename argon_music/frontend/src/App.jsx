@@ -11,6 +11,7 @@ import QueueDrawer from './components/QueueDrawer'
 import GoogleAuthModal from './components/GoogleAuthModal'
 import { getOfflineTracks, getOfflineStorageStats, subscribeOfflineChanges } from './offlineStorage'
 import { initOtaUpdater } from './otaUpdater'
+import { getDayNightThemeInfo } from './utils/themeCycle'
 import {
   getApiBase,
   curateStandalone,
@@ -44,6 +45,17 @@ function loadStorage(key, fallback) {
 }
 
 export default function App() {
+  const [themeInfo, setThemeInfo] = useState(() => getDayNightThemeInfo())
+
+  useEffect(() => {
+    const checkTheme = () => {
+      const info = getDayNightThemeInfo()
+      setThemeInfo((prev) => (prev.id !== info.id ? info : prev))
+    }
+    const interval = setInterval(checkTheme, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
   const [models] = useState([
     { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash (Active)' },
     { id: 'gemini-4-argon', name: 'Gemini 4 Argon / ER-2 (1s Fast)' },
@@ -1100,7 +1112,7 @@ export default function App() {
     : null
 
   return (
-    <div className="h-[100dvh] w-screen ytm-atmosphere text-[#f4f4f5] flex flex-col overflow-hidden">
+    <div className={`h-[100dvh] w-screen ytm-atmosphere ${themeInfo?.id || 'theme-morning'} text-[#f4f4f5] flex flex-col overflow-hidden`}>
       {/* Subtle Antigravity Status Notification */}
       {notification && (
         <div className="fixed bottom-36 sm:bottom-20 left-4 right-4 sm:left-6 sm:right-auto z-50">
@@ -1119,6 +1131,7 @@ export default function App() {
 
       {/* Top Bar */}
       <Navbar
+        themeInfo={themeInfo}
         models={models}
         selectedModel={selectedModel}
         onSelectModel={setSelectedModel}

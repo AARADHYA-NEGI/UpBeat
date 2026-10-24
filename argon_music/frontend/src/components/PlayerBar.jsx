@@ -85,6 +85,19 @@ export default function PlayerBar({
   const endedTriggeredRef = useRef(false)
   const isScrubbingRef = useRef(false)
   const lastNativeReportSecRef = useRef(0)
+  const currentTimeRef = useRef(0)
+  const isDocumentHiddenRef = useRef(false)
+
+  useEffect(() => {
+    const handleVisChange = () => {
+      isDocumentHiddenRef.current = document.hidden
+      if (!document.hidden) {
+        setCurrentTime(currentTimeRef.current)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisChange)
+    return () => document.removeEventListener('visibilitychange', handleVisChange)
+  }, [])
 
   // Global fix for HE-AAC / SBR 2x duration desync and player freeze bug
   const authoritativeDurationRef = useRef(0)
@@ -290,6 +303,7 @@ export default function PlayerBar({
 
   const commitSeek = (targetSec) => {
     const sec = Math.max(0, Number(targetSec) || 0)
+    currentTimeRef.current = sec
     setCurrentTime(sec)
     lastCurPosRef.current = sec
     lastCurChangeTimeRef.current = Date.now()
@@ -331,6 +345,7 @@ export default function PlayerBar({
   // Resolve video_id if track lacks one
   useEffect(() => {
     endedTriggeredRef.current = false
+    currentTimeRef.current = 0
     setCurrentTime(0)
     setScrubTime(0)
     setIsScrubbing(false)
@@ -752,12 +767,15 @@ export default function PlayerBar({
     }
   }, [resolvedVid, playbackMode, useIframeFallback])
 
-  // Continuous 250ms playback progress ticker for both <audio> and YT.Player fallback
+  // Optimized progress ticker: 250ms when app is active; 1500ms when hidden/in-background to save battery & CPU
   useEffect(() => {
     if (!isPlaying || playbackMode !== 'app') return
 
-    const interval = setInterval(() => {
-      if (isScrubbingRef.current) return
+    let timerId = null
+    let isCancelled = false
+
+    const tick = () => {
+      if (isCancelled || isScrubbingRef.current) return
 
       if (!useIframeFallback) {
         const audio = getActiveAudio()
@@ -772,7 +790,10 @@ export default function PlayerBar({
                 : parseDurationText(track?.duration_text))
 
         if (typeof cur === 'number' && !isNaN(cur) && cur >= 0) {
-          setCurrentTime(cur)
+          currentTimeRef.current = cur
+          if (!isDocumentHiddenRef.current) {
+            setCurrentTime(cur)
+          }
 
           // Track progress advancement for stall / frozen detection
           if (Math.abs(cur - lastCurPosRef.current) > 0.05) {
@@ -780,7 +801,8 @@ export default function PlayerBar({
             lastCurChangeTimeRef.current = Date.now()
           }
 
-          if (Math.abs(cur - lastNativeReportSecRef.current) >= 3) {
+          // Native playback IPC: report periodically (every 5 seconds) to avoid spamming the Android UI thread
+          if (Math.abs(cur - lastNativeReportSecRef.current) >= 5) {
             lastNativeReportSecRef.current = cur
             if (isPlayingRef.current) {
               notifyNativePlayback(true, cur, targetDur)
@@ -819,7 +841,10 @@ export default function PlayerBar({
         try {
           const cur = p.getCurrentTime()
           if (typeof cur === 'number' && !isNaN(cur) && cur >= 0) {
-            setCurrentTime(cur)
+            currentTimeRef.current = cur
+            if (!isDocumentHiddenRef.current) {
+              setCurrentTime(cur)
+            }
           }
           if (typeof p.getDuration === 'function') {
             const dur = p.getDuration()
@@ -834,14 +859,30 @@ export default function PlayerBar({
           }
         } catch {}
       }
-    }, 250)
+    }
 
-    return () => clearInterval(interval)
+    const scheduleNextTick = () => {
+      const delay = isDocumentHiddenRef.current ? 1500 : 250
+      timerId = setTimeout(() => {
+        tick()
+        if (!isCancelled) {
+          scheduleNextTick()
+        }
+      }, delay)
+    }
+
+    scheduleNextTick()
+
+    return () => {
+      isCancelled = true
+      if (timerId) clearTimeout(timerId)
+    }
   }, [isPlaying, playbackMode, useIframeFallback, duration, track])
 
   // Sync Android Foreground Media Service + Android Auto + macOS + Lock Screen MediaSession
+  // NOTE: currentTime is accessed via currentTimeRef to avoid running this heavy IPC effect 4 times/sec
   useEffect(() => {
-    notifyNativePlayback(Boolean(isPlaying), currentTime, effectiveDuration)
+    notifyNativePlayback(Boolean(isPlaying), currentTimeRef.current, effectiveDuration)
 
     if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
       try {
@@ -865,7 +906,7 @@ export default function PlayerBar({
           if (activeAudio && activeAudio.src) {
             try { activeAudio.play().catch(() => {}) } catch {}
           }
-          notifyNativePlayback(true, currentTime, effectiveDuration)
+          notifyNativePlayback(true, currentTimeRef.current, effectiveDuration)
         })
         navigator.mediaSession.setActionHandler('pause', () => {
           setIsPlaying(false)
@@ -882,7 +923,7 @@ export default function PlayerBar({
           if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
             try { playerRef.current.pauseVideo() } catch {}
           }
-          notifyNativePlayback(false, currentTime, effectiveDuration)
+          notifyNativePlayback(false, currentTimeRef.current, effectiveDuration)
         })
         navigator.mediaSession.setActionHandler('previoustrack', () => onPrev())
         navigator.mediaSession.setActionHandler('nexttrack', () => onNextRef.current())
@@ -893,25 +934,25 @@ export default function PlayerBar({
         })
         navigator.mediaSession.setActionHandler('seekforward', (details) => {
           const offset = details?.seekOffset || 10
-          commitSeek(currentTime + offset)
+          commitSeek(currentTimeRef.current + offset)
         })
         navigator.mediaSession.setActionHandler('seekbackward', (details) => {
           const offset = details?.seekOffset || 10
-          commitSeek(Math.max(0, currentTime - offset))
+          commitSeek(Math.max(0, currentTimeRef.current - offset))
         })
 
-        if ('setPositionState' in navigator.mediaSession && effectiveDuration > 0 && currentTime >= 0) {
+        if ('setPositionState' in navigator.mediaSession && effectiveDuration > 0 && currentTimeRef.current >= 0) {
           try {
             navigator.mediaSession.setPositionState({
               duration: Math.max(1, effectiveDuration),
               playbackRate: isPlaying ? 1 : 0,
-              position: Math.min(effectiveDuration, Math.max(0, currentTime))
+              position: Math.min(effectiveDuration, Math.max(0, currentTimeRef.current))
             })
           } catch {}
         }
       } catch {}
     }
-  }, [isPlaying, track?.title, track?.artist, track?.thumbnail, resolvedVid, thumbUrl, effectiveDuration, currentTime, onPrev])
+  }, [isPlaying, track?.title, track?.artist, track?.thumbnail, resolvedVid, thumbUrl, effectiveDuration, onPrev])
 
   // Listen for in-car seek commands from Android Auto
   useEffect(() => {
@@ -954,7 +995,11 @@ export default function PlayerBar({
           preload="auto"
           onTimeUpdate={(e) => {
             if (activeDeckRef.current === deck && !useIframeFallback && !isScrubbingRef.current) {
-              setCurrentTime(e.currentTarget.currentTime || 0)
+              const cur = e.currentTarget.currentTime || 0
+              currentTimeRef.current = cur
+              if (!isDocumentHiddenRef.current) {
+                setCurrentTime(cur)
+              }
             }
           }}
           onLoadedMetadata={(e) => {

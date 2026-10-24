@@ -19,23 +19,73 @@ html, body, #root {
   overscroll-behavior: none;
 }
 
-/* YouTube Music Inspired Cyber Atmosphere with Subtle Red Grid Lines */
+/* Dynamic Day/Night Cycle Cyber Atmosphere Themes */
+:root {
+  --atm-glow-1: rgba(239, 68, 68, 0.22);
+  --atm-glow-2: rgba(244, 63, 94, 0.12);
+  --atm-glow-3: rgba(251, 146, 60, 0.04);
+  --atm-accent: rgba(225, 29, 72, 0.08);
+  --atm-grid: rgba(239, 68, 68, 0.045);
+}
+
+/* Morning (4:00 AM - 11:59 AM) - Crimson Sunrise */
+.theme-morning, :root.theme-morning {
+  --atm-glow-1: rgba(239, 68, 68, 0.24);
+  --atm-glow-2: rgba(244, 63, 94, 0.14);
+  --atm-glow-3: rgba(251, 146, 60, 0.05);
+  --atm-accent: rgba(225, 29, 72, 0.09);
+  --atm-grid: rgba(239, 68, 68, 0.048);
+}
+
+/* Afternoon / Sunset (12:00 PM - 7:59 PM) - Radiant Azure Sky & Solar Gold */
+.theme-afternoon, :root.theme-afternoon {
+  --atm-glow-1: rgba(14, 165, 233, 0.24);
+  --atm-glow-2: rgba(245, 158, 11, 0.14);
+  --atm-glow-3: rgba(16, 185, 129, 0.05);
+  --atm-accent: rgba(14, 165, 233, 0.09);
+  --atm-grid: rgba(56, 189, 248, 0.048);
+}
+
+/* Night (8:00 PM - 3:59 AM) - Cosmic Midnight Violet & Neon Indigo */
+.theme-night, :root.theme-night {
+  --atm-glow-1: rgba(139, 92, 246, 0.26);
+  --atm-glow-2: rgba(99, 102, 241, 0.15);
+  --atm-glow-3: rgba(236, 72, 153, 0.05);
+  --atm-accent: rgba(124, 58, 237, 0.10);
+  --atm-grid: rgba(139, 92, 246, 0.048);
+}
+
+/* YouTube Music Inspired Cyber Atmosphere with Dynamic Day/Night Cycle */
 .ytm-atmosphere {
   background-color: #030305;
   background-image: 
-    radial-gradient(ellipse 85% 420px at 45% -30px, rgba(239, 68, 68, 0.22) 0%, rgba(244, 63, 94, 0.12) 35%, rgba(56, 189, 248, 0.03) 70%, transparent 100%),
-    radial-gradient(circle 600px at 85% 15%, rgba(225, 29, 72, 0.08) 0%, transparent 75%),
-    linear-gradient(to right, rgba(239, 68, 68, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(239, 68, 68, 0.045) 1px, transparent 1px);
+    radial-gradient(ellipse 85% 440px at 45% -30px, var(--atm-glow-1) 0%, var(--atm-glow-2) 35%, var(--atm-glow-3) 70%, transparent 100%),
+    radial-gradient(circle 600px at 85% 15%, var(--atm-accent) 0%, transparent 75%),
+    linear-gradient(to right, var(--atm-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--atm-grid) 1px, transparent 1px);
   background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
   background-attachment: fixed;
+  transition: background-image 1.2s ease-in-out;
 }
 
 .ytm-grid-overlay {
   background-image: 
-    linear-gradient(to right, rgba(239, 68, 68, 0.045) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(239, 68, 68, 0.045) 1px, transparent 1px);
+    linear-gradient(to right, var(--atm-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--atm-grid) 1px, transparent 1px);
   background-size: 36px 36px;
+}
+
+/* Mobile GPU Acceleration & Smooth 120fps Scrolling */
+.gpu-scroll {
+  -webkit-overflow-scrolling: touch;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  will-change: scroll-position;
+}
+
+.fast-row {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 54px;
 }
 
 body {

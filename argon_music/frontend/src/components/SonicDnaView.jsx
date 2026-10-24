@@ -117,8 +117,8 @@ export default function SonicDnaView({
     })
 
     return (
-      <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0c]">
-        <div className="px-3.5 sm:px-6 py-3.5 sm:py-4 border-b border-[#222226] bg-[#0d0d0f] flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+      <div className="flex-1 flex flex-col min-h-0 bg-transparent gpu-scroll">
+        <div className="px-3.5 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.06] bg-[#030305]/75 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div>
             <div className="flex items-center gap-2">
               <Heart className="w-4 h-4 fill-rose-500 text-rose-500 shrink-0" />
@@ -195,7 +195,7 @@ export default function SonicDnaView({
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[#1f1f24] text-[10px] font-mono uppercase tracking-wider text-[#9ca3af] bg-[#0c0c0f] sticky top-0 z-10">
+                <tr className="border-b border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-[#9ca3af] bg-[#030305]/80 backdrop-blur-md sticky top-0 z-10">
                   <th className="py-2.5 pl-3.5 sm:pl-6 pr-2 w-8 sm:w-10">#</th>
                   <th className="py-2.5 px-2 sm:px-3">Track</th>
                   <th className="py-2.5 px-3 hidden md:table-cell">Artist</th>
@@ -203,14 +203,14 @@ export default function SonicDnaView({
                   <th className="py-2.5 px-2 sm:px-3 text-right pr-3.5 sm:pr-6">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#18181d] text-xs">
+              <tbody className="divide-y divide-white/[0.04] text-xs">
                 {filteredFavs.map((t, idx) => {
                   const thumb = t.thumbnail || (t.video_id ? `https://i.ytimg.com/vi/${t.video_id}/hqdefault.jpg` : '')
                   return (
                     <tr
                       key={idx}
                       onClick={() => onPlayTrack(t, idx)}
-                      className="group hover:bg-[#131318] transition-colors cursor-pointer"
+                      className="group hover:bg-white/[0.04] transition-colors cursor-pointer fast-row"
                     >
                       <td className="py-2.5 pl-3.5 sm:pl-6 pr-2 font-mono text-xs text-[#9ca3af]">
                         {(idx + 1).toString().padStart(2, '0')}
@@ -352,8 +352,8 @@ export default function SonicDnaView({
     })
 
     return (
-      <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0c]" onClick={() => setQueueMenuIdx(null)}>
-        <div className="px-3.5 sm:px-6 py-3.5 sm:py-4 border-b border-[#222226] bg-[#0d0d0f] flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+      <div className="flex-1 flex flex-col min-h-0 bg-transparent gpu-scroll" onClick={() => setQueueMenuIdx(null)}>
+        <div className="px-3.5 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.06] bg-[#030305]/75 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div>
             <h2 className="text-sm sm:text-base font-semibold text-[#f5f5f5]">
               YouTube Seeds & Library ({extractedTracks.length})
@@ -428,14 +428,14 @@ export default function SonicDnaView({
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-[#1f1f24] text-[10px] font-mono uppercase tracking-wider text-[#9ca3af] bg-[#0c0c0f] sticky top-0 z-10">
+                <tr className="border-b border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-[#9ca3af] bg-[#030305]/80 backdrop-blur-md sticky top-0 z-10">
                   <th className="py-2.5 pl-3.5 sm:pl-6 pr-2 w-8 sm:w-10">#</th>
                   <th className="py-2.5 px-2 sm:px-3">Track</th>
                   <th className="py-2.5 px-3 hidden md:table-cell">Channel / Artist</th>
                   <th className="py-2.5 px-2 sm:px-3 text-right pr-3.5 sm:pr-6">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#18181d] text-xs">
+              <tbody className="divide-y divide-white/[0.04] text-xs">
                 {filteredTracks.map((t, idx) => {
                   const thumb = t.thumbnail || (t.video_id ? `https://i.ytimg.com/vi/${t.video_id}/hqdefault.jpg` : '')
                   const isFav = isTrackFavorite ? isTrackFavorite(t) : false
@@ -443,7 +443,7 @@ export default function SonicDnaView({
                     <tr
                       key={idx}
                       onClick={() => onPlayTrack(t, idx)}
-                      className="group hover:bg-[#131318] transition-colors cursor-pointer"
+                      className="group hover:bg-white/[0.04] transition-colors cursor-pointer fast-row"
                     >
                       <td className="py-2.5 pl-3.5 sm:pl-6 pr-2 font-mono text-xs text-[#9ca3af]">
                         {(idx + 1).toString().padStart(2, '0')}
@@ -610,7 +610,7 @@ export default function SonicDnaView({
   }))
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-[#0a0a0c]" onClick={() => setQueueMenuIdx(null)}>
+    <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-transparent gpu-scroll" onClick={() => setQueueMenuIdx(null)}>
       <div className="max-w-4xl mx-auto flex flex-col gap-5 sm:gap-6">
         {/* Main Archetype Hero Card */}
         <div className="relative overflow-hidden rounded-2xl border border-[#242432] bg-gradient-to-br from-[#12121a] via-[#0f0f15] to-[#0d0d12] p-5 sm:p-6 shadow-xl">

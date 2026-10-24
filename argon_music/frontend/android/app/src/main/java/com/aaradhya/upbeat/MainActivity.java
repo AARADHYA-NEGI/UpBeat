@@ -46,9 +46,12 @@ public class MainActivity extends BridgeActivity {
 
         if (this.bridge != null && this.bridge.getWebView() != null) {
             WebView wv = this.bridge.getWebView();
+            wv.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null);
             wv.getSettings().setMediaPlaybackRequiresUserGesture(false);
             wv.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
             wv.getSettings().setSupportMultipleWindows(true);
+            wv.getSettings().setDomStorageEnabled(true);
+            wv.getSettings().setDatabaseEnabled(true);
             wv.addJavascriptInterface(new UpBeatJsBridge(), "UpBeatNative");
         }
 
