@@ -277,6 +277,49 @@ const YT_WEB_CONTEXT = {
 const YTM_SONGS_PARAM = 'EgWKAQIIAWoKEAkQBRAKEAMQBA=='
 const STOPWORDS = new Set(['songs', 'song', 'music', 'the', 'a', 'an', 'of', 'and', 'best', 'top', 'new', 'latest', 'playlist', 'mix', 'for', 'to', 'in'])
 
+const trackMetaCache = new Map()
+
+export async function fetchTrackExtendedMeta(videoId) {
+  if (!videoId || videoId.length !== 11) return null
+  if (trackMetaCache.has(videoId)) return trackMetaCache.get(videoId)
+
+  try {
+    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        context: { client: { clientName: 'WEB', clientVersion: '2.20260918.01.00' } },
+        videoId
+      })
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const mf = data?.microformat?.playerMicroformatRenderer
+    const vdetails = data?.videoDetails
+    const rawDate = mf?.publishDate || mf?.uploadDate || ''
+    let releaseDate = ''
+    if (rawDate) {
+      try {
+        const d = new Date(rawDate)
+        if (!isNaN(d.getTime())) {
+          releaseDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        }
+      } catch {}
+    }
+    const meta = {
+      releaseDate,
+      rawDate,
+      author: vdetails?.author || '',
+      viewCount: vdetails?.viewCount ? Number(vdetails.viewCount).toLocaleString() : '',
+      category: mf?.category || ''
+    }
+    trackMetaCache.set(videoId, meta)
+    return meta
+  } catch {
+    return null
+  }
+}
+
 function runsText(obj) {
   if (!obj || typeof obj !== 'object') return ''
   if (obj.simpleText) return obj.simpleText
@@ -328,6 +371,7 @@ async function ytWebSearch(query, pages = 2) {
         video_id: vid,
         fallback_ids: [],
         duration_text: dur,
+        release_date: published || '',
         thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
         url: `https://www.youtube.com/watch?v=${vid}`,
         match_tier: 'Direct Match',
@@ -401,6 +445,8 @@ function parseYtmSongs(data) {
     let dur = ''
     if (parts.length && /^\d{1,2}:\d{2}(:\d{2})?$/.test(parts[parts.length - 1])) dur = parts.pop()
     const album = parts[1] || ''
+    const yearMatch = meta.match(/\b(19\d\d|20\d\d)\b/)
+    const release_date = yearMatch ? yearMatch[0] : (parts[2] || '')
     const bits = []
     if (album && album.toLowerCase() !== cols[0].toLowerCase()) bits.push(`Album: ${album}`)
     if (plays) bits.push(plays)
@@ -412,6 +458,7 @@ function parseYtmSongs(data) {
       video_id: vid,
       fallback_ids: [],
       duration_text: dur,
+      release_date,
       thumbnail: `https://i.ytimg.com/vi/${vid}/hqdefault.jpg`,
       url: `https://www.youtube.com/watch?v=${vid}`,
       match_tier: 'Direct Match',

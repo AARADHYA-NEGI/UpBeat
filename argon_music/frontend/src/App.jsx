@@ -95,6 +95,7 @@ export default function App() {
   const [offlineStats, setOfflineStats] = useState({ count: 0, totalBytes: 0, formattedSize: '0 B' })
   const [queue, setQueue] = useState(() => loadStorage('upbeat_playback_queue', []))
   const [isQueueOpen, setIsQueueOpen] = useState(false)
+  const [isNowPlayingOpen, setIsNowPlayingOpen] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [googleUser, setGoogleUser] = useState(() => {
     const user = loadStorage('upbeat_google_user', null)
@@ -845,11 +846,13 @@ export default function App() {
     )
     if (isSame) {
       setIsPlaying(!isPlaying)
+      setIsNowPlayingOpen(true)
       return
     }
     setCurrentTrack(track)
     setCurrentTrackIdx(idx)
     setIsPlaying(true)
+    setIsNowPlayingOpen(true)
 
     if (playbackMode === 'safari') {
       handlePushToSafari(track)
@@ -1274,6 +1277,8 @@ export default function App() {
         onToggleQueue={() => setIsQueueOpen((prev) => !prev)}
         queueCount={queue.length}
         isQueueOpen={isQueueOpen}
+        isNowPlayingOpen={isNowPlayingOpen}
+        setIsNowPlayingOpen={setIsNowPlayingOpen}
       />
 
       {/* Playback Queue Drawer */}

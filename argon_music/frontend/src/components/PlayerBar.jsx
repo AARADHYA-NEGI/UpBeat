@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Play, Pause, SkipForward, SkipBack, Volume2, VolumeX,
-  ExternalLink, Video, Music, Heart, Loader2, Download, Check, ListMusic
+  ExternalLink, Video, Music, Heart, Loader2, Download, Check, ListMusic, ChevronUp
 } from 'lucide-react'
 import { getApiBase, hasBackend, getAudioSource, searchYouTubeStandalone, getTrackDownloadUrl } from '../standaloneApi'
 import { isTrackDownloaded, saveTrackOffline, createOfflineAudioUrl, subscribeOfflineChanges } from '../offlineStorage'
 import { useAlbumColor, DEFAULT_LAVENDER_THEME } from '../utils/colorExtractor'
+import NowPlayingView from './NowPlayingView'
 
 function formatTime(sec) {
   if (!sec || isNaN(sec) || sec < 0) return '0:00'
@@ -49,8 +50,16 @@ export default function PlayerBar({
   onToggleFavorite,
   onToggleQueue,
   queueCount = 0,
-  isQueueOpen = false
+  isQueueOpen = false,
+  isNowPlayingOpen,
+  setIsNowPlayingOpen
 }) {
+  const [internalNowPlaying, setInternalNowPlaying] = useState(false)
+  const nowPlayingOpen = typeof isNowPlayingOpen === 'boolean' ? isNowPlayingOpen : internalNowPlaying
+  const setNowPlayingOpen = setIsNowPlayingOpen || setInternalNowPlaying
+
+  const [isShuffle, setIsShuffle] = useState(false)
+  const [repeatMode, setRepeatMode] = useState('off') // 'off', 'all', 'one'
   const [showVideo, setShowVideo] = useState(false)
   const [volume, setVolume] = useState(80)
   const [isMuted, setIsMuted] = useState(false)
@@ -988,6 +997,12 @@ export default function PlayerBar({
               const cur = e.currentTarget.currentTime || 0
               const targetDur = duration > 0 ? duration : (authoritativeDurationRef.current || parseDurationText(track?.duration_text))
               if (targetDur > 5 && cur > 5 && cur >= targetDur - 2.0 && !endedTriggeredRef.current) {
+                if (repeatMode === 'one') {
+                  commitSeek(0)
+                  e.currentTarget.currentTime = 0
+                  e.currentTarget.play().catch(() => {})
+                  return
+                }
                 endedTriggeredRef.current = true
                 onNextRef.current()
               }
@@ -998,6 +1013,12 @@ export default function PlayerBar({
               const cur = e.currentTarget.currentTime || 0
               const targetDur = duration > 0 ? duration : (authoritativeDurationRef.current || parseDurationText(track?.duration_text))
               if (targetDur > 5 && cur > 5 && cur >= targetDur - 2.0 && !endedTriggeredRef.current) {
+                if (repeatMode === 'one') {
+                  commitSeek(0)
+                  e.currentTarget.currentTime = 0
+                  e.currentTarget.play().catch(() => {})
+                  return
+                }
                 endedTriggeredRef.current = true
                 onNextRef.current()
               }
@@ -1005,6 +1026,12 @@ export default function PlayerBar({
           }}
           onEnded={(e) => {
             if (activeDeckRef.current === deck && e.currentTarget.dataset.vid === resolvedVid && !endedTriggeredRef.current) {
+              if (repeatMode === 'one') {
+                commitSeek(0)
+                e.currentTarget.currentTime = 0
+                e.currentTarget.play().catch(() => {})
+                return
+              }
               endedTriggeredRef.current = true
               onNextRef.current()
             }
@@ -1055,12 +1082,16 @@ export default function PlayerBar({
 
         {/* Mobile Row 1 / Desktop Left+Center+Right */}
         <div className="flex items-center justify-between gap-2.5 w-full sm:w-auto sm:flex-1">
-          {/* Track Artwork + Title + Artist */}
-          <div className="flex items-center gap-2.5 min-w-0 flex-1 sm:w-1/4 sm:min-w-[200px] sm:flex-initial">
+          {/* Track Artwork + Title + Artist (Click to expand Spotify/YT Music Now Playing screen) */}
+          <div
+            onClick={() => track && setNowPlayingOpen(true)}
+            className="flex items-center gap-2.5 min-w-0 flex-1 sm:w-1/4 sm:min-w-[200px] sm:flex-initial cursor-pointer group select-none"
+            title="Tap to expand Now Playing view"
+          >
             {track ? (
               <>
                 <div
-                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-md bg-[#14141a] border overflow-hidden flex-shrink-0 relative transition-all duration-300"
+                  className="w-10 h-10 sm:w-11 sm:h-11 rounded-md bg-[#14141a] border overflow-hidden flex-shrink-0 relative transition-all duration-300 group-hover:scale-105"
                   style={{
                     borderColor: isPlaying ? albumColor.border : '#22222a',
                     boxShadow: isPlaying ? `0 0 14px ${albumColor.subtle}` : 'none'
@@ -1084,7 +1115,7 @@ export default function PlayerBar({
                         backgroundColor: isPlaying ? albumColor.primary : '#52525b'
                       }}
                     />
-                    <div className="text-xs sm:text-[13px] font-semibold text-[#f4f4f5] truncate">
+                    <div className="text-xs sm:text-[13px] font-semibold text-[#f4f4f5] truncate group-hover:text-white transition-colors">
                       {track.title}
                     </div>
                     {isPlayingOffline && (
@@ -1093,13 +1124,13 @@ export default function PlayerBar({
                       </span>
                     )}
                   </div>
-                  <div className="text-[11px] sm:text-xs text-[#8e8e96] truncate mt-0.5 pl-3">
+                  <div className="text-[11px] sm:text-xs text-[#8e8e96] truncate mt-0.5 pl-3 group-hover:text-zinc-300 transition-colors">
                     {track.artist}
                   </div>
                 </div>
                 {onToggleFavorite && (
                   <button
-                    onClick={() => onToggleFavorite(track)}
+                    onClick={(e) => { e.stopPropagation(); onToggleFavorite(track) }}
                     title={isFav ? 'Remove from Favorites' : 'Save to Favorites'}
                     aria-label="Toggle Favorite"
                     className={`p-1.5 rounded-md hover:bg-[#1a1a22] transition-colors cursor-pointer flex-shrink-0 ${
@@ -1111,7 +1142,7 @@ export default function PlayerBar({
                 )}
                 {track && (
                   <button
-                    onClick={() => handleDownload(track)}
+                    onClick={(e) => { e.stopPropagation(); handleDownload(track) }}
                     disabled={downloadState === 'downloading'}
                     title={downloadState === 'downloading' ? 'Downloading...' : (downloadState === 'success' || isDownloaded) ? 'Downloaded (Offline ready)' : 'Download Track'}
                     aria-label="Download Track"
@@ -1138,6 +1169,16 @@ export default function PlayerBar({
 
           {/* Mobile Compact Transport Controls */}
           <div className="flex sm:hidden items-center gap-2 flex-shrink-0">
+            {track && (
+              <button
+                onClick={() => setNowPlayingOpen(true)}
+                className="p-1.5 rounded-md text-zinc-400 hover:text-white active:scale-90 transition-transform cursor-pointer"
+                title="Expand Now Playing"
+                aria-label="Expand Now Playing"
+              >
+                <ChevronUp className="w-4 h-4" />
+              </button>
+            )}
             <button
               onClick={isSafariMode ? () => onSafariControl('prev') : onPrev}
               disabled={!track}
@@ -1421,6 +1462,46 @@ export default function PlayerBar({
           </div>
         )}
       </footer>
+
+      {/* Spotify & YouTube Music Style Full Now Playing Screen */}
+      <NowPlayingView
+        isOpen={nowPlayingOpen}
+        onClose={() => setNowPlayingOpen(false)}
+        track={track}
+        resolvedVid={resolvedVid}
+        isPlaying={isPlaying}
+        isLoadingStream={isLoadingStream}
+        onTogglePlay={onTogglePlay}
+        onNext={onNext}
+        onPrev={onPrev}
+        effectiveDuration={effectiveDuration}
+        displayTime={displayTime}
+        progressPct={progressPct}
+        handleScrubStart={handleScrubStart}
+        handleScrubChange={handleScrubChange}
+        handleScrubEnd={handleScrubEnd}
+        albumColor={albumColor}
+        isFav={isFav}
+        onToggleFavorite={onToggleFavorite}
+        downloadState={downloadState}
+        isDownloaded={isDownloaded}
+        handleDownload={handleDownload}
+        onToggleQueue={onToggleQueue}
+        queueCount={queueCount}
+        playbackMode={playbackMode}
+        onPushToSafari={onPushToSafari}
+        showVideo={showVideo}
+        setShowVideo={setShowVideo}
+        isShuffle={isShuffle}
+        setIsShuffle={setIsShuffle}
+        repeatMode={repeatMode}
+        setRepeatMode={setRepeatMode}
+        volume={volume}
+        setVolume={setVolume}
+        isMuted={isMuted}
+        setIsMuted={setIsMuted}
+        isPlayingOffline={isPlayingOffline}
+      />
     </>
   )
 }
