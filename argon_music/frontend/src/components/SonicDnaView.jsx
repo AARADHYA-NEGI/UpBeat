@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import {
   RefreshCw, ExternalLink, Search, Music, Heart, Play,
   Sparkles, Download, Check, Loader2, ListPlus, Activity,
-  Sliders, Zap, ShieldCheck, Flame, Compass, ChevronRight, Disc, X
+  Sliders, Zap, ShieldCheck, Flame, Compass, ChevronRight, Disc, X, Trash2, RotateCcw
 } from 'lucide-react'
 import { getTrackDownloadUrl, getAudioSource } from '../standaloneApi'
 import { saveTrackOffline, createOfflineAudioUrl, getDownloadedVideoIds, subscribeOfflineChanges } from '../offlineStorage'
@@ -31,7 +31,9 @@ export default function SonicDnaView({
   googleUser,
   onOpenGoogleModal,
   onSyncYouTubeLikes,
-  isSyncingLikes = false
+  isSyncingLikes = false,
+  onClearSeeds,
+  onResetTasteDna
 }) {
   const [filter, setFilter] = useState('')
   const [downloadingVid, setDownloadingVid] = useState(null)
@@ -395,6 +397,16 @@ export default function SonicDnaView({
                 <span>Sync YouTube Seeds</span>
               </button>
 
+              {onClearSeeds && extractedTracks.length > 0 && (
+                <button
+                  onClick={onClearSeeds}
+                  title="Clear all seed tracks from your Library"
+                  className="p-2 sm:p-1.5 rounded-xl bg-white/[0.04] hover:bg-rose-500/15 border border-white/[0.08] hover:border-rose-500/30 text-zinc-400 hover:text-rose-300 transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+
               {hasBackend && (
                 <button
                   onClick={onSyncSafari}
@@ -577,21 +589,24 @@ export default function SonicDnaView({
     ? tasteDna.key_artists
     : (tasteDna?.top_artists && tasteDna.top_artists.length)
     ? tasteDna.top_artists
-    : (artists.length ? artists.slice(0, 5) : ['Bôa', 'MONORAL', 'Ai Higuchi', 'Yutaka Yamada', 'Hiroyuki Sawano'])
+    : (artists.length ? artists.slice(0, 5) : [])
 
-  const isHighEnergy = allTracks.some((t) => /rock|sawano|epic|metal|hyper|phonk|battle/i.test(`${t.title} ${t.artist}`))
-  const isMelancholic = allTracks.some((t) => /duvet|kiri|lonely|rain|dark|slow|acoustic|indie/i.test(`${t.title} ${t.artist}`))
+  const isHighEnergy = allTracks.some((t) => /rock|epic|metal|hyper|phonk|battle|dance/i.test(`${t.title} ${t.artist}`))
+  const isMelancholic = allTracks.some((t) => /slow|acoustic|indie|lofi|rain|dark|ambient|chill/i.test(`${t.title} ${t.artist}`))
 
   const derivedArchetype = tasteDna?.archetype || (
     isHighEnergy ? 'High-Impact Sonic Voyager' :
-    isMelancholic ? 'Ethereal Alt-Rock & Anime Connoisseur' :
-    favorites.length > 0 ? 'Melodic Audio Explorer' : 'Acoustic & Electronic Explorer'
+    isMelancholic ? 'Atmospheric & Ethereal Connoisseur' :
+    allTracks.length > 0 ? 'Melodic Audio Explorer' :
+    (googleUser?.name ? `${googleUser.name}'s Sonic Canvas` : 'Uncharted Sonic Explorer')
   )
 
   const derivedSummary = tasteDna?.summary || (
-    favorites.length > 0
-      ? `Your profile is driven by ${favorites.length} liked songs, blending ${topArtists.slice(0, 2).join(' and ')} with rich guitar textures, evocative vocals, and cinematic dynamics.`
-      : 'Your taste profile evolves dynamically with every song you listen to, heart, or search. Connect your Google account or heart tracks to unlock personalized mixes.'
+    allTracks.length > 0
+      ? `Your profile is driven by ${allTracks.length} tracks, blending ${topArtists.length ? topArtists.slice(0, 2).join(' and ') : 'diverse melodies'} with rich musical textures, dynamic rhythms, and personal listening habits.`
+      : (googleUser?.name
+          ? `Welcome ${googleUser.name}! Your unique taste profile will evolve dynamically with every song you listen to, search, or heart. Connect your seeds or explore music to build your mix.`
+          : 'Your taste profile evolves dynamically with every song you listen to, heart, or search. Search for your favorite songs or connect Google to unlock personalized mixes.')
   )
 
   const tempoVal = tasteDna?.sonic_attributes?.tempo || (isHighEnergy ? '135-160 BPM' : '118-135 BPM')
@@ -600,9 +615,11 @@ export default function SonicDnaView({
 
   const rawGenres = (tasteDna?.primary_genres && tasteDna.primary_genres.length)
     ? tasteDna.primary_genres
-    : (isHighEnergy
-        ? ['Anime OST', 'Symphonic Rock', 'J-Rock', 'Epic Orchestral']
-        : ['Indie Rock', 'Anime OST', 'Atmospheric Ambient', 'Post-Grunge'])
+    : (allTracks.length > 0
+        ? (isHighEnergy
+            ? ['Alternative Rock', 'Soundtrack', 'Electronic Melodic', 'Dynamic Beats']
+            : ['Indie & Alternative', 'Melodic Pop', 'Atmospheric Ambient', 'Acoustic Harmonies'])
+        : ['Global Pop & Hits', 'Indie & Alternative', 'Electronic & Chill', 'Acoustic Harmonies'])
 
   const genrePills = rawGenres.map((g, idx) => ({
     name: g,
@@ -651,6 +668,16 @@ export default function SonicDnaView({
                 <Sparkles className={`w-3.5 h-3.5 text-indigo-400 ${isSyncing ? 'animate-spin' : ''}`} />
                 <span>Analyze DNA</span>
               </button>
+
+              {onResetTasteDna && (tasteDna || allTracks.length > 0) && (
+                <button
+                  onClick={onResetTasteDna}
+                  title="Reset Taste DNA profile"
+                  className="px-2.5 py-1.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-400 hover:text-white text-xs font-mono transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -658,7 +685,7 @@ export default function SonicDnaView({
           <div className="max-w-2xl">
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
               <span className="bg-gradient-to-r from-white via-indigo-200 to-purple-300 bg-clip-text text-transparent">
-                {derivedArchetype}
+                {googleUser?.name ? `${googleUser.name} • ${derivedArchetype}` : derivedArchetype}
               </span>
             </h2>
             <p className="text-xs sm:text-sm text-[#b4b4be] mt-2 leading-relaxed">
@@ -834,18 +861,24 @@ export default function SonicDnaView({
             Key Anchoring Artists & Sounds
           </span>
           <div className="flex flex-wrap gap-2">
-            {topArtists.map((a, idx) => (
-              <div
-                key={idx}
-                onClick={() => onCurateSimilar && onCurateSimilar({ title: 'Mix', artist: a })}
-                className="px-3.5 py-1.5 rounded-xl bg-[#13131c] hover:bg-[#1a1a26] border border-[#242434] hover:border-indigo-500/40 text-xs font-mono text-[#e4e4e7] hover:text-white flex items-center gap-2 transition-colors cursor-pointer group"
-                title={`Curate mix inspired by ${a}`}
-              >
-                <Music className="w-3 h-3 text-indigo-400 group-hover:scale-110 transition-transform" />
-                <span>{a}</span>
-                <span className="text-[9px] text-[#71717a] group-hover:text-sky-300 font-mono">Curate &rarr;</span>
-              </div>
-            ))}
+            {topArtists.length > 0 ? (
+              topArtists.map((a, idx) => (
+                <div
+                  key={idx}
+                  onClick={() => onCurateSimilar && onCurateSimilar({ title: 'Mix', artist: a })}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#13131c] hover:bg-[#1a1a26] border border-[#242434] hover:border-indigo-500/40 text-xs font-mono text-[#e4e4e7] hover:text-white flex items-center gap-2 transition-colors cursor-pointer group"
+                  title={`Curate mix inspired by ${a}`}
+                >
+                  <Music className="w-3 h-3 text-indigo-400 group-hover:scale-110 transition-transform" />
+                  <span>{a}</span>
+                  <span className="text-[9px] text-[#71717a] group-hover:text-sky-300 font-mono">Curate &rarr;</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-zinc-500 font-mono">
+                No anchoring artists yet. Heart songs or add seeds to populate your key artists.
+              </p>
+            )}
           </div>
         </div>
 

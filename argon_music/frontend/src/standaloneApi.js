@@ -946,19 +946,21 @@ export async function analyzeTasteDnaStandalone(tracks) {
 
   if (isConfigured()) {
     try {
-      const prompt = `Analyze this user's music taste based on their favorite and seed tracks:
+      const prompt = `Analyze this user's music taste based purely on their actual favorite and seed tracks:
 ${trackListStr}
+
+Determine their authentic listener archetype, genres, and key artists based ONLY on the musical styles and artists in their list above.
 
 Return JSON with this exact schema:
 {
-  "archetype": "A creative 2-4 word listener archetype (e.g. 'Epic Anime Orchestrator', 'Midnight Synthwave Voyager', 'Lofi Focus Architect')",
+  "archetype": "A creative 2-4 word listener archetype tailored specifically to their artists and songs (e.g. 'Melodic Pop Harmonist', 'High-Octane Rock Voyager', 'Soulful Urban Rhythmist', 'Electronic Sound Architect')",
   "summary": "A rich 2-3 sentence paragraph analyzing their musical preferences, mood, timbre, and emotional dynamics.",
   "sonic_attributes": {
-    "tempo": "A tempo range e.g. '125-155 BPM'",
-    "electronic_balance": 65
+    "tempo": "A tempo range e.g. '115-135 BPM'",
+    "electronic_balance": 55
   },
-  "primary_genres": ["3-5 genre strings e.g. 'Anime OST', 'Symphonic Rock', 'J-Rock'"],
-  "key_artists": ["3-5 distinct artist strings based on the tracks"]
+  "primary_genres": ["3-5 genre strings reflecting the specific genres of their tracks above"],
+  "key_artists": ["3-5 distinct artist strings based directly on the tracks above"]
 }`
       const res = await generateWithDirectGemini(prompt, 'gemini-3.8-flash')
       if (res && res.archetype) {
@@ -972,23 +974,25 @@ Return JSON with this exact schema:
   // Heuristic Sonic DNA generation if Gemini is offline
   const artists = Array.from(new Set(tracks.map((t) => t.artist).filter(Boolean)))
   const topArtists = artists.slice(0, 4)
-  const isHighEnergy = tracks.some((t) => /rock|sawano|epic|metal|hyper|phonk|battle/i.test(`${t.title} ${t.artist}`))
-  const isAtmospheric = tracks.some((t) => /ost|theme|lofi|piano|acoustic|synth|vibe/i.test(`${t.title} ${t.artist}`))
+  const isHighEnergy = tracks.some((t) => /rock|epic|metal|hyper|phonk|battle|dance|club|party/i.test(`${t.title} ${t.artist}`))
+  const isAtmospheric = tracks.some((t) => /theme|lofi|piano|acoustic|synth|vibe|ambient|slow|chill/i.test(`${t.title} ${t.artist}`))
 
   let archetype = 'Eclectic Audio Connoisseur'
   if (isHighEnergy) archetype = 'High-Octane Sonic Voyager'
   else if (isAtmospheric) archetype = 'Atmospheric Soundscape Curator'
 
+  const leadArtists = topArtists.length ? topArtists.slice(0, 2).join(' and ') : 'diverse musical styles'
+
   return {
     archetype,
-    summary: `Drawn to dynamic melodies, evocative vocals, and rhythmic harmony. Their taste profile bridges ${topArtists.slice(0, 2).join(' and ')} with rich musical textures and memorable hooks.`,
+    summary: `Drawn to dynamic melodies, evocative vocals, and rhythmic harmony. Their taste profile bridges ${leadArtists} with rich musical textures and memorable hooks.`,
     sonic_attributes: {
       tempo: isHighEnergy ? '130-160 BPM' : '110-135 BPM',
       electronic_balance: isHighEnergy ? 70 : 45
     },
     primary_genres: isHighEnergy
-      ? ['Soundtrack', 'Electronic Rock', 'J-Rock', 'Epic Orchestral']
-      : ['Indie Pop', 'Alternative', 'Ambient', 'Soundtrack'],
-    key_artists: topArtists.length ? topArtists : ['Hiroyuki Sawano', 'Yutaka Yamada', 'Ai Higuchi']
+      ? ['Alternative Rock', 'Electronic Beats', 'High-Energy Pop', 'Dynamic Rhythms']
+      : ['Indie & Alternative', 'Contemporary Pop', 'Atmospheric Ambient', 'Acoustic Melodies'],
+    key_artists: topArtists.length ? topArtists : artists.slice(0, 3)
   }
 }

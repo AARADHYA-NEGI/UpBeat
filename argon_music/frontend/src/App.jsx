@@ -70,12 +70,31 @@ export default function App() {
   const [safariStatus, setSafariStatus] = useState(null)
   const [safariNowPlaying, setSafariNowPlaying] = useState(null)
   const [extractedTracks, setExtractedTracks] = useState(() => {
-    return hasBackend()
-      ? loadStorage('argon_seeds_v2', DEFAULT_SEEDS)
-      : loadStorage('argon_seeds_v2', [])
+    if (hasBackend()) {
+      return loadStorage('argon_seeds_v2', DEFAULT_SEEDS)
+    }
+    const raw = loadStorage('argon_seeds_v2', [])
+    const animeIds = new Set(['F8xpmTmdf6o', 'F_Cr9vZ08Ws', '0VpGoDp3FCE', 'CXDUXjsU5ao', 'MM8RufZr5lw', '2ZN-zAKIfyQ', 'tdzsOODJiX8'])
+    return raw.filter((t) => !animeIds.has(t?.video_id))
   })
-  const [favorites, setFavorites] = useState(() => loadStorage('argon_favs_v2', []))
-  const [tasteDna, setTasteDna] = useState(() => loadStorage('argon_dna_v2', null))
+  const [favorites, setFavorites] = useState(() => {
+    const raw = loadStorage('argon_favs_v2', [])
+    if (!hasBackend()) {
+      const animeIds = new Set(['F8xpmTmdf6o', 'F_Cr9vZ08Ws', '0VpGoDp3FCE', 'CXDUXjsU5ao', 'tdzsOODJiX8'])
+      return raw.filter((t) => !animeIds.has(t?.video_id))
+    }
+    return raw
+  })
+  const [tasteDna, setTasteDna] = useState(() => {
+    const raw = loadStorage('argon_dna_v2', null)
+    if (!hasBackend() && raw) {
+      const isAnime = /anime|j-pop|j-rock|monogatari|sawano|higuchi/i.test(
+        `${raw.archetype || ''} ${raw.summary || ''} ${(raw.primary_genres || []).join(' ')}`
+      )
+      if (isAnime) return null
+    }
+    return raw
+  })
   const [playlist, setPlaylist] = useState(() => loadStorage('argon_playlist_v2', null))
   const [currentTrack, setCurrentTrack] = useState(null)
   const [currentTrackIdx, setCurrentTrackIdx] = useState(0)
@@ -177,6 +196,55 @@ export default function App() {
   }, [])
 
   const initialBootRef = useRef(false)
+
+  // Automatic purge of developer anime/J-pop seeds for Android / mobile users (preserves MacBook backend!)
+  useEffect(() => {
+    if (!hasBackend()) {
+      try {
+        const cleaned = localStorage.getItem('upbeat_seeds_cleaned_v421')
+        if (!cleaned) {
+          const animeIds = new Set([
+            'F8xpmTmdf6o', // Renai Circulation
+            'F_Cr9vZ08Ws', // mathemagics
+            '0VpGoDp3FCE', // Kimi no Shiranai Monogatari
+            'CXDUXjsU5ao', // Staple Stable
+            'MM8RufZr5lw', // Duvet
+            '2ZN-zAKIfyQ', // Kiri
+            'tdzsOODJiX8', // Akuma no Ko
+            'TCd6PfxOy0Y', // Veridis Quo
+            'QpxFcMYRV08'  // A New Error
+          ])
+
+          setExtractedTracks((prev) => {
+            const filtered = (prev || []).filter((t) => !animeIds.has(t?.video_id))
+            try { localStorage.setItem('argon_seeds_v2', JSON.stringify(filtered)) } catch {}
+            return filtered
+          })
+
+          setFavorites((prev) => {
+            const filtered = (prev || []).filter((t) => !animeIds.has(t?.video_id))
+            try { localStorage.setItem('argon_favs_v2', JSON.stringify(filtered)) } catch {}
+            return filtered
+          })
+
+          const storedDna = loadStorage('argon_dna_v2', null)
+          if (storedDna) {
+            const isAnime = /anime|j-pop|j-rock|monogatari|sawano|higuchi/i.test(
+              `${storedDna.archetype || ''} ${storedDna.summary || ''} ${(storedDna.primary_genres || []).join(' ')}`
+            )
+            if (isAnime) {
+              setTasteDna(null)
+              try { localStorage.removeItem('argon_dna_v2') } catch {}
+            }
+          }
+
+          localStorage.setItem('upbeat_seeds_cleaned_v421', 'true')
+        }
+      } catch (err) {
+        console.warn('Seeds cleanup warning:', err)
+      }
+    }
+  }, [])
 
   // Global shortcut: Cmd+B / Ctrl+B to slide toggle sidebar
   useEffect(() => {
@@ -297,32 +365,62 @@ export default function App() {
       return
     }
     setIsSyncingLikes(true)
-    showNotify('Syncing YouTube Music Liked Songs & History...', 'info')
+    showNotify(`Syncing ${activeU.name}'s YouTube Music profile...`, 'info')
     try {
-      const sampleLikes = [
-        { title: 'Duvet', artist: 'Bôa', video_id: 'MM8RufZr5lw', thumbnail: 'https://i.ytimg.com/vi/MM8RufZr5lw/hqdefault.jpg', duration_text: '1:42', vibe: 'Indie Rock' },
-        { title: 'Kiri', artist: 'MONORAL', video_id: '2ZN-zAKIfyQ', thumbnail: 'https://i.ytimg.com/vi/2ZN-zAKIfyQ/hqdefault.jpg', duration_text: '4:37', vibe: 'Post-Grunge' },
-        { title: 'Akuma no Ko', artist: 'Ai Higuchi', video_id: 'tdzsOODJiX8', thumbnail: 'https://i.ytimg.com/vi/tdzsOODJiX8/hqdefault.jpg', duration_text: '3:48', vibe: 'Folk Pop' },
-        { title: 'Teenage Dream (Sped Up)', artist: 'Speed Radio & Stephen Dawes', video_id: 'XW0S_K9e7Kk', thumbnail: 'https://i.ytimg.com/vi/XW0S_K9e7Kk/hqdefault.jpg', duration_text: '2:58', vibe: 'Pop Sped Up' },
-        { title: 'mathemagics', artist: 'Marina Inoue', video_id: 'F_Cr9vZ08Ws', duration_text: '4:05', thumbnail: 'https://i.ytimg.com/vi/F_Cr9vZ08Ws/hqdefault.jpg', vibe: 'Nu-Jazz' }
-      ]
-
-      setFavorites((prev) => {
-        const existing = new Set(prev.map((f) => (f.title || '').toLowerCase()))
-        const toAdd = sampleLikes.filter((s) => !existing.has((s.title || '').toLowerCase()))
-        return [...toAdd, ...prev]
-      })
-      setExtractedTracks((prev) => {
-        const existing = new Set(prev.map((s) => (s.title || '').toLowerCase()))
-        const toAdd = sampleLikes.filter((s) => !existing.has((s.title || '').toLowerCase()))
-        return [...toAdd, ...prev]
-      })
-
-      const dna = await analyzeTasteDnaStandalone(sampleLikes)
-      if (dna) {
-        setTasteDna(dna)
+      // 1. On MacBook with local backend, sync authentic liked songs from active Safari session
+      if (hasBackend()) {
+        try {
+          const res = await fetch(`${getApiBase()}/safari/liked`)
+          if (res.ok) {
+            const data = await res.json()
+            if (data.tracks && data.tracks.length) {
+              setFavorites(data.tracks)
+              setExtractedTracks(data.tracks)
+              const dna = await analyzeTasteDnaStandalone(data.tracks)
+              if (dna) setTasteDna(dna)
+              showNotify(`Synced ${data.tracks.length} tracks from YouTube Music`, 'success')
+              return
+            }
+          }
+        } catch {}
       }
-      showNotify(`Synced ${sampleLikes.length} YouTube Music likes into taste memory`, 'success')
+
+      // 2. On Android / standalone mobile:
+      // If user already has hearted favorites on this device, derive their authentic taste profile from them!
+      if (favorites && favorites.length > 0) {
+        setExtractedTracks((prev) => {
+          const existingIds = new Set(prev.map((t) => t.video_id))
+          const newSeeds = favorites.filter((f) => !existingIds.has(f.video_id))
+          const updated = [...newSeeds, ...prev]
+          try { localStorage.setItem('argon_seeds_v2', JSON.stringify(updated)) } catch {}
+          return updated
+        })
+        const dna = await analyzeTasteDnaStandalone(favorites)
+        if (dna) setTasteDna(dna)
+        showNotify(`Analyzed ${favorites.length} saved songs into ${activeU.name}'s taste profile!`, 'success')
+        return
+      }
+
+      // 3. If user has seed tracks in their Library, derive from their seed tracks
+      if (extractedTracks && extractedTracks.length > 0) {
+        const dna = await analyzeTasteDnaStandalone(extractedTracks)
+        if (dna) setTasteDna(dna)
+        showNotify(`Generated taste profile for ${activeU.name} from seed tracks!`, 'success')
+        return
+      }
+
+      // 4. For new users with zero songs, pull real top trending songs (not hardcoded anime)
+      const searchRes = await directSearchStandalone('Top Hits 2026', 'songs')
+      const starterTracks = (searchRes?.tracks || []).slice(0, 6)
+      if (starterTracks.length > 0) {
+        setExtractedTracks(starterTracks)
+        try { localStorage.setItem('argon_seeds_v2', JSON.stringify(starterTracks)) } catch {}
+        const dna = await analyzeTasteDnaStandalone(starterTracks)
+        if (dna) setTasteDna(dna)
+        showNotify(`Synced starter music feed for ${activeU.name}!`, 'success')
+      } else {
+        showNotify(`Connected ${activeU.name}! Search or heart songs to build your profile.`, 'success')
+      }
     } catch (err) {
       showNotify(`Sync error: ${err.message}`, 'error')
     } finally {
@@ -1274,6 +1372,16 @@ export default function App() {
               onOpenGoogleModal={() => setShowGoogleModal(true)}
               onSyncYouTubeLikes={() => handleSyncGoogleYouTubeLikes()}
               isSyncingLikes={isSyncingLikes}
+              onClearSeeds={() => {
+                setExtractedTracks([])
+                try { localStorage.setItem('argon_seeds_v2', '[]') } catch {}
+                showNotify('Seed library cleared', 'info')
+              }}
+              onResetTasteDna={() => {
+                setTasteDna(null)
+                try { localStorage.removeItem('argon_dna_v2') } catch {}
+                showNotify('Sonic Taste DNA reset', 'info')
+              }}
               onCurateSimilar={(track) => {
                 const newPrompt = `Tracks with the exact musical style and atmosphere of "${track.title}" by ${track.artist}`
                 setPrompt(newPrompt)
