@@ -1011,19 +1011,28 @@ export default function App() {
       else setActivePlaybackContext(playlist?.tracks || [])
     }
 
+    const isMobileDevice = typeof window !== 'undefined' && (
+      Boolean(window.Capacitor?.isNativePlatform?.()) ||
+      window.innerWidth < 768
+    )
+
     const isSame = currentTrack && (
       (currentTrack.video_id && currentTrack.video_id === track.video_id) ||
       (currentTrack.title === track.title && currentTrack.artist === track.artist)
     )
     if (isSame) {
       setIsPlaying(!isPlaying)
-      setIsNowPlayingOpen(true)
+      if (isMobileDevice) {
+        setIsNowPlayingOpen(true)
+      }
       return
     }
     setCurrentTrack(track)
     setCurrentTrackIdx(actualIdx)
     setIsPlaying(true)
-    setIsNowPlayingOpen(true)
+    if (isMobileDevice) {
+      setIsNowPlayingOpen(true)
+    }
 
     if (playbackMode === 'safari') {
       handlePushToSafari(track)
