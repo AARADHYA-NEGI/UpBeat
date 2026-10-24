@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import {
-  RefreshCw, Menu, Settings, Sparkles, ChevronDown, Search, Loader2, X, Check, Music, ArrowLeft, ExternalLink, Moon, Sliders
+  RefreshCw, Menu, Settings, Sparkles, ChevronDown, Search, Loader2, X, Check, Music, ArrowLeft, ExternalLink, Moon, Sliders, Heart
 } from 'lucide-react'
 import { getStoredApiKey, setStoredApiKey, getStoredServerUrl, setStoredServerUrl, hasBackend } from '../standaloneApi'
 import { GoogleIcon } from './GoogleAuthModal'
@@ -12,6 +12,8 @@ export default function Navbar({
   selectedModel,
   onSelectModel,
   safariStatus,
+  onSyncFavorites,
+  favoritesCount = 0,
   onSyncSafari,
   isSyncing,
   setActiveTab,
@@ -38,7 +40,7 @@ export default function Navbar({
   const [savedBanner, setSavedBanner] = useState(false)
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
-  const [otaVer, setOtaVer] = useState('v4.4.1')
+  const [otaVer, setOtaVer] = useState('v4.4.2')
   const [isCheckingOta, setIsCheckingOta] = useState(false)
   const [otaStatusMsg, setOtaStatusMsg] = useState('')
 
@@ -336,16 +338,17 @@ export default function Navbar({
                 <Search className="w-5 h-5" />
               </button>
 
-              {/* Safari Sync Button (Desktop) */}
-              {hasBackend() && (
+              {/* Sync Liked Songs Button */}
+              {onSyncFavorites && favoritesCount > 0 && (
                 <button
-                  onClick={onSyncSafari}
+                  type="button"
+                  onClick={onSyncFavorites}
                   disabled={isSyncing}
-                  title="Sync playing tabs from Safari"
-                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] text-xs font-mono text-zinc-300 hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                  title="Analyze your Liked songs in Favorites and curate a fresh playlist"
+                  className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-bold transition-all cursor-pointer disabled:opacity-50 active:scale-95 shadow-xs"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 text-rose-400 ${isSyncing ? 'animate-spin' : ''}`} />
-                  <span>{isSyncing ? 'Syncing...' : 'Safari'}</span>
+                  <Heart className={`w-3.5 h-3.5 fill-rose-400 text-rose-400 ${isSyncing ? 'animate-pulse' : ''}`} />
+                  <span>{isSyncing ? 'Curating...' : 'Sync Liked'}</span>
                 </button>
               )}
 

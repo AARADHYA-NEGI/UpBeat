@@ -787,6 +787,95 @@ export default function App() {
     }
   }
 
+  // Sync Liked Songs: Analyzes favorites to update Sonic Taste DNA and curates fresh songs
+  const handleSyncFavorites = async () => {
+    if (!favorites || favorites.length === 0) {
+      showNotify('No liked songs in Favourites yet! Heart some tracks to sync & curate.', 'warning')
+      return
+    }
+
+    setIsSyncing(true)
+    showNotify(`Analyzing ${favorites.length} Liked songs & curating playlist...`, 'info')
+
+    try {
+      // 1. Deep Taste DNA Analysis on user's Liked favorites
+      let dna = null
+      if (hasBackend()) {
+        try {
+          const res = await fetch(`${getApiBase()}/taste-dna`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tracks: favorites, model_name: selectedModel })
+          })
+          if (res.ok) dna = await res.json()
+        } catch {}
+      }
+      if (!dna) {
+        dna = await analyzeTasteDnaStandalone(favorites)
+      }
+      if (dna) {
+        setTasteDna(dna)
+        try { localStorage.setItem('argon_dna_v2', JSON.stringify(dna)) } catch {}
+      }
+
+      // 2. Curate fresh tracks directly from Liked favorites
+      const favNames = favorites.slice(0, 5).map((f) => `"${f.title}" by ${f.artist}`).join(', ')
+      const curatePrompt = `Songs directly matching the sound, mood, and musical style of my Liked favorites: ${favNames}`
+      setPrompt(curatePrompt)
+      setActivePresetId(null)
+
+      let curateData = null
+      const curateArgs = {
+        mood_prompt: curatePrompt,
+        energy_level: energyLevel,
+        count: trackCount,
+        model_name: selectedModel,
+        favorites
+      }
+
+      if (hasBackend()) {
+        try {
+          const res = await fetch(`${getApiBase()}/curate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              seed_tracks: favorites,
+              mood_prompt: curatePrompt,
+              energy_level: energyLevel,
+              count: trackCount,
+              model_name: selectedModel
+            })
+          })
+          const ct = res.headers.get('content-type') || ''
+          if (res.ok && ct.includes('application/json')) {
+            curateData = await res.json()
+          }
+        } catch {}
+      }
+
+      if (!curateData) {
+        curateData = await curateStandalone(curateArgs)
+      }
+
+      if (curateData && curateData.tracks && curateData.tracks.length > 0) {
+        setPlaylist(curateData)
+        if (!currentTrack || !isPlaying) {
+          setCurrentTrack(curateData.tracks[0])
+          setCurrentTrackIdx(0)
+        }
+        setActiveTab('curator')
+        showNotify(`Synced ${favorites.length} Liked songs & curated "${curateData.playlist_title}"!`, 'success')
+      } else {
+        setActiveTab('curator')
+        showNotify(`Analyzed ${favorites.length} Liked songs & updated Taste DNA!`, 'success')
+      }
+    } catch (err) {
+      showNotify(`Sync error: ${err.message}`, 'error')
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   // Generate Curated Playlist (Mac Backend + Standalone Android Fallback)
   const handleGenerate = async (overridePrompt, overrideSeeds, overrideEnergy) => {
     const activePrompt = overridePrompt || prompt
@@ -1388,6 +1477,7 @@ export default function App() {
         safariStatus={safariStatus}
         onSyncSafari={() => handleSyncSafari(false)}
         onOpenSafari={handleOpenSafari}
+        onSyncFavorites={handleSyncFavorites}
         isSyncing={isSyncing}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -1433,6 +1523,7 @@ export default function App() {
           setActiveTab={setActiveTab}
           onOpenFavoritesTab={() => setActiveTab('favorites')}
           onOpenOfflineTab={() => setActiveTab('offline')}
+          onSyncFavorites={handleSyncFavorites}
           onSyncSafari={() => handleSyncSafari(false)}
           isSyncing={isSyncing}
           onOpenSafari={handleOpenSafari}
@@ -1504,14 +1595,8 @@ export default function App() {
               favorites={favorites}
               isTrackFavorite={isTrackFavorite}
               onToggleFavorite={handleToggleFavorite}
-              onCurateFromFavorites={() => {
-                if (!favorites.length) return
-                const favNames = favorites.slice(0, 4).map((f) => `"${f.title}" by ${f.artist}`).join(', ')
-                const newPrompt = `Songs directly matching the sound and musical style of my favorites: ${favNames}`
-                setPrompt(newPrompt)
-                setActivePresetId(null)
-                handleGenerate(newPrompt, favorites)
-              }}
+              onSyncFavorites={handleSyncFavorites}
+              onCurateFromFavorites={handleSyncFavorites}
               onSyncSafari={() => handleSyncSafari(false)}
               isSyncing={isSyncing}
               onPlayTrack={handlePlayTrack}

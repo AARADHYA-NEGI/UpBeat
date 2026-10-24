@@ -117,6 +117,7 @@ export default function Sidebar({
   setActiveTab,
   onOpenFavoritesTab,
   onOpenOfflineTab,
+  onSyncFavorites,
   onSyncSafari,
   isSyncing,
   onOpenSafari,
@@ -316,33 +317,17 @@ export default function Sidebar({
           </div>
 
           <button
-            onClick={onSyncSafari}
+            onClick={onSyncFavorites}
             disabled={isSyncing}
-            title="Extract latest liked songs and history from your open Safari YouTube tabs"
-            className="w-full py-2 px-3 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-emerald-500/40 rounded-full text-xs text-white font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-98"
+            title="Analyze your Liked songs in Favorites and curate a fresh playlist"
+            className="w-full py-2.5 px-3 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-rose-500/40 rounded-full text-xs text-white font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-98"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>{isSyncing ? 'Reading Safari DOM...' : 'Sync Active YT Tabs'}</span>
+            <Heart className={`w-3.5 h-3.5 fill-rose-500 text-rose-500 ${isSyncing ? 'animate-pulse' : ''}`} />
+            <span>{isSyncing ? 'Analyzing & Curating...' : 'Sync Liked Songs'}</span>
           </button>
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => onOpenSafari && onOpenSafari('yt_liked')}
-              title="Open YouTube Liked Videos playlist in Safari"
-              className="py-1.5 px-3 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-300 hover:text-white text-[11px] rounded-full flex items-center justify-between transition-colors cursor-pointer font-medium"
-            >
-              <span>YT Likes</span>
-              <ExternalLink className="w-3 h-3 text-zinc-500" />
-            </button>
-            <button
-              onClick={() => onOpenSafari && onOpenSafari('yt_history')}
-              title="Open YouTube Watch History in Safari"
-              className="py-1.5 px-3 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-300 hover:text-white text-[11px] rounded-full flex items-center justify-between transition-colors cursor-pointer font-medium"
-            >
-              <span>YT History</span>
-              <ExternalLink className="w-3 h-3 text-zinc-500" />
-            </button>
-          </div>
+          <p className="text-[10px] font-mono text-zinc-500 text-center leading-tight">
+            Analyzes your Liked favourites to update Taste DNA & curate fresh songs
+          </p>
         </div>
 
         {/* Offline Storage Section */}
@@ -435,7 +420,7 @@ export default function Sidebar({
         {/* App Info */}
         <div className="pt-2 text-[10px] font-mono text-zinc-500 border-t border-white/10 flex items-center justify-between">
           <span className="text-zinc-400 font-medium">UpBeat Music</span>
-          <span className="text-emerald-400/80 font-mono">v4.4.1</span>
+          <span className="text-emerald-400/80 font-mono">v4.4.2</span>
         </div>
       </div>
 

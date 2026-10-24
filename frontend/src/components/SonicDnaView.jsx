@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { getTrackDownloadUrl, getAudioSource } from '../standaloneApi'
 import { saveTrackOffline, createOfflineAudioUrl, getDownloadedVideoIds, subscribeOfflineChanges } from '../offlineStorage'
-import YouTubeTasteSyncModal, { Youtube } from './YouTubeTasteSyncModal'
+import { Youtube } from './YouTubeTasteSyncModal'
 import { GoogleIcon } from './GoogleAuthModal'
 
 export default function SonicDnaView({
@@ -17,6 +17,7 @@ export default function SonicDnaView({
   isTrackFavorite,
   onToggleFavorite,
   onCurateFromFavorites,
+  onSyncFavorites,
   onSyncSafari,
   isSyncing,
   onPlayTrack,
@@ -39,7 +40,6 @@ export default function SonicDnaView({
   const [downloadingVid, setDownloadingVid] = useState(null)
   const [downloadedVid, setDownloadedVid] = useState(null)
   const [downloadedSet, setDownloadedSet] = useState(new Set())
-  const [isTasteSyncOpen, setIsTasteSyncOpen] = useState(false)
   const [queueMenuIdx, setQueueMenuIdx] = useState(null)
 
   useEffect(() => {
@@ -384,14 +384,17 @@ export default function SonicDnaView({
               )}
             </div>
 
-            <button
-              onClick={() => setIsTasteSyncOpen(true)}
-              title="Add seeds from YouTube search or playlist URL"
-              className="px-4 py-2 rounded-full bg-white text-black hover:bg-zinc-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shadow-md shadow-white/10 active:scale-95 shrink-0"
-            >
-              <Youtube className="w-3.5 h-3.5 text-red-600 fill-red-600 shrink-0" />
-              <span>Sync YouTube Seeds</span>
-            </button>
+            {onSyncFavorites && (
+              <button
+                onClick={onSyncFavorites}
+                disabled={isSyncing}
+                title="Analyze your Liked songs in Favorites and curate a fresh playlist"
+                className="px-4 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer whitespace-nowrap shadow-md shadow-rose-600/20 active:scale-95 shrink-0 disabled:opacity-50"
+              >
+                <Heart className={`w-3.5 h-3.5 fill-white text-white shrink-0 ${isSyncing ? 'animate-pulse' : ''}`} />
+                <span>{isSyncing ? 'Syncing...' : 'Sync Liked Songs'}</span>
+              </button>
+            )}
 
             {onClearSeeds && extractedTracks.length > 0 && (
               <button
@@ -400,18 +403,6 @@ export default function SonicDnaView({
                 className="p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-rose-400 transition-colors cursor-pointer shrink-0"
               >
                 <Trash2 className="w-4 h-4" />
-              </button>
-            )}
-
-            {hasBackend && (
-              <button
-                onClick={onSyncSafari}
-                disabled={isSyncing}
-                title="Re-scan open Safari YouTube tabs"
-                className="hidden sm:flex px-2.5 py-1.5 rounded-xl bg-[#18181c] hover:bg-[#22222a] border border-[#2e2e36] text-xs text-[#e5e5e5] font-mono items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 active:scale-[0.98] shrink-0"
-              >
-                <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
-                <span>{isSyncing ? 'Syncing...' : 'Safari'}</span>
               </button>
             )}
           </div>
@@ -649,13 +640,17 @@ export default function SonicDnaView({
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <button
-                onClick={() => setIsTasteSyncOpen(true)}
-                className="px-3.5 py-1.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-95"
-              >
-                <Youtube className="w-3.5 h-3.5 text-rose-400" />
-                <span>Sync YouTube Seeds</span>
-              </button>
+              {onSyncFavorites && (
+                <button
+                  onClick={onSyncFavorites}
+                  disabled={isSyncing}
+                  title="Analyze your Liked songs in Favorites and curate a fresh playlist"
+                  className="px-3.5 py-1.5 rounded-full bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
+                >
+                  <Heart className={`w-3.5 h-3.5 fill-rose-400 text-rose-400 shrink-0 ${isSyncing ? 'animate-pulse' : ''}`} />
+                  <span>{isSyncing ? 'Syncing...' : 'Sync Liked Songs'}</span>
+                </button>
+              )}
 
               <button
                 onClick={() => onAnalyzeTaste && onAnalyzeTaste()}
@@ -946,25 +941,6 @@ export default function SonicDnaView({
           </div>
         )}
       </div>
-
-      {/* Standalone YouTube Taste Sync Modal */}
-      <YouTubeTasteSyncModal
-        isOpen={isTasteSyncOpen}
-        onClose={() => setIsTasteSyncOpen(false)}
-        onAddSeedTrack={(track) => {
-          onAddSeedTrack && onAddSeedTrack(track)
-        }}
-        onAddMultipleSeedTracks={(tracks) => {
-          onAddMultipleSeedTracks && onAddMultipleSeedTracks(tracks)
-        }}
-        onAnalyzeTaste={() => {
-          onAnalyzeTaste && onAnalyzeTaste()
-        }}
-        onSyncSafari={onSyncSafari}
-        isSyncing={isSyncing}
-        hasBackend={hasBackend}
-        favoritesCount={favorites.length}
-      />
     </div>
   )
 }
