@@ -600,10 +600,6 @@ export default function SonicDnaView({
           : 'Your taste profile evolves dynamically with every song you listen to, heart, or search. Search for your favorite songs or connect Google to unlock personalized mixes.')
   )
 
-  const tempoVal = tasteDna?.sonic_attributes?.tempo || (isHighEnergy ? '135-160 BPM' : '118-135 BPM')
-  const electronicRatio = tasteDna?.sonic_attributes?.electronic_balance ?? (isHighEnergy ? 72 : 58)
-  const acousticRatio = 100 - electronicRatio
-
   const rawGenres = (tasteDna?.primary_genres && tasteDna.primary_genres.length)
     ? tasteDna.primary_genres
     : (allTracks.length > 0
@@ -757,61 +753,6 @@ export default function SonicDnaView({
                 <span>Sign in with Google</span>
               </button>
             )}
-          </div>
-        </div>
-
-        {/* Sonic Attributes & Frequency Sliders */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Tile 1: Electronic vs Acoustic Balance */}
-          <div className="p-5 sm:p-6 rounded-3xl bg-[#0a0a0d] border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between gap-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-mono text-zinc-400 flex items-center gap-1.5 font-bold">
-                <Sliders className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Sonic Spectrum</span>
-              </span>
-              <span className="font-mono text-[11px] text-emerald-300 font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                {electronicRatio}% Electronic • {acousticRatio}% Acoustic
-              </span>
-            </div>
-            {/* Visual dual-gradient bar */}
-            <div className="w-full h-2.5 rounded-full bg-black/60 border border-white/10 overflow-hidden flex my-1">
-              <div
-                style={{ width: `${electronicRatio}%` }}
-                className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300"
-              />
-              <div
-                style={{ width: `${acousticRatio}%` }}
-                className="h-full bg-gradient-to-r from-teal-400 to-emerald-200 transition-all duration-300"
-              />
-            </div>
-            <div className="flex justify-between text-[10px] font-mono text-zinc-400 font-medium">
-              <span>Synths & Production</span>
-              <span>Organic & Strings</span>
-            </div>
-          </div>
-
-          {/* Tile 2: Tempo & Energy Pulse */}
-          <div className="p-5 sm:p-6 rounded-3xl bg-[#0a0a0d] border border-white/10 shadow-lg relative overflow-hidden flex flex-col justify-between gap-3">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-mono text-zinc-400 flex items-center gap-1.5 font-bold">
-                <Flame className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Tempo & Energy Pulse</span>
-              </span>
-              <span className="font-mono text-[11px] text-emerald-300 font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                {tempoVal}
-              </span>
-            </div>
-            {/* Visual progress bar */}
-            <div className="w-full h-2.5 rounded-full bg-black/60 border border-white/10 overflow-hidden my-1">
-              <div
-                style={{ width: `${isHighEnergy ? 84 : 64}%` }}
-                className="h-full bg-gradient-to-r from-emerald-600 via-emerald-400 to-teal-300 transition-all duration-300"
-              />
-            </div>
-            <div className="flex justify-between text-[10px] font-mono text-zinc-400 font-medium">
-              <span>Moderate Pace</span>
-              <span>High BPM Climax</span>
-            </div>
           </div>
         </div>
 
