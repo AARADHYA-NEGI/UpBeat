@@ -38,7 +38,7 @@ export default function Navbar({
   const [savedBanner, setSavedBanner] = useState(false)
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
-  const [otaVer, setOtaVer] = useState('v4.3.8')
+  const [otaVer, setOtaVer] = useState('v4.3.9')
   const [isCheckingOta, setIsCheckingOta] = useState(false)
   const [otaStatusMsg, setOtaStatusMsg] = useState('')
 
@@ -98,7 +98,7 @@ export default function Navbar({
 
   return (
     <>
-      <header className="pt-safe-top bg-black/40 backdrop-blur-xl border-b border-white/[0.06] select-none flex-shrink-0 z-30 sticky top-0 transition-colors">
+      <header className="pt-safe-top bg-black/95 backdrop-blur-xl border-b border-white/10 select-none flex-shrink-0 z-30 sticky top-0 transition-colors">
         {/* Mobile Full-Width Search Header (when search is open on mobile) */}
         {isMobileSearchOpen ? (
           <div className="sm:hidden flex flex-col">

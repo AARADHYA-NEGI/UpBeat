@@ -1352,7 +1352,7 @@ export default function App() {
     : null
 
   return (
-    <div className={`h-[100dvh] w-screen ytm-atmosphere ${themeInfo?.id || 'theme-morning'} text-[#f4f4f5] flex flex-col overflow-hidden`}>
+    <div className="h-[100dvh] w-screen bg-black text-[#f4f4f5] flex flex-col overflow-hidden">
       {/* Subtle Antigravity Status Notification */}
       {notification && (
         <div className="fixed bottom-36 sm:bottom-20 left-4 right-4 sm:left-6 sm:right-auto z-50">

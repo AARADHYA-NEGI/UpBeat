@@ -237,7 +237,7 @@ export default function Sidebar({
 
   // 2. Full Expanded Drawer with Preset Sliders & Diagnostics
   const sidebarContent = (
-    <aside className="w-80 bg-black/90 backdrop-blur-2xl border-r border-white/10 flex-shrink-0 flex flex-col justify-between overflow-y-auto select-none h-full bg-[radial-gradient(ellipse_120%_400px_at_50%_0%,rgba(16,185,129,0.12),transparent_70%)] relative">
+    <aside className="w-80 bg-black border-r border-white/10 flex-shrink-0 flex flex-col justify-between overflow-y-auto select-none h-full relative">
       <div className="p-4 flex flex-col gap-4">
         {/* Mobile / Expanded Header */}
         <div className="flex items-center justify-between pb-3 border-b border-white/10">
@@ -257,7 +257,7 @@ export default function Sidebar({
         </div>
 
         {/* Taste Memory Section */}
-        <div className="p-4 rounded-3xl bg-white/[0.035] border border-white/10 shadow-sm backdrop-blur-xl relative overflow-hidden flex flex-col gap-3">
+        <div className="p-4 rounded-3xl bg-[#0a0a0d] border border-white/10 shadow-sm relative overflow-hidden flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold flex items-center gap-1.5">
               <Heart className="w-3 h-3 text-rose-400" />
@@ -310,7 +310,7 @@ export default function Sidebar({
         </div>
 
         {/* Offline Storage Section */}
-        <div className="p-4 rounded-3xl bg-white/[0.035] border border-white/10 shadow-sm backdrop-blur-xl relative overflow-hidden flex flex-col gap-3">
+        <div className="p-4 rounded-3xl bg-[#0a0a0d] border border-white/10 shadow-sm relative overflow-hidden flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold flex items-center gap-1.5">
               <DownloadCloud className="w-3 h-3 text-emerald-400" />
@@ -327,7 +327,7 @@ export default function Sidebar({
               if (isOpenMobile && onCloseMobile) onCloseMobile()
             }}
             title="Open Offline Downloads library"
-            className="w-full py-2.5 px-3.5 bg-gradient-to-r from-emerald-500/15 to-emerald-600/10 hover:from-emerald-500/25 hover:to-emerald-600/20 border border-emerald-500/30 rounded-2xl text-xs text-white font-semibold flex items-center justify-between transition-all cursor-pointer group shadow-sm active:scale-98"
+            className="w-full py-2.5 px-3.5 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-emerald-500/30 rounded-2xl text-xs text-white font-semibold flex items-center justify-between transition-all cursor-pointer group shadow-sm active:scale-98"
           >
             <div className="flex items-center gap-2">
               <DownloadCloud className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
@@ -338,7 +338,7 @@ export default function Sidebar({
         </div>
 
         {/* Global Controls: Track Count & Energy Slider */}
-        <div className="p-4 rounded-3xl bg-white/[0.035] border border-white/10 backdrop-blur-xl flex flex-col gap-3.5">
+        <div className="p-4 rounded-3xl bg-[#0a0a0d] border border-white/10 flex flex-col gap-3.5">
           <div>
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold">
@@ -399,13 +399,13 @@ export default function Sidebar({
         {/* App Info */}
         <div className="pt-2 text-[10px] font-mono text-zinc-500 border-t border-white/10 flex items-center justify-between">
           <span className="text-zinc-400 font-medium">UpBeat Music</span>
-          <span className="text-emerald-400/80 font-mono">v4.3.8</span>
+          <span className="text-emerald-400/80 font-mono">v4.3.9</span>
         </div>
       </div>
 
       {/* Bottom Profile Snapshot */}
       {tasteDna && (
-        <div className="p-4 border-t border-white/10 bg-black/80 backdrop-blur-2xl">
+        <div className="p-4 border-t border-white/10 bg-black">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold flex items-center gap-1.5">
               <Dna className="w-3 h-3" />
