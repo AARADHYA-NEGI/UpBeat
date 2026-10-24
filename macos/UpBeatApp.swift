@@ -547,10 +547,10 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
 
         if FileManager.default.fileExists(atPath: venvUvicorn) {
             proc.executableURL = URL(fileURLWithPath: venvUvicorn)
-            proc.arguments = ["argon_music.backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+            proc.arguments = ["backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
         } else {
             proc.executableURL = URL(fileURLWithPath: venvPython)
-            proc.arguments = ["-m", "uvicorn", "argon_music.backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+            proc.arguments = ["-m", "uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
         }
         proc.currentDirectoryURL = URL(fileURLWithPath: workspacePath)
 

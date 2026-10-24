@@ -1,41 +1,88 @@
-# UpBeat — AI Music Curator (macOS + Android + Web)
+# 🎵 UpBeat
 
-Minimalist AI-curated music studio powered by Google Gemini 3.x / 4 models and YouTube Music (`WEB_REMIX`), featuring live Safari YouTube tab sync, persistent Favorites taste memory, semantic match-tiering (`Direct Match`, `Close Fit`, `Exploratory`), and transparent model fallback telemetry.
+A minimalist, high-fidelity AI music studio that understands what you actually like.
 
----
+UpBeat pairs Google Gemini with YouTube Music to sequence harmonic DJ sets, decode your personal musical taste into a **Sonic DNA profile**, and stream music with zero ads, zero trackers, and zero subscription paywalls.
 
-## Features
-
-- **Multi-Model Gemini Curation**: Supports `gemini-3.8-flash`, `gemini-4-argon` (ER-2 fast mode), `gemini-3.1-flash-lite`, `gemini-3.5-flash-lite`, `gemini-3-flash-preview`, `gemini-2.5-flash`, `gemma-4-26b-a4b-it`, and OpenAI/Groq/OpenRouter endpoints.
-- **Live YouTube Music Catalog Grounding**: Grounds specific franchise, anime, soundtrack, and artist searches directly in verified YouTube Music tracks with zero cross-history pollution.
-- **Persistent Favorites Memory**: Heart any track in the Curator, Safari Library, or bottom Player Bar to store it in your persistent Favorites memory and guide future curations.
-- **Native Standalone macOS App (`UpBeat.app`)**: Compiled native Swift + `WKWebView` macOS app that manages the local backend automatically.
-- **Android Mobile App (Capacitor APK + PWA)**:
-  - **GitHub Actions APK Build**: Automatically compiles `UpBeat-Android-APK` (`app-debug.apk`) on every push to `main`.
-  - **Standalone Mobile Engine**: Works anywhere on Android (mobile data or Wi-Fi) by calling Gemini directly or syncing with your Mac server over LAN.
+Built as a clean cross-platform project for **Android**, **macOS**, and the **Web**.
 
 ---
 
-## Quick Start
+## ✨ Highlights
 
-### 1. macOS Native App (`UpBeat.app`)
-Launch **UpBeat** directly from `/Applications/UpBeat.app` (or `./UpBeat.app` in the repository root), or rebuild it anytime:
+- **Dynamic Day / Night Atmosphere**: The app shifts ambient gradient lighting and cyber grid reflections automatically based on your local time:
+  - 🌅 **Sunrise Crimson** (4:00 AM – 11:59 AM)
+  - ☀️ **Radiant Azure & Gold** (12:00 PM – 7:59 PM)
+  - 🌌 **Cosmic Midnight Violet** (8:00 PM – 3:59 AM)
+- **Personalized Sonic Taste DNA**: Real-time profiling of your listener archetype, acoustic vs. electronic balance, subgenres, and tempo (BPM) based strictly on your own listening habits.
+- **Android Native App & Android Auto**:
+  - Full foreground media playback with responsive notification controls.
+  - Native in-car dashboard support via Android Auto (`AutomotiveApp`).
+  - Seamless background playback throttled to conserve battery and CPU.
+  - **Live Over-The-Air (OTA) Updates**: Pull and apply UI updates and fixes directly inside the app without reinstalling the APK.
+- **macOS Native Companion**:
+  - Native Swift + Cocoa + WebKit app (`UpBeat.app`).
+  - One-click discovery of active Safari YouTube & YouTube Music tabs via AppleScript.
+- **Offline Storage**: Save any song to client-side IndexedDB for instant offline listening anytime, even in airplane mode.
+- **Zero-Token Direct Search**: Instantly find any song, artist, album, or YouTube playlist without burning Gemini API tokens.
+
+---
+
+## 🏛️ Architecture
+
+```
+UpBeat/
+├── android/          # Native Android App (Capacitor shell, MediaNotification Service, Android Auto)
+├── macos/            # Native macOS App (Swift, Cocoa, WebKit wrapper, menu bar launcher)
+├── backend/          # Python FastAPI Server (Safari AppleScript bridge, streaming, curator)
+├── frontend/         # React 19 + Vite Client (Atmosphere theme, IndexedDB offline, OTA engine)
+├── .github/          # GitHub Actions CI/CD (automatic APK compilation & OTA bundle releases)
+└── run.sh            # One-click startup script for local development
+```
+
+---
+
+## 🚀 Quick Start
+
+### 1. Android Phone
+- **Download the APK**: Grab the latest `UpBeat.apk` from [GitHub Releases](https://github.com/AaradhyaNegi009/UpBeat/releases).
+- **Over-The-Air (OTA)**: Once installed, UpBeat updates itself automatically in the background. You can also tap **Settings (⚙️)** -> **"Check for Live Update"** to pull instant updates.
+
+### 2. macOS Native App
+Launch the precompiled native app or build it with Swift:
 ```bash
-swiftc macos/UpBeatApp.swift -o UpBeat.app/Contents/MacOS/UpBeat -framework Cocoa -framework WebKit -O
+# Compile and open UpBeat on macOS
+swiftc -O -target arm64-apple-macos12.0 macos/UpBeatApp.swift -o UpBeat.app/Contents/MacOS/UpBeat -framework Cocoa -framework WebKit
 open UpBeat.app
 ```
 
-### 2. Local Backend & Web / LAN Server
+### 3. Web & Local Development
+Start the local server with one command:
 ```bash
-source .venv/bin/activate
-python -m uvicorn argon_music.backend.main:app --host 0.0.0.0 --port 8000 --reload
+./run.sh
 ```
+Or manually:
+```bash
+# 1. Build frontend
+cd frontend && npm install && npm run build && cd ..
 
-### 3. Android Phone Setup
-- **Option A — Download Built APK from GitHub Actions**:
-  1. Go to the **Actions** tab of this repository on GitHub -> **Build UpBeat Android APK**.
-  2. Download the **`UpBeat-Android-APK`** artifact (`app-debug.apk`) and install it on your Android phone.
-  3. Tap the **Key** icon in the top-right bar of UpBeat on Android and paste your `GEMINI_API_KEY` (for standalone use anywhere on mobile data) or your Mac's LAN URL (`http://<mac-ip>:8000`).
-- **Option B — Instant Installable PWA over Wi-Fi**:
-  1. Open Chrome on Android and visit `http://<your-mac-lan-ip>:8000`.
-  2. Tap **Add to Home Screen / Install App** to install **UpBeat** with its standalone dark interface.
+# 2. Start Python API server
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+```
+Open **[http://localhost:8000](http://localhost:8000)** in any browser.
+
+---
+
+## 🔑 Configuration (Optional)
+
+UpBeat works out of the box with **Direct Search (0 tokens)**. To unlock custom Gemini AI curation:
+1. Tap the **Settings (⚙️)** icon in the top navigation bar.
+2. Enter your free **Gemini API Key** from [Google AI Studio](https://aistudio.google.com).
+3. If using an Android device on the same local Wi-Fi as your Mac, enter your Mac's LAN address (`http://192.168.x.x:8000`) to sync live Safari tabs.
+
+---
+
+## 📄 License
+MIT License. Created by [Aaradhya Negi](https://github.com/AaradhyaNegi009).

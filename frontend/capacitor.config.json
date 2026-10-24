@@ -8,6 +8,7 @@
     "cleartext": true
   },
   "android": {
+    "path": "../android",
     "allowMixedContent": true,
     "backgroundColor": "#0a0a0c"
   },

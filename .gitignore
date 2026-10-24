@@ -3,20 +3,26 @@
 !/gitignore
 !/.gitignore
 !/README.md
+!/run.sh
 !/.github/
-!/argon_music/
+!/android/
+!/backend/
+!/frontend/
 !/macos/
 
-# Ignore build/cache inside UpBeat
-argon_music/frontend/node_modules/
-argon_music/frontend/android/.gradle/
-argon_music/frontend/android/build/
-argon_music/frontend/android/app/build/
-argon_music/frontend/android/local.properties
+# Build caches & dependencies
+frontend/node_modules/
+node_modules/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+dist.zip
+dist.zip.sha256
+UpBeat-macOS.zip
 downloads/
-downloads
-argon_music/backend/data/downloads/*.m4a
-argon_music/backend/data/downloads/*.part*
+backend/data/downloads/*.m4a
+backend/data/downloads/*.part*
 **/__pycache__/
 **/*.pyc
 .DS_Store

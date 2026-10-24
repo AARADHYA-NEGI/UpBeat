@@ -12,7 +12,7 @@ from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from argon_music.backend.safari_bridge import (
+from backend.safari_bridge import (
     list_safari_tabs,
     open_safari_url,
     extract_all_safari_yt_tracks,
@@ -20,8 +20,8 @@ from argon_music.backend.safari_bridge import (
     control_safari,
     get_safari_youtube_profile,
 )
-from argon_music.backend.curator import analyze_taste_dna, curate_playlist
-from argon_music.backend.youtube_search import (
+from backend.curator import analyze_taste_dna, curate_playlist
+from backend.youtube_search import (
     resolve_tracks_batch,
     search_youtube_single,
     get_audio_stream_url,
@@ -29,7 +29,7 @@ from argon_music.backend.youtube_search import (
     browse_youtube_music_playlist,
     format_seconds,
 )
-from argon_music.backend.favorites_store import get_favorites, toggle_favorite
+from backend.favorites_store import get_favorites, toggle_favorite
 
 app = FastAPI(
     title="UpBeat Music API",
@@ -715,4 +715,4 @@ if os.path.exists(frontend_dist):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("argon_music.backend.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=8000, reload=True)

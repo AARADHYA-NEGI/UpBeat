@@ -27,9 +27,9 @@ if [ -d ".git" ]; then
 fi
 
 # Rebuild frontend
-if [ -d "argon_music/frontend" ]; then
+if [ -d "frontend" ]; then
     echo "Building latest frontend assets..."
-    cd argon_music/frontend
+    cd frontend
     npm run build
     cd "$DIR"
 fi

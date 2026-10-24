@@ -32,14 +32,14 @@ jobs:
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Build Frontend & Sync Capacitor Android
-        working-directory: argon_music/frontend
+        working-directory: frontend
         run: |
           npm install
           npm run build
           npx cap sync android
 
       - name: Build Android Debug APK
-        working-directory: argon_music/frontend/android
+        working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
@@ -49,17 +49,17 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: UpBeat-Android-APK
-          path: argon_music/frontend/android/app/build/outputs/apk/debug/UpBeat.apk
+          path: android/app/build/outputs/apk/debug/UpBeat.apk
 
       - name: Package macOS App Bundle & OTA Live Update Bundle
         run: |
           if [ -d "UpBeat.app" ]; then
             zip -r -y UpBeat-macOS.zip UpBeat.app
           fi
-          if [ -d "argon_music/frontend/dist" ]; then
-            cd argon_music/frontend/dist
-            zip -r ../../../dist.zip .
-            cd ../../..
+          if [ -d "frontend/dist" ]; then
+            cd frontend/dist
+            zip -r ../../dist.zip .
+            cd ../..
             sha256sum dist.zip | awk '{print $1}' > dist.zip.sha256
           fi
 
@@ -69,7 +69,7 @@ jobs:
           tag_name: v4.2.1
           name: "UpBeat v4.2.1"
           files: |
-            argon_music/frontend/android/app/build/outputs/apk/debug/UpBeat.apk
+            android/app/build/outputs/apk/debug/UpBeat.apk
             UpBeat-macOS.zip
             dist.zip
             dist.zip.sha256

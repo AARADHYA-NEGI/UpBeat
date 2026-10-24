@@ -6,8 +6,8 @@ from typing import Dict, List, Any
 from dotenv import load_dotenv
 import requests
 
-from argon_music.backend.favorites_store import get_favorites
-from argon_music.backend.youtube_search import search_youtube_music_catalog
+from backend.favorites_store import get_favorites
+from backend.youtube_search import search_youtube_music_catalog
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "../../../.env"))
 load_dotenv(".env")
