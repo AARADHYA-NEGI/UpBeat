@@ -7,7 +7,17 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     var webView: WKWebView!
     var backendProcess: Process?
     let serverURL = URL(string: "http://127.0.0.1:8000")!
-    let workspacePath = "/Users/aaradhya/Documents/Programming/random"
+    let workspacePath: String = {
+        let defaultPath = "/Users/aaradhya/Documents/Programming/random"
+        if FileManager.default.fileExists(atPath: "\(defaultPath)/backend/main.py") {
+            return defaultPath
+        }
+        let bundleParent = Bundle.main.bundleURL.deletingLastPathComponent().path
+        if FileManager.default.fileExists(atPath: "\(bundleParent)/backend/main.py") {
+            return bundleParent
+        }
+        return defaultPath
+    }()
     let appVersion: String = {
         if let ver = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String, !ver.isEmpty {
             return ver
@@ -79,6 +89,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15 UpBeatMac/\(appVersion)"
 
         window.contentView?.addSubview(webView)
+        showStartupSplash()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
@@ -201,6 +212,13 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         guard message.name == "upbeatNative",
               let body = message.body as? [String: Any] else { return }
 
+        if let action = body["action"] as? String, action == "retryBackend" {
+            DispatchQueue.main.async { [weak self] in
+                self?.ensureBackendAndLoad()
+            }
+            return
+        }
+
         let isPlaying = (body["isPlaying"] as? Bool) ?? false
         let title = (body["title"] as? String) ?? "UpBeat"
         let artist = (body["artist"] as? String) ?? ""
@@ -273,6 +291,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         mainMenu.addItem(fileMenuItem)
         let fileMenu = NSMenu(title: "File")
         fileMenu.addItem(withTitle: "Open UpBeat Downloads Folder", action: #selector(openDownloadsFolder), keyEquivalent: "O")
+        fileMenu.addItem(withTitle: "Open Backend Log", action: #selector(openBackendLog), keyEquivalent: "L")
         fileMenuItem.submenu = fileMenu
 
         // Edit Menu (Cmd+C, Cmd+V, Cmd+A, Cmd+X in text fields)
@@ -517,6 +536,172 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         }
     }
 
+    func showStartupSplash() {
+        let splashHTML = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            * { box-sizing: border-box; margin: 0; padding: 0; }
+            body {
+              height: 100vh;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              background-color: #0b0c10;
+              color: #f1f5f9;
+              font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+              user-select: none;
+              overflow: hidden;
+            }
+            .container {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              text-align: center;
+              padding: 32px;
+              max-width: 440px;
+            }
+            .logo-icon {
+              width: 58px;
+              height: 58px;
+              border-radius: 16px;
+              background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 28px;
+              box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.45);
+              margin-bottom: 24px;
+              animation: pulse 2.2s infinite ease-in-out;
+            }
+            @keyframes pulse {
+              0% { transform: scale(1); box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.45); }
+              50% { transform: scale(1.06); box-shadow: 0 16px 36px -5px rgba(236, 72, 153, 0.55); }
+              100% { transform: scale(1); box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.45); }
+            }
+            h1 {
+              font-size: 20px;
+              font-weight: 700;
+              letter-spacing: -0.02em;
+              margin-bottom: 8px;
+              color: #ffffff;
+            }
+            p.sub {
+              font-size: 13px;
+              color: #94a3b8;
+              margin-bottom: 24px;
+              line-height: 1.5;
+            }
+            .loader-bar {
+              width: 140px;
+              height: 3px;
+              background: rgba(255, 255, 255, 0.08);
+              border-radius: 9999px;
+              overflow: hidden;
+              position: relative;
+            }
+            .loader-progress {
+              position: absolute;
+              top: 0;
+              left: 0;
+              height: 100%;
+              width: 40%;
+              background: linear-gradient(90deg, #6366f1, #ec4899);
+              border-radius: 9999px;
+              animation: loading 1.4s infinite ease-in-out;
+            }
+            @keyframes loading {
+              0% { left: -40%; width: 40%; }
+              50% { left: 30%; width: 60%; }
+              100% { left: 100%; width: 40%; }
+            }
+            .retry-box {
+              margin-top: 20px;
+              display: none;
+              animation: fadeIn 0.3s ease;
+            }
+            @keyframes fadeIn {
+              from { opacity: 0; transform: translateY(6px); }
+              to { opacity: 1; transform: translateY(0); }
+            }
+            .retry-btn {
+              background: rgba(255, 255, 255, 0.08);
+              border: 1px solid rgba(255, 255, 255, 0.15);
+              color: #f1f5f9;
+              padding: 8px 18px;
+              border-radius: 8px;
+              font-size: 13px;
+              font-weight: 500;
+              cursor: pointer;
+              transition: all 0.2s;
+            }
+            .retry-btn:hover {
+              background: rgba(255, 255, 255, 0.14);
+              border-color: rgba(255, 255, 255, 0.25);
+            }
+            .diag {
+              margin-top: 12px;
+              font-family: monospace;
+              font-size: 11px;
+              color: #ef4444;
+              max-width: 380px;
+              word-break: break-all;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="logo-icon">♫</div>
+            <h1>UpBeat Studio</h1>
+            <p class="sub" id="status-text">Connecting to local audio engine...</p>
+            <div class="loader-bar" id="loader"><div class="loader-progress"></div></div>
+            <div class="retry-box" id="retry-box">
+              <button class="retry-btn" onclick="retry()">Reconnect</button>
+              <div class="diag" id="diag-msg"></div>
+            </div>
+          </div>
+          <script>
+            function setStatus(text, showRetry, errorText) {
+              document.getElementById('status-text').innerText = text;
+              if (showRetry) {
+                document.getElementById('loader').style.display = 'none';
+                document.getElementById('retry-box').style.display = 'block';
+                if (errorText) document.getElementById('diag-msg').innerText = errorText;
+              }
+            }
+            function retry() {
+              document.getElementById('retry-box').style.display = 'none';
+              document.getElementById('loader').style.display = 'block';
+              document.getElementById('status-text').innerText = 'Reconnecting...';
+              try {
+                window.webkit.messageHandlers.upbeatNative.postMessage({action: 'retryBackend'});
+              } catch(e) {
+                window.location.reload();
+              }
+            }
+            setTimeout(function() {
+              if (document.getElementById('loader').style.display !== 'none') {
+                setStatus('Engine startup taking longer than usual...', true, 'Click Reconnect if server is booting.');
+              }
+            }, 8000);
+          </script>
+        </body>
+        </html>
+        """
+        webView.loadHTMLString(splashHTML, baseURL: nil)
+    }
+
+    @objc func openBackendLog() {
+        let logsDir = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("Logs")
+            .appendingPathComponent("UpBeat")
+        let logFile = logsDir.appendingPathComponent("backend.log")
+        NSWorkspace.shared.open(logFile)
+    }
+
     func ensureBackendAndLoad() {
         let statusURL = URL(string: "http://127.0.0.1:8000/api/status")!
         var req = URLRequest(url: statusURL)
@@ -535,6 +720,22 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
     }
 
     func startBackendProcess() {
+        if let proc = backendProcess, proc.isRunning {
+            pollBackend(attemptsLeft: 40)
+            return
+        }
+
+        let logsDir = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("Logs")
+            .appendingPathComponent("UpBeat")
+        try? FileManager.default.createDirectory(at: logsDir, withIntermediateDirectories: true, attributes: nil)
+        let logFile = logsDir.appendingPathComponent("backend.log")
+        if !FileManager.default.fileExists(atPath: logFile.path) {
+            FileManager.default.createFile(atPath: logFile.path, contents: nil, attributes: nil)
+        }
+        let logHandle = try? FileHandle(forWritingTo: logFile)
+        logHandle?.seekToEndOfFile()
+
         let proc = Process()
         let venvPython = "\(workspacePath)/.venv/bin/python"
         let venvUvicorn = "\(workspacePath)/.venv/bin/uvicorn"
@@ -554,6 +755,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
         }
         proc.currentDirectoryURL = URL(fileURLWithPath: workspacePath)
 
+        if let handle = logHandle {
+            proc.standardOutput = handle
+            proc.standardError = handle
+        }
+
         do {
             try proc.run()
             self.backendProcess = proc
@@ -561,27 +767,41 @@ class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNavigati
             print("Failed to launch backend: \(error)")
         }
 
-        pollBackend(attemptsLeft: 30)
+        pollBackend(attemptsLeft: 50)
     }
 
     func pollBackend(attemptsLeft: Int) {
-        guard attemptsLeft > 0 else { return }
         let statusURL = URL(string: "http://127.0.0.1:8000/api/status")!
         var req = URLRequest(url: statusURL)
         req.timeoutInterval = 1.0
 
-        URLSession.shared.dataTask(with: req) { [weak self] _, response, _ in
+        URLSession.shared.dataTask(with: req) { [weak self] _, response, error in
             guard let self = self else { return }
             if let http = response as? HTTPURLResponse, http.statusCode == 200 {
                 DispatchQueue.main.async {
                     self.webView.load(URLRequest(url: self.serverURL))
                 }
-            } else {
+            } else if attemptsLeft > 0 {
                 DispatchQueue.global().asyncAfter(deadline: .now() + 0.4) {
                     self.pollBackend(attemptsLeft: attemptsLeft - 1)
                 }
+            } else {
+                DispatchQueue.main.async {
+                    let errDetail = error?.localizedDescription ?? "Port 8000 not responding"
+                    self.webView.evaluateJavaScript("setStatus('Unable to connect to UpBeat Engine', true, '\(errDetail)')")
+                }
             }
         }.resume()
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        let nsErr = error as NSError
+        if nsErr.code != NSURLErrorCancelled {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
+                guard let self = self else { return }
+                self.ensureBackendAndLoad()
+            }
+        }
     }
 
     func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
