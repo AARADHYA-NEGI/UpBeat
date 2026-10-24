@@ -23,6 +23,11 @@
             document.documentElement.classList.add('theme-light');
             document.documentElement.classList.remove('dark');
           }
+          var isAndroid = /android/i.test(navigator.userAgent) || (window.Capacitor && window.Capacitor.getPlatform && window.Capacitor.getPlatform() === 'android');
+          if (isAndroid) {
+            document.documentElement.style.setProperty('--sat', '0px');
+            document.documentElement.style.setProperty('--safe-area-inset-top', '0px');
+          }
         } catch(e) {}
       })();
     </script>

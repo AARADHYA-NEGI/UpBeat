@@ -5,11 +5,17 @@
 :root {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   color-scheme: dark;
-  /* Capacitor SystemBars injects --safe-area-inset-*; fall back to env() for browsers/PWA */
-  --sat: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  /* Top safe area: On Android & desktop, default to 0px to prevent excessive empty black top bars */
+  --sat: 0px;
   --sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   --sal: var(--safe-area-inset-left, env(safe-area-inset-left, 0px));
   --sar: var(--safe-area-inset-right, env(safe-area-inset-right, 0px));
+}
+
+@supports (padding-top: env(safe-area-inset-top)) {
+  :root {
+    --sat: min(env(safe-area-inset-top, 0px), 12px);
+  }
 }
 
 html, body, #root {

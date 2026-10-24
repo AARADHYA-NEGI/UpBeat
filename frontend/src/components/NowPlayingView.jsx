@@ -166,7 +166,7 @@ export default function NowPlayingView({
       />
 
       {/* Top Header Bar */}
-      <header className="h-14 sm:h-16 px-4 sm:px-8 flex items-center justify-between shrink-0 pt-safe z-10">
+      <header className="h-12 sm:h-16 px-4 sm:px-8 flex items-center justify-between shrink-0 pt-0 sm:pt-safe z-10">
         <button
           onClick={handleClose}
           className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 active:scale-90 transition-all cursor-pointer"

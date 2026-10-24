@@ -39,7 +39,7 @@ export default function Navbar({
   const [savedBanner, setSavedBanner] = useState(false)
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
-  const [otaVer, setOtaVer] = useState('v4.2.4')
+  const [otaVer, setOtaVer] = useState('v4.2.5')
   const [isCheckingOta, setIsCheckingOta] = useState(false)
   const [otaStatusMsg, setOtaStatusMsg] = useState('')
   const [themeMode, setThemeMode] = useState(() => getStoredThemeMode())
@@ -105,11 +105,11 @@ export default function Navbar({
 
   return (
     <>
-      <header className="pt-safe bg-[#030305]/95 backdrop-blur-xl border-b border-white/[0.06] select-none flex-shrink-0 z-30 sticky top-0 transition-colors">
+      <header className="pt-0 sm:pt-safe bg-[#030305]/95 backdrop-blur-xl border-b border-white/[0.06] select-none flex-shrink-0 z-30 sticky top-0 transition-colors">
         {/* Mobile Full-Width Search Header (when search is open on mobile) */}
         {isMobileSearchOpen ? (
           <div className="sm:hidden flex flex-col">
-            <div className="h-14 px-3 flex items-center gap-2.5 w-full">
+            <div className="h-11 sm:h-14 px-3 flex items-center gap-2.5 w-full">
               <button
                 type="button"
                 onClick={() => setIsMobileSearchOpen(false)}
@@ -204,7 +204,7 @@ export default function Navbar({
           </div>
         ) : (
           /* Standard Navbar (Desktop full + Mobile clean icon bar) */
-          <div className="h-14 px-3 sm:px-6 flex items-center justify-between gap-3 sm:gap-4">
+          <div className="h-11 sm:h-14 px-3 sm:px-6 flex items-center justify-between gap-3 sm:gap-4">
             {/* Left: Clean Brand (On mobile, ONLY music note logo; on desktop, logo + UpBeat) */}
             <div className="flex items-center gap-3 shrink-0">
               <button
