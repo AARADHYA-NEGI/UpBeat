@@ -47,6 +47,8 @@ public class MainActivity extends BridgeActivity {
         if (this.bridge != null && this.bridge.getWebView() != null) {
             WebView wv = this.bridge.getWebView();
             wv.getSettings().setMediaPlaybackRequiresUserGesture(false);
+            wv.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
+            wv.getSettings().setSupportMultipleWindows(true);
             wv.addJavascriptInterface(new UpBeatJsBridge(), "UpBeatNative");
         }
 
@@ -159,6 +161,16 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public void syncFavorites(String favoritesJson) {
             UpBeatMediaService.saveFavorites(MainActivity.this, favoritesJson);
+        }
+
+        @JavascriptInterface
+        public void openExternalUrl(String url) {
+            if (url == null || url.trim().isEmpty()) return;
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url.trim()));
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                MainActivity.this.startActivity(intent);
+            } catch (Exception ignored) {}
         }
     }
 }

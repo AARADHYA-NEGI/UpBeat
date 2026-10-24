@@ -3,7 +3,7 @@ import {
   Play, Pause, SkipForward, SkipBack, Volume2, VolumeX,
   ExternalLink, Video, Music, Heart, Loader2, Download, Check, ListMusic, ChevronUp
 } from 'lucide-react'
-import { getApiBase, hasBackend, getAudioSource, searchYouTubeStandalone, getTrackDownloadUrl } from '../standaloneApi'
+import { getApiBase, hasBackend, getAudioSource, searchYouTubeStandalone, getTrackDownloadUrl, openExternalUrl } from '../standaloneApi'
 import { isTrackDownloaded, saveTrackOffline, createOfflineAudioUrl, subscribeOfflineChanges } from '../offlineStorage'
 import { useAlbumColor, DEFAULT_LAVENDER_THEME } from '../utils/colorExtractor'
 import NowPlayingView from './NowPlayingView'
@@ -1052,7 +1052,7 @@ export default function PlayerBar({
       {/* Optional Video Container */}
       <div
         className={
-          showVideo && track && playbackMode === 'app'
+          showVideo && track && playbackMode === 'app' && !nowPlayingOpen
             ? 'fixed bottom-28 sm:bottom-20 right-3 sm:right-6 z-40 w-72 sm:w-80 aspect-video rounded-lg overflow-hidden border border-indigo-500/40 bg-black shadow-2xl'
             : 'fixed bottom-0 right-0 w-[1px] h-[1px] opacity-0 pointer-events-none overflow-hidden'
         }
@@ -1395,8 +1395,15 @@ export default function PlayerBar({
 
             {track && (
               <button
-                onClick={() => onPushToSafari(track)}
-                title="Open on YouTube"
+                onClick={() => {
+                  if (onPushToSafari) {
+                    onPushToSafari(track)
+                  } else {
+                    const u = track.url || (track.video_id ? `https://www.youtube.com/watch?v=${track.video_id}` : (resolvedVid ? `https://www.youtube.com/watch?v=${resolvedVid}` : ''))
+                    if (u) openExternalUrl(u)
+                  }
+                }}
+                title="Open on YouTube / Browser"
                 className="p-1.5 rounded-md text-[#8e8e96] hover:text-white hover:bg-[#1a1a22] transition-colors cursor-pointer"
               >
                 <ExternalLink className="w-4 h-4" />

@@ -21,7 +21,8 @@ import {
   isNativeApp,
   isConfigured,
   getStoredApiKey,
-  formatDurationSeconds
+  formatDurationSeconds,
+  openExternalUrl
 } from './standaloneApi'
 
 const DEFAULT_SEEDS = [
@@ -1051,8 +1052,14 @@ export default function App() {
 
   const handlePushToSafari = async (track) => {
     if (!track) return
-    const targetUrl = track.url || (track.video_id ? `https://www.youtube.com/watch?v=${track.video_id}` : '')
+    const targetUrl = track.url || (track.video_id ? `https://www.youtube.com/watch?v=${track.video_id}` : (currentTrack?.video_id ? `https://www.youtube.com/watch?v=${currentTrack.video_id}` : ''))
     if (!targetUrl) return
+
+    if (!hasBackend() || isNativeApp()) {
+      openExternalUrl(targetUrl)
+      showNotify(`Opening in browser...`, 'info')
+      return
+    }
 
     try {
       await fetch(`${getApiBase()}/safari/open`, {
@@ -1062,7 +1069,8 @@ export default function App() {
       })
       showNotify(`Opened "${track.title}" in Safari`, 'info')
     } catch (e) {
-      showNotify(`Failed to open in Safari: ${e.message}`, 'error')
+      openExternalUrl(targetUrl)
+      showNotify(`Opened in browser`, 'info')
     }
   }
 

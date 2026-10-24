@@ -48,6 +48,37 @@ export function hasBackend() {
   return Boolean(getStoredServerUrl())
 }
 
+/** Open URL in Android native external browser/app or web new tab */
+export function openExternalUrl(url) {
+  if (!url) return
+  const safeUrl = String(url).trim()
+  if (!safeUrl) return
+
+  // 1. Android Native Capacitor Bridge
+  if (typeof window !== 'undefined' && window.UpBeatNative && typeof window.UpBeatNative.openExternalUrl === 'function') {
+    try {
+      window.UpBeatNative.openExternalUrl(safeUrl)
+      return
+    } catch {}
+  }
+
+  // 2. Web browser fallback: open in new tab
+  try {
+    const win = window.open(safeUrl, '_blank', 'noopener,noreferrer')
+    if (!win) {
+      const a = document.createElement('a')
+      a.href = safeUrl
+      a.target = '_blank'
+      a.rel = 'noopener noreferrer'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    }
+  } catch {
+    window.location.href = safeUrl
+  }
+}
+
 /** Base for backend API calls. */
 export function getApiBase() {
   const custom = getStoredServerUrl()

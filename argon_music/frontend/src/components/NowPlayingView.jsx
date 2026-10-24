@@ -4,7 +4,7 @@ import {
   Shuffle, Repeat, Repeat1, Download, Check, Loader2,
   ListMusic, ExternalLink, Video, Calendar, Sparkles, Volume2, VolumeX, Music, ShieldCheck
 } from 'lucide-react'
-import { fetchTrackExtendedMeta } from '../standaloneApi'
+import { fetchTrackExtendedMeta, openExternalUrl } from '../standaloneApi'
 
 function formatTime(sec) {
   if (!sec || isNaN(sec) || sec < 0) return '0:00'
@@ -79,6 +79,49 @@ export default function NowPlayingView({
     }
   }, [vid])
 
+  const handleOpenExternal = () => {
+    if (!track) return
+    const targetUrl = track.url || (vid ? `https://www.youtube.com/watch?v=${vid}` : '')
+    if (!targetUrl) return
+    if (onPushToSafari) {
+      try {
+        onPushToSafari(track)
+        return
+      } catch {}
+    }
+    openExternalUrl(targetUrl)
+  }
+
+  const handleToggleVideo = () => {
+    const nextShow = !showVideo
+    if (setShowVideo) setShowVideo(nextShow)
+    if (nextShow) {
+      // Pause background audio when viewing video
+      document.querySelectorAll('audio').forEach((el) => {
+        try { el.pause() } catch {}
+      })
+    } else {
+      // Resume background audio when exiting video mode
+      if (isPlaying) {
+        document.querySelectorAll('audio').forEach((el) => {
+          if (el.src) try { el.play().catch(() => {}) } catch {}
+        })
+      }
+    }
+  }
+
+  const handleClose = () => {
+    if (showVideo && setShowVideo) {
+      setShowVideo(false)
+      if (isPlaying) {
+        document.querySelectorAll('audio').forEach((el) => {
+          if (el.src) try { el.play().catch(() => {}) } catch {}
+        })
+      }
+    }
+    if (onClose) onClose()
+  }
+
   if (!isOpen || !track) return null
 
   // Format release date cleanly
@@ -125,7 +168,7 @@ export default function NowPlayingView({
       {/* Top Header Bar */}
       <header className="h-14 sm:h-16 px-4 sm:px-8 flex items-center justify-between shrink-0 pt-safe z-10">
         <button
-          onClick={onClose}
+          onClick={handleClose}
           className="w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 active:scale-90 transition-all cursor-pointer"
           title="Collapse to mini player"
           aria-label="Collapse"
@@ -161,16 +204,29 @@ export default function NowPlayingView({
         </div>
       </header>
 
-      {/* Center Artwork Section (Responsive & Protected Against Mobile Overflow) */}
-      <div className="flex-1 min-h-0 flex items-center justify-center px-6 sm:px-12 py-2 sm:py-4">
+      {/* Center Artwork / Video Section (Responsive & Protected Against Mobile Overflow) */}
+      <div className="flex-1 min-h-0 flex items-center justify-center px-4 sm:px-12 py-2 sm:py-4">
         <div
-          className="relative w-full max-w-[280px] xs:max-w-[320px] sm:max-w-[380px] aspect-square rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-500"
+          className={`relative w-full ${
+            showVideo
+              ? 'max-w-[340px] xs:max-w-[420px] sm:max-w-[500px] aspect-video'
+              : 'max-w-[280px] xs:max-w-[320px] sm:max-w-[380px] aspect-square'
+          } rounded-2xl sm:rounded-3xl overflow-hidden transition-all duration-300 bg-black`}
           style={{
             boxShadow: isPlaying ? `0 20px 50px ${albumColor.glow || 'rgba(0,0,0,0.6)'}` : '0 10px 30px rgba(0,0,0,0.5)',
-            maxHeight: 'min(36vh, 380px)'
+            maxHeight: showVideo ? 'min(40vh, 400px)' : 'min(36vh, 380px)'
           }}
         >
-          {thumbUrl ? (
+          {showVideo && vid ? (
+            <iframe
+              key={vid}
+              src={`https://www.youtube-nocookie.com/embed/${vid}?autoplay=1&playsinline=1&controls=1&rel=0&modestbranding=1`}
+              title={track.title}
+              className="w-full h-full border-0 select-none rounded-2xl sm:rounded-3xl"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            />
+          ) : thumbUrl ? (
             <img
               src={thumbUrl}
               alt={track.title}
@@ -184,7 +240,7 @@ export default function NowPlayingView({
           )}
 
           {/* Playing wave overlay indicator */}
-          {isPlaying && (
+          {!showVideo && isPlaying && (
             <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: albumColor.primary }} />
               <span className="text-[10px] font-mono text-zinc-200 uppercase tracking-wider font-semibold">Live</span>
@@ -366,24 +422,24 @@ export default function NowPlayingView({
           </button>
         )}
 
-        {track && onPushToSafari && (
+        {track && (
           <button
-            onClick={() => onPushToSafari(track)}
-            title="Open on YouTube"
-            aria-label="Open on YouTube"
-            className="p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            onClick={handleOpenExternal}
+            title="Open on YouTube / Browser"
+            aria-label="Open on YouTube / Browser"
+            className="p-2 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer active:scale-90"
           >
             <ExternalLink className="w-5 h-5" />
           </button>
         )}
 
         <button
-          onClick={() => setShowVideo && setShowVideo(!showVideo)}
-          disabled={!track || playbackMode !== 'app'}
-          title="Toggle Video Preview"
-          aria-label="Toggle Video Preview"
-          className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer disabled:opacity-30 ${
-            showVideo ? 'text-emerald-300 bg-emerald-500/20' : 'text-zinc-400 hover:text-white'
+          onClick={handleToggleVideo}
+          disabled={!track || (!track.video_id && !resolvedVid)}
+          title={showVideo ? 'Switch to Artwork' : 'Watch Video'}
+          aria-label={showVideo ? 'Switch to Artwork' : 'Watch Video'}
+          className={`p-2 rounded-full hover:bg-white/10 transition-colors cursor-pointer disabled:opacity-30 active:scale-90 ${
+            showVideo ? 'text-emerald-300 bg-emerald-500/20 ring-1 ring-emerald-500/40' : 'text-zinc-400 hover:text-white'
           }`}
         >
           <Video className="w-5 h-5" />
