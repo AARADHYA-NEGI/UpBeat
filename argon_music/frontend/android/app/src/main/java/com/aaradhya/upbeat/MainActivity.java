@@ -5,6 +5,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import androidx.core.app.ActivityCompat;
@@ -14,6 +16,9 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
 
     public static MainActivity sInstance = null;
+    private static volatile String sPendingAction = null;
+    private static volatile String sPendingPayload = null;
+    private final Handler mHandler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,17 +60,51 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    public void dispatchCarAction(final String action, final String payload) {
+    public synchronized void dispatchCarAction(final String action, final String payload) {
         if (action == null) return;
-        if (this.bridge != null && this.bridge.getWebView() != null) {
-            final WebView wv = this.bridge.getWebView();
-            wv.post(() -> {
-                String safeAction = action.replace("'", "\\'");
-                String safePayload = payload != null ? payload.replace("'", "\\'") : "";
-                String js = "window.onUpBeatCarAction && window.onUpBeatCarAction('" + safeAction + "', '" + safePayload + "');";
-                wv.evaluateJavascript(js, null);
-            });
+        sPendingAction = action;
+        sPendingPayload = payload != null ? payload : "";
+        tryDeliverPendingCarAction(0);
+    }
+
+    public synchronized void tryDeliverPendingCarAction(final int attempt) {
+        if (sPendingAction == null) return;
+        if (this.bridge == null || this.bridge.getWebView() == null) {
+            if (attempt < 25) {
+                mHandler.postDelayed(() -> tryDeliverPendingCarAction(attempt + 1), 300);
+            }
+            return;
         }
+
+        final WebView wv = this.bridge.getWebView();
+        wv.post(() -> {
+            if (sPendingAction == null) return;
+            final String action = sPendingAction;
+            final String payload = sPendingPayload != null ? sPendingPayload : "";
+            final String safeAction = action.replace("'", "\\'");
+            final String safePayload = payload.replace("'", "\\'");
+
+            final String script = "(function() {" +
+                "  if (typeof window.onUpBeatCarAction === 'function') {" +
+                "    window.onUpBeatCarAction('" + safeAction + "', '" + safePayload + "');" +
+                "    return 'ok';" +
+                "  }" +
+                "  return 'retry';" +
+                "})();";
+
+            wv.evaluateJavascript(script, value -> {
+                if (value != null && value.contains("ok")) {
+                    synchronized (MainActivity.this) {
+                        sPendingAction = null;
+                        sPendingPayload = null;
+                    }
+                } else {
+                    if (attempt < 25) {
+                        mHandler.postDelayed(() -> tryDeliverPendingCarAction(attempt + 1), 350);
+                    }
+                }
+            });
+        });
     }
 
     @Override
@@ -86,6 +125,11 @@ public class MainActivity extends BridgeActivity {
     }
 
     public class UpBeatJsBridge {
+        @JavascriptInterface
+        public void readyForCarActions() {
+            mHandler.post(() -> tryDeliverPendingCarAction(0));
+        }
+
         @JavascriptInterface
         public void updatePlayback(boolean isPlaying, String title, String artist) {
             updatePlayback(isPlaying, title, artist, "", 0, 0);

@@ -189,8 +189,9 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem('argon_favs_v2', JSON.stringify(favorites)) } catch {}
     if (window.UpBeatNative && typeof window.UpBeatNative.syncFavorites === 'function') {
+      const favsToSync = favorites?.length ? favorites : (extractedTracks?.length ? extractedTracks : DEFAULT_SEEDS)
       try {
-        const items = favorites.slice(0, 50).map((f, idx) => ({
+        const items = favsToSync.slice(0, 50).map((f, idx) => ({
           index: idx,
           title: f.title || 'Unknown Title',
           artist: f.artist || 'UpBeat',
@@ -200,7 +201,7 @@ export default function App() {
         window.UpBeatNative.syncFavorites(JSON.stringify(items))
       } catch {}
     }
-  }, [favorites])
+  }, [favorites, extractedTracks])
 
   useEffect(() => {
     if (tasteDna) {
@@ -211,9 +212,14 @@ export default function App() {
   useEffect(() => {
     if (playlist) {
       try { localStorage.setItem('argon_playlist_v2', JSON.stringify(playlist)) } catch {}
-      if (window.UpBeatNative && typeof window.UpBeatNative.syncQueue === 'function' && playlist.tracks?.length) {
+    }
+    if (window.UpBeatNative && typeof window.UpBeatNative.syncQueue === 'function') {
+      const tracksToSync = playlist?.tracks?.length
+        ? playlist.tracks
+        : (queue?.length ? queue : (extractedTracks?.length ? extractedTracks : DEFAULT_SEEDS))
+      if (tracksToSync?.length) {
         try {
-          const items = playlist.tracks.slice(0, 50).map((t, idx) => ({
+          const items = tracksToSync.slice(0, 50).map((t, idx) => ({
             index: idx,
             title: t.title || 'Unknown Title',
             artist: t.artist || 'UpBeat',
@@ -223,7 +229,7 @@ export default function App() {
         } catch {}
       }
     }
-  }, [playlist])
+  }, [playlist, queue, extractedTracks])
 
   useEffect(() => {
     try { localStorage.setItem('upbeat_playback_queue', JSON.stringify(queue)) } catch {}
@@ -337,15 +343,17 @@ export default function App() {
           break
         case 'play_index': {
           const idx = parseInt(payload, 10)
-          if (!isNaN(idx) && playlist?.tracks?.[idx]) {
-            handlePlayTrack(playlist.tracks[idx], idx)
+          const activeList = playlist?.tracks?.length ? playlist.tracks : (queue?.length ? queue : (extractedTracks?.length ? extractedTracks : DEFAULT_SEEDS))
+          if (!isNaN(idx) && activeList?.[idx]) {
+            handlePlayTrack(activeList[idx], idx)
           }
           break
         }
         case 'play_favorite': {
           const idx = parseInt(payload, 10)
-          if (!isNaN(idx) && favorites?.[idx]) {
-            handlePlayTrack(favorites[idx], idx)
+          const activeFavs = favorites?.length ? favorites : (extractedTracks?.length ? extractedTracks : DEFAULT_SEEDS)
+          if (!isNaN(idx) && activeFavs?.[idx]) {
+            handlePlayTrack(activeFavs[idx], idx)
           }
           break
         }
@@ -359,7 +367,14 @@ export default function App() {
           }
           const promptText = presetMap[payload] || 'Curated music mix'
           setPrompt(promptText)
-          handleDirectSearch(promptText, 'auto')
+          handleDirectSearch(promptText, 'auto', true)
+          break
+        }
+        case 'search_play': {
+          if (payload) {
+            setPrompt(payload)
+            handleDirectSearch(payload, 'auto', true)
+          }
           break
         }
         default:
@@ -367,10 +382,17 @@ export default function App() {
       }
     }
 
+    // Flush any pending car actions queued during cold start
+    if (window.UpBeatNative && typeof window.UpBeatNative.readyForCarActions === 'function') {
+      try {
+        window.UpBeatNative.readyForCarActions()
+      } catch {}
+    }
+
     return () => {
       delete window.onUpBeatCarAction
     }
-  }, [playlist, favorites, currentTrackIdx])
+  }, [playlist, favorites, queue, extractedTracks, currentTrackIdx])
 
   // Load persistent favorites from disk on mount (only when Mac backend is configured)
   useEffect(() => {
@@ -632,7 +654,7 @@ export default function App() {
   }
 
   // Zero-Token Direct YouTube Music Search (Prepared Playlists + Songs)
-  const handleDirectSearch = async (overrideQuery, mode = 'auto') => {
+  const handleDirectSearch = async (overrideQuery, mode = 'auto', autoPlay = false) => {
     const q = (overrideQuery ?? prompt ?? '').trim()
     if (!q || isSearching || isGenerating) return
 
@@ -658,9 +680,13 @@ export default function App() {
       }
 
       setPlaylist(data)
-      if (data.tracks && data.tracks.length > 0 && (!currentTrack || !isPlaying)) {
-        setCurrentTrack(data.tracks[0])
-        setCurrentTrackIdx(0)
+      if (data.tracks && data.tracks.length > 0) {
+        if (autoPlay) {
+          handlePlayTrack(data.tracks[0], 0)
+        } else if (!currentTrack || !isPlaying) {
+          setCurrentTrack(data.tracks[0])
+          setCurrentTrackIdx(0)
+        }
       }
       const label = data.active_source === 'playlist'
         ? `Loaded playlist "${data.playlist_title}" (${data.tracks?.length || 0} tracks • 0 tokens)`

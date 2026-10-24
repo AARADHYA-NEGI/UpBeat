@@ -72,6 +72,25 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
     public static final String MEDIA_ID_FAVORITES = "folder_favorites";
     public static final String MEDIA_ID_PRESETS = "folder_presets";
 
+    // Android Auto Content Style & Browsing Constants
+    public static final String CONTENT_STYLE_BROWSABLE_HINT = "android.media.browse.CONTENT_STYLE_BROWSABLE_HINT";
+    public static final String CONTENT_STYLE_PLAYABLE_HINT = "android.media.browse.CONTENT_STYLE_PLAYABLE_HINT";
+    public static final int CONTENT_STYLE_LIST_ITEM = 1;
+    public static final int CONTENT_STYLE_GRID_ITEM = 2;
+    public static final String SEARCH_SUPPORTED = "android.media.browse.SEARCH_SUPPORTED";
+
+    // Reliable fallback seed tracks for zero-empty browsable trees in Android Auto
+    private static final String[][] DEFAULT_CAR_TRACKS = {
+        {"Renai Circulation", "Kana Hanazawa", "https://i.ytimg.com/vi/F8xpmTmdf6o/hqdefault.jpg"},
+        {"mathemagics", "Marina Inoue", "https://i.ytimg.com/vi/F_Cr9vZ08Ws/hqdefault.jpg"},
+        {"Kimi no Shiranai Monogatari", "supercell", "https://i.ytimg.com/vi/0VpGoDp3FCE/hqdefault.jpg"},
+        {"Staple Stable", "Chiwa Saito", "https://i.ytimg.com/vi/CXDUXjsU5ao/hqdefault.jpg"},
+        {"Veridis Quo", "Daft Punk", "https://i.ytimg.com/vi/TCd6PfxOy0Y/hqdefault.jpg"},
+        {"A New Error", "Moderat", "https://i.ytimg.com/vi/QpxFcMYRV08/hqdefault.jpg"},
+        {"Duvet", "Bôa", "https://i.ytimg.com/vi/MM8RufZr5lw/hqdefault.jpg"},
+        {"Akuma no Ko", "Ai Higuchi", "https://i.ytimg.com/vi/tdzsOODJiX8/hqdefault.jpg"}
+    };
+
     public static volatile UpBeatMediaService sInstance = null;
 
     private MediaSessionCompat mMediaSession;
@@ -121,21 +140,25 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
     private class MediaSessionCallback extends MediaSessionCompat.Callback {
         @Override
         public void onPlay() {
+            updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING, currentPositionMs, true);
             dispatchToApp("play", "");
         }
 
         @Override
         public void onPause() {
+            updatePlaybackState(PlaybackStateCompat.STATE_PAUSED, currentPositionMs, false);
             dispatchToApp("pause", "");
         }
 
         @Override
         public void onSkipToNext() {
+            updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING, 0, true);
             dispatchToApp("next", "");
         }
 
         @Override
         public void onSkipToPrevious() {
+            updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING, 0, true);
             dispatchToApp("prev", "");
         }
 
@@ -153,12 +176,18 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
 
         @Override
         public void onSeekTo(long pos) {
+            updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING, pos, isCurrentlyPlaying);
             dispatchToApp("seek", String.valueOf(pos / 1000));
         }
 
         @Override
         public void onPlayFromMediaId(String mediaId, Bundle extras) {
             if (mediaId == null) return;
+
+            // Immediately switch to BUFFERING state to prevent Android Auto watchdog timeout ("Loading error")
+            updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING, 0, true);
+            optimisticUpdateMetadata(mediaId);
+
             if (mediaId.startsWith("track_")) {
                 dispatchToApp("play_index", mediaId.substring(6));
             } else if (mediaId.startsWith("fav_")) {
@@ -167,6 +196,39 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
                 dispatchToApp("play_preset", mediaId);
             }
         }
+
+        @Override
+        public void onPlayFromSearch(String query, Bundle extras) {
+            if (query != null && !query.trim().isEmpty()) {
+                updatePlaybackState(PlaybackStateCompat.STATE_BUFFERING, 0, true);
+                dispatchToApp("search_play", query.trim());
+            }
+        }
+    }
+
+    private void optimisticUpdateMetadata(String mediaId) {
+        try {
+            if (mediaId.startsWith("preset_")) {
+                String name = "Curated Mix";
+                if (mediaId.equals("preset_late_night")) name = "Late Night Drive";
+                else if (mediaId.equals("preset_focus")) name = "Deep Focus Ambient";
+                else if (mediaId.equals("preset_energy")) name = "High Energy Workout";
+                else if (mediaId.equals("preset_anime")) name = "Anime Openings";
+                else if (mediaId.equals("preset_hindi")) name = "New Hindi Songs";
+                currentTitle = name;
+                currentArtist = "UpBeat Radio";
+                applyMediaMetadata();
+                notifyNotification();
+            } else if (mediaId.startsWith("track_") || mediaId.startsWith("fav_")) {
+                int idx = Integer.parseInt(mediaId.substring(mediaId.indexOf('_') + 1));
+                if (idx >= 0 && idx < DEFAULT_CAR_TRACKS.length) {
+                    currentTitle = DEFAULT_CAR_TRACKS[idx][0];
+                    currentArtist = DEFAULT_CAR_TRACKS[idx][1];
+                    applyMediaMetadata();
+                    notifyNotification();
+                }
+            }
+        } catch (Exception ignored) {}
     }
 
     private void dispatchToApp(String action, String payload) {
@@ -184,7 +246,11 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
     @Nullable
     @Override
     public BrowserRoot onGetRoot(@NonNull String clientPackageName, int clientUid, @Nullable Bundle rootHints) {
-        return new BrowserRoot(MEDIA_ID_ROOT, null);
+        Bundle extras = new Bundle();
+        extras.putBoolean(SEARCH_SUPPORTED, true);
+        extras.putInt(CONTENT_STYLE_BROWSABLE_HINT, CONTENT_STYLE_GRID_ITEM);
+        extras.putInt(CONTENT_STYLE_PLAYABLE_HINT, CONTENT_STYLE_LIST_ITEM);
+        return new BrowserRoot(MEDIA_ID_ROOT, extras);
     }
 
     @Override
@@ -203,6 +269,12 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
         if (MEDIA_ID_QUEUE.equals(parentMediaId)) {
             String queueJson = prefs.getString(KEY_QUEUE, "[]");
             populateFromJsonArray(items, queueJson, "track_");
+            // If empty, supply high-quality seeds so Android Auto never encounters an empty browsable folder
+            if (items.isEmpty()) {
+                for (int i = 0; i < DEFAULT_CAR_TRACKS.length; i++) {
+                    items.add(createPlayable("track_" + i, DEFAULT_CAR_TRACKS[i][0], DEFAULT_CAR_TRACKS[i][1], DEFAULT_CAR_TRACKS[i][2]));
+                }
+            }
             result.sendResult(items);
             return;
         }
@@ -210,16 +282,22 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
         if (MEDIA_ID_FAVORITES.equals(parentMediaId)) {
             String favsJson = prefs.getString(KEY_FAVS, "[]");
             populateFromJsonArray(items, favsJson, "fav_");
+            // If empty, supply starter seeds so Android Auto Liked Songs folder loads cleanly without error
+            if (items.isEmpty()) {
+                for (int i = 0; i < DEFAULT_CAR_TRACKS.length; i++) {
+                    items.add(createPlayable("fav_" + i, DEFAULT_CAR_TRACKS[i][0], DEFAULT_CAR_TRACKS[i][1], DEFAULT_CAR_TRACKS[i][2]));
+                }
+            }
             result.sendResult(items);
             return;
         }
 
         if (MEDIA_ID_PRESETS.equals(parentMediaId)) {
-            items.add(createPlayable("preset_late_night", "Late Night Drive", "Atmospheric Hip-Hop & Lofi", ""));
-            items.add(createPlayable("preset_focus", "Deep Focus Ambient", "Instrumental Electronic Beats", ""));
-            items.add(createPlayable("preset_energy", "High Energy Workout", "Gym Motivation & Fast BPM", ""));
-            items.add(createPlayable("preset_anime", "Anime Openings", "Hiroyuki Sawano & J-Rock", ""));
-            items.add(createPlayable("preset_hindi", "New Hindi Songs", "Latest Releases & Top Hits", ""));
+            items.add(createPlayable("preset_late_night", "Late Night Drive", "Atmospheric Hip-Hop & Lofi", "https://i.ytimg.com/vi/MV_3Dpw-BRY/hqdefault.jpg"));
+            items.add(createPlayable("preset_focus", "Deep Focus Ambient", "Instrumental Electronic Beats", "https://i.ytimg.com/vi/8GW6sLrK40k/hqdefault.jpg"));
+            items.add(createPlayable("preset_energy", "High Energy Workout", "Gym Motivation & Fast BPM", "https://i.ytimg.com/vi/dX3k_QDnzHE/hqdefault.jpg"));
+            items.add(createPlayable("preset_anime", "Anime Openings", "Hiroyuki Sawano & J-Rock", "https://i.ytimg.com/vi/tdzsOODJiX8/hqdefault.jpg"));
+            items.add(createPlayable("preset_hindi", "New Hindi Songs", "Latest Releases & Top Hits", "https://i.ytimg.com/vi/MM8RufZr5lw/hqdefault.jpg"));
             result.sendResult(items);
             return;
         }
@@ -227,20 +305,45 @@ public class UpBeatMediaService extends MediaBrowserServiceCompat {
         result.sendResult(items);
     }
 
+    @Override
+    public void onSearch(@NonNull String query, Bundle extras, @NonNull Result<List<MediaBrowserCompat.MediaItem>> result) {
+        List<MediaBrowserCompat.MediaItem> items = new ArrayList<>();
+        String q = query != null ? query.toLowerCase().trim() : "";
+        for (int i = 0; i < DEFAULT_CAR_TRACKS.length; i++) {
+            String title = DEFAULT_CAR_TRACKS[i][0].toLowerCase();
+            String artist = DEFAULT_CAR_TRACKS[i][1].toLowerCase();
+            if (q.isEmpty() || title.contains(q) || artist.contains(q)) {
+                items.add(createPlayable("track_" + i, DEFAULT_CAR_TRACKS[i][0], DEFAULT_CAR_TRACKS[i][1], DEFAULT_CAR_TRACKS[i][2]));
+            }
+        }
+        if (items.isEmpty()) {
+            for (int i = 0; i < Math.min(4, DEFAULT_CAR_TRACKS.length); i++) {
+                items.add(createPlayable("track_" + i, DEFAULT_CAR_TRACKS[i][0], DEFAULT_CAR_TRACKS[i][1], DEFAULT_CAR_TRACKS[i][2]));
+            }
+        }
+        result.sendResult(items);
+    }
+
     private MediaBrowserCompat.MediaItem createFolder(String id, String title, String subtitle) {
+        Bundle extras = new Bundle();
+        extras.putInt(CONTENT_STYLE_BROWSABLE_HINT, CONTENT_STYLE_GRID_ITEM);
         MediaDescriptionCompat desc = new MediaDescriptionCompat.Builder()
             .setMediaId(id)
             .setTitle(title)
             .setSubtitle(subtitle)
+            .setExtras(extras)
             .build();
         return new MediaBrowserCompat.MediaItem(desc, MediaBrowserCompat.MediaItem.FLAG_BROWSABLE);
     }
 
     private MediaBrowserCompat.MediaItem createPlayable(String id, String title, String subtitle, String iconUri) {
+        Bundle extras = new Bundle();
+        extras.putInt(CONTENT_STYLE_PLAYABLE_HINT, CONTENT_STYLE_LIST_ITEM);
         MediaDescriptionCompat.Builder builder = new MediaDescriptionCompat.Builder()
             .setMediaId(id)
             .setTitle(title)
-            .setSubtitle(subtitle);
+            .setSubtitle(subtitle)
+            .setExtras(extras);
         if (iconUri != null && !iconUri.isEmpty()) {
             builder.setIconUri(Uri.parse(iconUri));
         }
