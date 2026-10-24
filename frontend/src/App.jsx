@@ -1656,7 +1656,7 @@ export default function App() {
             <Disc className="w-5 h-5" />
           </button>
 
-          {/* Modes Sidebar */}
+          {/* Taste Controls Sidebar */}
           <button
             onClick={() => setIsSidebarOpen((prev) => !prev)}
             className={`transition-all cursor-pointer ${
@@ -1664,8 +1664,8 @@ export default function App() {
                 ? 'w-11 h-11 rounded-full bg-white text-emerald-600 shadow-lg shadow-white/20 flex items-center justify-center scale-105'
                 : 'w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white'
             }`}
-            title="Listening Modes"
-            aria-label="Listening Modes"
+            title="Taste Controls"
+            aria-label="Taste Controls"
           >
             <Sliders className="w-5 h-5" />
           </button>

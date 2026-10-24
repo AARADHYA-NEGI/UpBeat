@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  RefreshCw, ExternalLink, X, Heart, RotateCcw, Plus, Radio, Sliders, DownloadCloud,
+  RefreshCw, ExternalLink, X, Heart, RotateCcw, Sliders, DownloadCloud,
   Home, Compass, Sparkles, Disc, Dna
 } from 'lucide-react'
 
@@ -222,14 +222,14 @@ export default function Sidebar({
           <span className="text-[10px] tracking-tight font-semibold">Profile</span>
         </button>
 
-        {/* Modes Drawer Toggle */}
+        {/* Controls Drawer Toggle */}
         <button
           onClick={onToggleSidebar}
           className="w-full py-3 rounded-2xl flex flex-col items-center gap-1 transition-all cursor-pointer text-zinc-400 hover:text-white hover:bg-white/[0.08] mt-auto"
-          title="Toggle Full Modes Drawer"
+          title="Toggle Taste Controls"
         >
           <Sliders className="w-5 h-5" />
-          <span className="text-[10px] tracking-tight font-semibold">Modes</span>
+          <span className="text-[10px] tracking-tight font-semibold">Controls</span>
         </button>
       </div>
     </nav>
@@ -245,7 +245,7 @@ export default function Sidebar({
             <div className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
               <Sliders className="w-3.5 h-3.5" />
             </div>
-            <span className="text-xs font-bold text-white tracking-tight">Modes & Taste Controls</span>
+            <span className="text-xs font-bold text-white tracking-tight">Taste Controls</span>
           </div>
           <button
             onClick={isOpenMobile ? onCloseMobile : onToggleSidebar}
@@ -255,19 +255,6 @@ export default function Sidebar({
             <X className="w-4 h-4" />
           </button>
         </div>
-
-        {/* Primary Action: New Session */}
-        <button
-          onClick={() => {
-            if (onNewSession) onNewSession()
-            if (isOpenMobile && onCloseMobile) onCloseMobile()
-          }}
-          className="w-full py-2.5 px-4 rounded-full bg-white hover:bg-zinc-200 text-black text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md shadow-white/10 active:scale-95 cursor-pointer group"
-          title="Start fresh session / clear search prompt"
-        >
-          <Plus className="w-3.5 h-3.5 text-black stroke-[2.5] group-hover:rotate-90 transition-transform duration-200" />
-          <span>New Session</span>
-        </button>
 
         {/* Taste Memory Section */}
         <div className="p-4 rounded-3xl bg-white/[0.035] border border-white/10 shadow-sm backdrop-blur-xl relative overflow-hidden flex flex-col gap-3">
@@ -350,57 +337,6 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* UpBeat Listening Modes List */}
-        <div className="p-4 rounded-3xl bg-white/[0.035] border border-white/10 shadow-sm backdrop-blur-xl relative overflow-hidden flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold flex items-center gap-1.5">
-              <Radio className="w-3 h-3 text-emerald-400" />
-              <span>Listening Modes</span>
-            </span>
-            <span className="text-[10px] font-mono text-zinc-500">{PRESET_MODES.length} Curated</span>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            {PRESET_MODES.map((p) => {
-              const isSelected = activePresetId === p.id
-              const displayedEnergy = isSelected ? energyLevel : p.energy
-              const isModified = isSelected && energyLevel !== p.energy
-              const theme = MODE_THEMES[p.theme] || MODE_THEMES.emerald
-
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => {
-                    onSelectPreset(p)
-                    if (isOpenMobile && onCloseMobile) onCloseMobile()
-                  }}
-                  className={`w-full p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
-                    isSelected
-                      ? `${theme.selected} scale-[1.01]`
-                      : `bg-white/[0.035] border-white/10 ${theme.hover} text-zinc-300`
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="text-xs font-bold text-white tracking-tight truncate">{p.label}</span>
-                    <span className={`text-[10px] font-mono ${theme.percent}`}>
-                      {displayedEnergy}%{isModified && '*'}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-zinc-400 truncate mb-2.5">
-                    {p.character}
-                  </div>
-                  <div className="h-1.5 rounded-full bg-black/40 border border-white/5 overflow-hidden flex">
-                    <div
-                      className={`h-full ${theme.barActive} transition-all duration-300 rounded-full`}
-                      style={{ width: `${displayedEnergy}%` }}
-                    />
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
         {/* Global Controls: Track Count & Energy Slider */}
         <div className="p-4 rounded-3xl bg-white/[0.035] border border-white/10 backdrop-blur-xl flex flex-col gap-3.5">
           <div>
@@ -435,10 +371,10 @@ export default function Sidebar({
                 <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold">
                   Energy Bias
                 </span>
-                {isPresetCustomized && (
+                {energyLevel !== (activePreset ? activePreset.energy : 70) && (
                   <button
-                    onClick={() => setEnergyLevel(activePreset.energy)}
-                    title="Reset energy to preset default"
+                    onClick={() => setEnergyLevel(activePreset ? activePreset.energy : 70)}
+                    title="Reset energy to default"
                     className="text-zinc-500 hover:text-emerald-400 transition-colors cursor-pointer"
                   >
                     <RotateCcw className="w-2.5 h-2.5" />
@@ -463,7 +399,7 @@ export default function Sidebar({
         {/* App Info */}
         <div className="pt-2 text-[10px] font-mono text-zinc-500 border-t border-white/10 flex items-center justify-between">
           <span className="text-zinc-400 font-medium">UpBeat Music</span>
-          <span className="text-emerald-400/80 font-mono">v4.3.7</span>
+          <span className="text-emerald-400/80 font-mono">v4.3.8</span>
         </div>
       </div>
 
