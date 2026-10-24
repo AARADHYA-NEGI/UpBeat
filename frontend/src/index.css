@@ -37,13 +37,13 @@ html, body, #root {
   --atm-grid: rgba(239, 68, 68, 0.058);
 }
 
-/* Afternoon / Sunset (12:00 PM - 7:59 PM) - Radiant Azure Sky & Solar Gold */
+/* Afternoon / Daylight (12:00 PM - 7:59 PM) - Radiant Azure Sky & Electric Cyan */
 .theme-afternoon, :root.theme-afternoon {
-  --atm-glow-1: rgba(14, 165, 233, 0.30);
-  --atm-glow-2: rgba(245, 158, 11, 0.18);
-  --atm-glow-3: rgba(16, 185, 129, 0.08);
-  --atm-accent: rgba(14, 165, 233, 0.13);
-  --atm-grid: rgba(56, 189, 248, 0.058);
+  --atm-glow-1: rgba(14, 165, 233, 0.32);
+  --atm-glow-2: rgba(37, 99, 235, 0.20);
+  --atm-glow-3: rgba(6, 182, 212, 0.10);
+  --atm-accent: rgba(14, 165, 233, 0.14);
+  --atm-grid: rgba(56, 189, 248, 0.055);
 }
 
 /* Night (8:00 PM - 3:59 AM) - Cosmic Midnight Violet & Neon Indigo */

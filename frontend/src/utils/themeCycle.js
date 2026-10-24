@@ -29,11 +29,11 @@ export function getDayNightThemeInfo() {
   } else if (hour >= 12 && hour < 20) {
     return {
       id: 'theme-afternoon',
-      label: 'Radiant Azure & Gold',
+      label: 'Radiant Azure & Cyan',
       timeSlot: 'Afternoon (12 PM – 8 PM)',
       type: 'afternoon',
       color: '#0ea5e9',
-      accentColor: '#f59e0b'
+      accentColor: '#38bdf8'
     }
   } else {
     return {
