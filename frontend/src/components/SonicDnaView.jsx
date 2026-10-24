@@ -186,7 +186,7 @@ export default function SonicDnaView({
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-[#9ca3af] bg-black/80 backdrop-blur-md sticky top-0 z-10">
+                <tr className="border-b border-white/[0.08] text-[11px] font-mono uppercase tracking-wider text-[#71717a] bg-[#121217]/80 backdrop-blur-sm sticky top-0 z-10">
                   <th className="py-2.5 pl-3.5 sm:pl-6 pr-2 w-8 sm:w-10">#</th>
                   <th className="py-2.5 px-2 sm:px-3">Track</th>
                   <th className="py-2.5 px-3 hidden md:table-cell">Artist</th>
@@ -435,7 +435,7 @@ export default function SonicDnaView({
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-[#9ca3af] bg-black/80 backdrop-blur-md sticky top-0 z-10">
+                <tr className="border-b border-white/[0.08] text-[11px] font-mono uppercase tracking-wider text-[#71717a] bg-[#121217]/80 backdrop-blur-sm sticky top-0 z-10">
                   <th className="py-2.5 pl-3.5 sm:pl-6 pr-2 w-8 sm:w-10">#</th>
                   <th className="py-2.5 px-2 sm:px-3">Track</th>
                   <th className="py-2.5 px-3 hidden md:table-cell">Channel / Artist</th>
