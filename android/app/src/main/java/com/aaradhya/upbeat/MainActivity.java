@@ -3,14 +3,20 @@ package com.aaradhya.upbeat;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -32,6 +38,7 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         sInstance = this;
+        applyDarkSystemBars();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
@@ -46,7 +53,8 @@ public class MainActivity extends BridgeActivity {
 
         if (this.bridge != null && this.bridge.getWebView() != null) {
             WebView wv = this.bridge.getWebView();
-            wv.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null);
+            wv.setBackgroundColor(Color.BLACK);
+            wv.setLayerType(View.LAYER_TYPE_HARDWARE, null);
             wv.getSettings().setMediaPlaybackRequiresUserGesture(false);
             wv.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
             wv.getSettings().setSupportMultipleWindows(true);
@@ -56,6 +64,29 @@ public class MainActivity extends BridgeActivity {
         }
 
         handleCarIntent(getIntent());
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        applyDarkSystemBars();
+    }
+
+    private void applyDarkSystemBars() {
+        try {
+            Window window = getWindow();
+            if (window == null) return;
+            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            window.setStatusBarColor(Color.BLACK);
+            window.setNavigationBarColor(Color.BLACK);
+
+            WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
+            if (controller != null) {
+                controller.setAppearanceLightStatusBars(false); // Crisp white text/icons on pure AMOLED black
+                controller.setAppearanceLightNavigationBars(false); // Crisp white icons on pure black nav bar
+            }
+        } catch (Exception ignored) {}
     }
 
     @Override

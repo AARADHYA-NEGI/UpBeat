@@ -131,7 +131,9 @@ html, body, #root {
   contain-intrinsic-size: 0 54px;
 }
 
-body {
+html, body {
+  background-color: #000000 !important;
+  color-scheme: dark;
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
 }
