@@ -38,7 +38,7 @@ export default function Navbar({
   const [savedBanner, setSavedBanner] = useState(false)
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
-  const [otaVer, setOtaVer] = useState('v4.3.9')
+  const [otaVer, setOtaVer] = useState('v4.4.0')
   const [isCheckingOta, setIsCheckingOta] = useState(false)
   const [otaStatusMsg, setOtaStatusMsg] = useState('')
 
@@ -231,7 +231,7 @@ export default function Navbar({
                   title={`Atmosphere: ${themeInfo.label} (${themeInfo.timeSlot})`}
                 >
                   <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: themeInfo.color }} />
-                  <span className="font-medium">{themeInfo.type === 'morning' ? 'Sunrise' : themeInfo.type === 'afternoon' ? 'Slight Green' : 'Cosmic Night'}</span>
+                  <span className="font-medium">{themeInfo.type === 'morning' ? 'Sunrise' : themeInfo.type === 'afternoon' ? 'Dark AMOLED' : 'Cosmic Night'}</span>
                 </div>
               )}
             </div>

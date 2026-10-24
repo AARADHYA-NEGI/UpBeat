@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Play, Pause, SkipForward, SkipBack, Volume2, VolumeX,
-  ExternalLink, Video, Music, Heart, Loader2, Download, Check, ListMusic, ChevronUp
+  ExternalLink, Video, Music, Heart, Loader2, Download, Check, ListMusic, ChevronUp,
+  Monitor, Compass
 } from 'lucide-react'
 import { getApiBase, hasBackend, getAudioSource, searchYouTubeStandalone, getTrackDownloadUrl, openExternalUrl } from '../standaloneApi'
 import { isTrackDownloaded, saveTrackOffline, createOfflineAudioUrl, subscribeOfflineChanges } from '../offlineStorage'
@@ -1358,23 +1359,25 @@ export default function PlayerBar({
               <div className="hidden md:flex items-center bg-[#121217] border border-[#22222a] rounded-lg p-0.5 text-[11px] font-mono">
                 <button
                   onClick={() => setPlaybackMode('app')}
-                  className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
+                  title="App Native Engine"
+                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                     playbackMode === 'app'
                       ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 font-medium'
                       : 'text-[#8e8e96] hover:text-[#e4e4e7]'
                   }`}
                 >
-                  App
+                  <Monitor className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => setPlaybackMode('safari')}
-                  className={`px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
+                  title="Safari Web Engine"
+                  className={`p-1.5 rounded-md transition-colors cursor-pointer ${
                     playbackMode === 'safari'
                       ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/40 font-medium'
                       : 'text-[#8e8e96] hover:text-[#e4e4e7]'
                   }`}
                 >
-                  Safari
+                  <Compass className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}

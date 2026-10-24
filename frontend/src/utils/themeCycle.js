@@ -29,11 +29,11 @@ export function getDayNightThemeInfo() {
   } else if (hour >= 12 && hour < 20) {
     return {
       id: 'theme-afternoon',
-      label: 'Slight Emerald Glow',
+      label: 'Dark AMOLED Black',
       timeSlot: 'Afternoon (12 PM – 8 PM)',
       type: 'afternoon',
-      color: '#10b981',
-      accentColor: '#34d399'
+      color: '#27272a',
+      accentColor: '#ffffff'
     }
   } else {
     return {

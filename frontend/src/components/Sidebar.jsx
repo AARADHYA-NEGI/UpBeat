@@ -399,7 +399,7 @@ export default function Sidebar({
         {/* App Info */}
         <div className="pt-2 text-[10px] font-mono text-zinc-500 border-t border-white/10 flex items-center justify-between">
           <span className="text-zinc-400 font-medium">UpBeat Music</span>
-          <span className="text-emerald-400/80 font-mono">v4.3.9</span>
+          <span className="text-emerald-400/80 font-mono">v4.4.0</span>
         </div>
       </div>
 
@@ -435,9 +435,9 @@ export default function Sidebar({
 
   return (
     <>
-      {/* Desktop View: Collapsed = 72px YouTube Music Slim Rail, Expanded = Full Drawer */}
+      {/* Desktop View: Expanded = Full Drawer, Collapsed = null (Navigation handled via bottom symbols dock) */}
       <div className="hidden lg:flex h-full select-none">
-        {isOpenDesktop ? sidebarContent : slimRail}
+        {isOpenDesktop ? sidebarContent : null}
       </div>
 
       {/* Mobile Overlay Drawer */}

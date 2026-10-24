@@ -52,15 +52,16 @@ html, body, #root {
 }
 
 /* Dynamic Day/Night Cycle Cyber Atmosphere Themes */
+/* Dynamic Day/Night Cycle Atmosphere Themes */
 :root {
-  --atm-glow-1: rgba(16, 185, 129, 0.16);
-  --atm-glow-2: rgba(5, 150, 105, 0.08);
-  --atm-glow-3: rgba(52, 211, 153, 0.03);
-  --atm-accent: rgba(16, 185, 129, 0.07);
-  --atm-grid: rgba(52, 211, 153, 0.025);
+  --atm-glow-1: transparent;
+  --atm-glow-2: transparent;
+  --atm-glow-3: transparent;
+  --atm-accent: transparent;
+  --atm-grid: rgba(255, 255, 255, 0.02);
 }
 
-/* Morning (4:00 AM - 11:59 AM) - Crimson Sunrise */
+/* Morning (4:00 AM - 11:59 AM) - Crimson Sunrise Gradient */
 .theme-morning, :root.theme-morning {
   --atm-glow-1: rgba(239, 68, 68, 0.26);
   --atm-glow-2: rgba(244, 63, 94, 0.14);
@@ -69,16 +70,16 @@ html, body, #root {
   --atm-grid: rgba(239, 68, 68, 0.04);
 }
 
-/* Afternoon / Daylight (12:00 PM - 7:59 PM) - Slight Emerald Ambient Glow */
+/* Afternoon (12:00 PM - 7:59 PM) - 100% Pure Dark AMOLED Black (Zero Gradients) */
 .theme-afternoon, :root.theme-afternoon {
-  --atm-glow-1: rgba(16, 185, 129, 0.16);
-  --atm-glow-2: rgba(5, 150, 105, 0.08);
-  --atm-glow-3: rgba(52, 211, 153, 0.03);
-  --atm-accent: rgba(16, 185, 129, 0.07);
-  --atm-grid: rgba(52, 211, 153, 0.025);
+  --atm-glow-1: transparent;
+  --atm-glow-2: transparent;
+  --atm-glow-3: transparent;
+  --atm-accent: transparent;
+  --atm-grid: transparent;
 }
 
-/* Night (8:00 PM - 3:59 AM) - Cosmic Midnight Violet & Neon Indigo */
+/* Night (8:00 PM - 3:59 AM) - Cosmic Midnight Violet & Neon Indigo Gradient */
 .theme-night, :root.theme-night {
   --atm-glow-1: rgba(139, 92, 246, 0.24);
   --atm-glow-2: rgba(99, 102, 241, 0.13);
@@ -87,8 +88,25 @@ html, body, #root {
   --atm-grid: rgba(139, 92, 246, 0.04);
 }
 
-/* Pure Dark AMOLED Black Foundation */
+/* Broadened Cyber Atmosphere with Dynamic Morning & Night Gradients over AMOLED Black */
 .ytm-atmosphere {
+  background-color: #000000;
+  background-image: 
+    radial-gradient(ellipse 130% 650px at 50% 0px, var(--atm-glow-1) 0%, var(--atm-glow-2) 38%, var(--atm-glow-3) 75%, transparent 100%),
+    radial-gradient(ellipse 95% 650px at 85% 35%, var(--atm-accent) 0%, var(--atm-glow-2) 40%, transparent 70%),
+    radial-gradient(ellipse 100% 550px at 45% 100%, var(--atm-glow-3) 0%, var(--atm-accent) 40%, transparent 75%),
+    linear-gradient(to right, var(--atm-grid) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--atm-grid) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  background-attachment: fixed;
+  transition: background-image 1.2s ease-in-out;
+}
+
+/* Afternoon enforces 100% Pure Dark AMOLED Black with Zero Gradients */
+.theme-afternoon.ytm-atmosphere,
+.theme-afternoon .ytm-atmosphere,
+:root.theme-afternoon .ytm-atmosphere,
+:root.theme-afternoon {
   background-color: #000000 !important;
   background-image: none !important;
 }

@@ -1352,7 +1352,7 @@ export default function App() {
     : null
 
   return (
-    <div className="h-[100dvh] w-screen bg-black text-[#f4f4f5] flex flex-col overflow-hidden">
+    <div className={`h-[100dvh] w-screen ytm-atmosphere ${themeInfo?.id || 'theme-morning'} bg-black text-[#f4f4f5] flex flex-col overflow-hidden`}>
       {/* Subtle Antigravity Status Notification */}
       {notification && (
         <div className="fixed bottom-36 sm:bottom-20 left-4 right-4 sm:left-6 sm:right-auto z-50">
@@ -1587,9 +1587,9 @@ export default function App() {
         isSyncingLikes={isSyncingLikes}
       />
 
-      {/* Mobile Floating Pill Dock Navigation - Inspired by Modern Floating Capsule System */}
-      <nav className="sm:hidden pb-safe px-3 pt-1 pb-2 bg-gradient-to-t from-black via-black/80 to-transparent flex items-center justify-center shrink-0 z-30 select-none">
-        <div className="w-full max-w-sm floating-dock rounded-full p-1.5 px-2 flex items-center justify-around shadow-2xl">
+      {/* Floating Pill Dock Navigation (Mobile & Mac) - Only Symbols Used */}
+      <nav className="pb-safe px-3 pt-1 pb-2 bg-gradient-to-t from-black via-black/80 to-transparent flex items-center justify-center shrink-0 z-30 select-none">
+        <div className="w-full max-w-sm sm:max-w-md floating-dock rounded-full p-1.5 px-3 flex items-center justify-around shadow-2xl">
           {/* Curator / Home */}
           <button
             onClick={() => { setActiveTab('curator'); setIsSidebarOpen(false) }}
