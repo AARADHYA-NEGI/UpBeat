@@ -1661,7 +1661,7 @@ export default function App() {
             onClick={() => setIsSidebarOpen((prev) => !prev)}
             className={`transition-all cursor-pointer ${
               isSidebarOpen
-                ? 'w-11 h-11 rounded-full bg-white text-purple-600 shadow-lg shadow-white/20 flex items-center justify-center scale-105'
+                ? 'w-11 h-11 rounded-full bg-white text-emerald-600 shadow-lg shadow-white/20 flex items-center justify-center scale-105'
                 : 'w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white'
             }`}
             title="Listening Modes"
@@ -1675,7 +1675,7 @@ export default function App() {
             onClick={() => { setActiveTab('dna'); setIsSidebarOpen(false) }}
             className={`transition-all cursor-pointer ${
               activeTab === 'dna' && !isSidebarOpen
-                ? 'w-11 h-11 rounded-full bg-white text-indigo-600 shadow-lg shadow-white/20 flex items-center justify-center scale-105'
+                ? 'w-11 h-11 rounded-full bg-white text-emerald-600 shadow-lg shadow-white/20 flex items-center justify-center scale-105'
                 : 'w-10 h-10 rounded-full flex items-center justify-center text-zinc-400 hover:text-white'
             }`}
             title="Sonic Profile"

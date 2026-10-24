@@ -49,53 +49,53 @@ export const PRESET_MODES = [
 
 const MODE_THEMES = {
   emerald: {
-    selected: 'bg-[#101b15] border-emerald-500/50 border-l-2 border-l-emerald-400 text-white shadow-xs',
-    hover: 'hover:border-emerald-500/30 hover:bg-[#121614]',
+    selected: 'bg-emerald-950/30 border-emerald-500/50 text-white shadow-lg shadow-emerald-950/20',
+    hover: 'hover:border-emerald-500/30 hover:bg-white/[0.05]',
     tag: 'bg-emerald-500/20 text-emerald-300',
-    percent: 'text-emerald-300 font-semibold',
-    character: 'text-emerald-200/80',
-    barActive: 'bg-emerald-400',
-    barInactive: 'bg-emerald-500/30',
+    percent: 'text-emerald-400 font-bold',
+    character: 'text-zinc-400',
+    barActive: 'bg-gradient-to-r from-emerald-500 to-teal-400',
+    barInactive: 'bg-emerald-500/20',
     sliderHex: '#10b981'
   },
   amber: {
-    selected: 'bg-[#1b1710] border-amber-500/50 border-l-2 border-l-amber-400 text-white shadow-xs',
-    hover: 'hover:border-amber-500/30 hover:bg-[#161411]',
+    selected: 'bg-amber-950/30 border-amber-500/50 text-white shadow-lg shadow-amber-950/20',
+    hover: 'hover:border-amber-500/30 hover:bg-white/[0.05]',
     tag: 'bg-amber-500/20 text-amber-300',
-    percent: 'text-amber-300 font-semibold',
-    character: 'text-amber-200/80',
-    barActive: 'bg-amber-400',
-    barInactive: 'bg-amber-500/30',
+    percent: 'text-amber-400 font-bold',
+    character: 'text-zinc-400',
+    barActive: 'bg-gradient-to-r from-amber-500 to-orange-400',
+    barInactive: 'bg-amber-500/20',
     sliderHex: '#f59e0b'
   },
   cyan: {
-    selected: 'bg-[#10191f] border-cyan-500/50 border-l-2 border-l-cyan-400 text-white shadow-xs',
-    hover: 'hover:border-cyan-500/30 hover:bg-[#11161a]',
+    selected: 'bg-cyan-950/30 border-cyan-500/50 text-white shadow-lg shadow-cyan-950/20',
+    hover: 'hover:border-cyan-500/30 hover:bg-white/[0.05]',
     tag: 'bg-cyan-500/20 text-cyan-300',
-    percent: 'text-cyan-300 font-semibold',
-    character: 'text-cyan-200/80',
-    barActive: 'bg-cyan-400',
-    barInactive: 'bg-cyan-500/30',
+    percent: 'text-cyan-400 font-bold',
+    character: 'text-zinc-400',
+    barActive: 'bg-gradient-to-r from-cyan-500 to-teal-400',
+    barInactive: 'bg-cyan-500/20',
     sliderHex: '#06b6d4'
   },
   violet: {
-    selected: 'bg-[#171222] border-violet-500/50 border-l-2 border-l-violet-400 text-white shadow-xs',
-    hover: 'hover:border-violet-500/30 hover:bg-[#14111c]',
+    selected: 'bg-violet-950/30 border-violet-500/50 text-white shadow-lg shadow-violet-950/20',
+    hover: 'hover:border-violet-500/30 hover:bg-white/[0.05]',
     tag: 'bg-violet-500/20 text-violet-300',
-    percent: 'text-violet-300 font-semibold',
-    character: 'text-violet-200/80',
-    barActive: 'bg-violet-400',
-    barInactive: 'bg-violet-500/30',
+    percent: 'text-violet-400 font-bold',
+    character: 'text-zinc-400',
+    barActive: 'bg-gradient-to-r from-violet-500 to-purple-400',
+    barInactive: 'bg-violet-500/20',
     sliderHex: '#a855f7'
   },
   rose: {
-    selected: 'bg-[#1d1217] border-rose-500/50 border-l-2 border-l-rose-400 text-white shadow-xs',
-    hover: 'hover:border-rose-500/30 hover:bg-[#191115]',
+    selected: 'bg-rose-950/30 border-rose-500/50 text-white shadow-lg shadow-rose-950/20',
+    hover: 'hover:border-rose-500/30 hover:bg-white/[0.05]',
     tag: 'bg-rose-500/20 text-rose-300',
-    percent: 'text-rose-300 font-semibold',
-    character: 'text-rose-200/80',
-    barActive: 'bg-rose-400',
-    barInactive: 'bg-rose-500/30',
+    percent: 'text-rose-400 font-bold',
+    character: 'text-zinc-400',
+    barActive: 'bg-gradient-to-r from-rose-500 to-pink-400',
+    barInactive: 'bg-rose-500/20',
     sliderHex: '#f43f5e'
   }
 }
@@ -130,7 +130,7 @@ export default function Sidebar({
 
   // 1. YouTube Music Slim Vertical Left Rail (Icon + Text Stack)
   const slimRail = (
-    <nav className="w-18 bg-black/40 backdrop-blur-xl border-r border-white/[0.06] flex flex-col items-center py-3 select-none h-full shrink-0">
+    <nav className="w-18 bg-black/80 backdrop-blur-2xl border-r border-white/10 flex flex-col items-center py-3 select-none h-full shrink-0">
       <div className="flex flex-col items-center gap-2 w-full px-2">
         {/* Home / Curator */}
         <button
@@ -213,7 +213,7 @@ export default function Sidebar({
           onClick={() => setActiveTab && setActiveTab('dna')}
           className={`w-full py-2.5 rounded-2xl flex flex-col items-center gap-1 transition-all cursor-pointer relative ${
             activeTab === 'dna'
-              ? 'bg-purple-500/20 text-purple-300 font-bold shadow-md'
+              ? 'bg-emerald-500/20 text-emerald-300 font-bold shadow-md'
               : 'text-zinc-400 hover:text-white hover:bg-white/[0.08]'
           }`}
           title="Sonic Taste Profile"
@@ -225,11 +225,11 @@ export default function Sidebar({
         {/* Modes Drawer Toggle */}
         <button
           onClick={onToggleSidebar}
-          className="w-full py-3 rounded-xl flex flex-col items-center gap-1 transition-all cursor-pointer text-zinc-400 hover:text-white hover:bg-white/[0.06] mt-auto"
+          className="w-full py-3 rounded-2xl flex flex-col items-center gap-1 transition-all cursor-pointer text-zinc-400 hover:text-white hover:bg-white/[0.08] mt-auto"
           title="Toggle Full Modes Drawer"
         >
           <Sliders className="w-5 h-5" />
-          <span className="text-[10px] tracking-tight">Modes</span>
+          <span className="text-[10px] tracking-tight font-semibold">Modes</span>
         </button>
       </div>
     </nav>
@@ -237,14 +237,19 @@ export default function Sidebar({
 
   // 2. Full Expanded Drawer with Preset Sliders & Diagnostics
   const sidebarContent = (
-    <aside className="w-72 bg-[#09090c]/95 backdrop-blur-xl border-r border-white/[0.06] flex-shrink-0 flex flex-col justify-between overflow-y-auto select-none h-full">
+    <aside className="w-80 bg-black/90 backdrop-blur-2xl border-r border-white/10 flex-shrink-0 flex flex-col justify-between overflow-y-auto select-none h-full bg-[radial-gradient(ellipse_120%_400px_at_50%_0%,rgba(16,185,129,0.12),transparent_70%)] relative">
       <div className="p-4 flex flex-col gap-4">
         {/* Mobile / Expanded Header */}
-        <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
-          <span className="text-xs font-semibold text-white tracking-wide">Modes & Taste Controls</span>
+        <div className="flex items-center justify-between pb-3 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <Sliders className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-xs font-bold text-white tracking-tight">Modes & Taste Controls</span>
+          </div>
           <button
             onClick={isOpenMobile ? onCloseMobile : onToggleSidebar}
-            className="p-1.5 rounded-full hover:bg-white/[0.1] text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            className="p-1.5 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors cursor-pointer"
             title="Collapse Sidebar"
           >
             <X className="w-4 h-4" />
@@ -257,30 +262,31 @@ export default function Sidebar({
             if (onNewSession) onNewSession()
             if (isOpenMobile && onCloseMobile) onCloseMobile()
           }}
-          className="w-full py-2 px-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] hover:border-rose-500/40 text-xs font-medium text-white flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer group"
+          className="w-full py-2.5 px-4 rounded-full bg-white hover:bg-zinc-200 text-black text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-md shadow-white/10 active:scale-95 cursor-pointer group"
           title="Start fresh session / clear search prompt"
         >
-          <Plus className="w-3.5 h-3.5 text-rose-400 group-hover:scale-110 transition-transform" />
+          <Plus className="w-3.5 h-3.5 text-black stroke-[2.5] group-hover:rotate-90 transition-transform duration-200" />
           <span>New Session</span>
         </button>
 
         {/* Taste Memory Section */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
-              Taste Memory
+        <div className="p-4 rounded-3xl bg-white/[0.035] border border-white/10 shadow-sm backdrop-blur-xl relative overflow-hidden flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold flex items-center gap-1.5">
+              <Heart className="w-3 h-3 text-rose-400" />
+              <span>Taste Memory</span>
             </span>
             <div className="flex items-center gap-2 text-[10px] font-mono">
               <button
                 onClick={onOpenFavoritesTab}
                 title="View your hearted Favorites memory"
-                className="text-rose-400 hover:text-rose-300 flex items-center gap-1 cursor-pointer"
+                className="px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1 cursor-pointer font-semibold"
               >
                 <Heart className="w-2.5 h-2.5 fill-rose-400 text-rose-400" />
-                <span>{favoritesCount} liked</span>
+                <span>{favoritesCount}</span>
               </button>
               <span className="text-zinc-600">•</span>
-              <span className="text-zinc-400" title="Tracks extracted from Safari">
+              <span className="px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-300 border border-white/10 font-semibold" title="Tracks extracted from Safari">
                 {extractedCount} seeds
               </span>
             </div>
@@ -290,17 +296,17 @@ export default function Sidebar({
             onClick={onSyncSafari}
             disabled={isSyncing}
             title="Extract latest liked songs and history from your open Safari YouTube tabs"
-            className="w-full py-1.5 px-3 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] hover:border-white/20 rounded-lg text-xs text-zinc-200 font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+            className="w-full py-2 px-3 bg-white/[0.05] hover:bg-white/[0.1] border border-white/10 hover:border-emerald-500/40 rounded-full text-xs text-white font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-98"
           >
-            <RefreshCw className={`w-3.5 h-3.5 text-rose-400 ${isSyncing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 text-emerald-400 ${isSyncing ? 'animate-spin' : ''}`} />
             <span>{isSyncing ? 'Reading Safari DOM...' : 'Sync Active YT Tabs'}</span>
           </button>
 
-          <div className="grid grid-cols-2 gap-1.5 mt-2">
+          <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => onOpenSafari && onOpenSafari('yt_liked')}
               title="Open YouTube Liked Videos playlist in Safari"
-              className="py-1.5 px-2.5 bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.06] text-zinc-400 hover:text-white text-[11px] rounded-lg flex items-center justify-between transition-colors cursor-pointer"
+              className="py-1.5 px-3 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-300 hover:text-white text-[11px] rounded-full flex items-center justify-between transition-colors cursor-pointer font-medium"
             >
               <span>YT Likes</span>
               <ExternalLink className="w-3 h-3 text-zinc-500" />
@@ -308,7 +314,7 @@ export default function Sidebar({
             <button
               onClick={() => onOpenSafari && onOpenSafari('yt_history')}
               title="Open YouTube Watch History in Safari"
-              className="py-1.5 px-2.5 bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.06] text-zinc-400 hover:text-white text-[11px] rounded-lg flex items-center justify-between transition-colors cursor-pointer"
+              className="py-1.5 px-3 bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.08] text-zinc-300 hover:text-white text-[11px] rounded-full flex items-center justify-between transition-colors cursor-pointer font-medium"
             >
               <span>YT History</span>
               <ExternalLink className="w-3 h-3 text-zinc-500" />
@@ -317,15 +323,15 @@ export default function Sidebar({
         </div>
 
         {/* Offline Storage Section */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
-              Offline Storage
+        <div className="p-4 rounded-3xl bg-white/[0.035] border border-white/10 shadow-sm backdrop-blur-xl relative overflow-hidden flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold flex items-center gap-1.5">
+              <DownloadCloud className="w-3 h-3 text-emerald-400" />
+              <span>Offline Storage</span>
             </span>
-            <div className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400">
-              <DownloadCloud className="w-3 h-3" />
-              <span>{offlineCount} {offlineCount === 1 ? 'song' : 'songs'}</span>
-            </div>
+            <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+              {offlineCount} {offlineCount === 1 ? 'song' : 'songs'}
+            </span>
           </div>
 
           <button
@@ -334,28 +340,27 @@ export default function Sidebar({
               if (isOpenMobile && onCloseMobile) onCloseMobile()
             }}
             title="Open Offline Downloads library"
-            className="w-full py-2 px-3 bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] hover:border-emerald-500/30 rounded-xl text-xs text-white font-medium flex items-center justify-between transition-colors cursor-pointer group"
+            className="w-full py-2.5 px-3.5 bg-gradient-to-r from-emerald-500/15 to-emerald-600/10 hover:from-emerald-500/25 hover:to-emerald-600/20 border border-emerald-500/30 rounded-2xl text-xs text-white font-semibold flex items-center justify-between transition-all cursor-pointer group shadow-sm active:scale-98"
           >
             <div className="flex items-center gap-2">
               <DownloadCloud className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition-transform" />
               <span>Offline Library</span>
             </div>
-            <span className="text-[10px] font-mono text-zinc-400">{offlineStorageSize}</span>
+            <span className="text-[10px] font-mono text-emerald-300 font-bold">{offlineStorageSize}</span>
           </button>
         </div>
 
-        <div className="h-[1px] bg-white/[0.08]" />
-
         {/* UpBeat Listening Modes List */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
-              Listening Modes
+        <div className="p-4 rounded-3xl bg-white/[0.035] border border-white/10 shadow-sm backdrop-blur-xl relative overflow-hidden flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold flex items-center gap-1.5">
+              <Radio className="w-3 h-3 text-emerald-400" />
+              <span>Listening Modes</span>
             </span>
-            <Radio className="w-3 h-3 text-zinc-500" />
+            <span className="text-[10px] font-mono text-zinc-500">{PRESET_MODES.length} Curated</span>
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             {PRESET_MODES.map((p) => {
               const isSelected = activePresetId === p.id
               const displayedEnergy = isSelected ? energyLevel : p.energy
@@ -369,24 +374,24 @@ export default function Sidebar({
                     onSelectPreset(p)
                     if (isOpenMobile && onCloseMobile) onCloseMobile()
                   }}
-                  className={`w-full p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                  className={`w-full p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                     isSelected
-                      ? `${theme.selected} shadow-md`
-                      : `bg-white/[0.035] border-white/[0.08] ${theme.hover} text-zinc-300`
+                      ? `${theme.selected} scale-[1.01]`
+                      : `bg-white/[0.035] border-white/10 ${theme.hover} text-zinc-300`
                   }`}
                 >
                   <div className="flex items-center justify-between gap-1 mb-1">
-                    <span className="text-xs font-semibold truncate">{p.label}</span>
+                    <span className="text-xs font-bold text-white tracking-tight truncate">{p.label}</span>
                     <span className={`text-[10px] font-mono ${theme.percent}`}>
                       {displayedEnergy}%{isModified && '*'}
                     </span>
                   </div>
-                  <div className="text-[11px] text-zinc-400 truncate mb-2">
+                  <div className="text-[11px] text-zinc-400 truncate mb-2.5">
                     {p.character}
                   </div>
-                  <div className="h-1 rounded-full bg-white/[0.08] overflow-hidden flex">
+                  <div className="h-1.5 rounded-full bg-black/40 border border-white/5 overflow-hidden flex">
                     <div
-                      className={`h-full ${theme.barActive} transition-all duration-300`}
+                      className={`h-full ${theme.barActive} transition-all duration-300 rounded-full`}
                       style={{ width: `${displayedEnergy}%` }}
                     />
                   </div>
@@ -396,26 +401,24 @@ export default function Sidebar({
           </div>
         </div>
 
-        <div className="h-[1px] bg-white/[0.08]" />
-
         {/* Global Controls: Track Count & Energy Slider */}
-        <div className="flex flex-col gap-3">
+        <div className="p-4 rounded-3xl bg-white/[0.035] border border-white/10 backdrop-blur-xl flex flex-col gap-3.5">
           <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold">
                 Curated Track Count
               </span>
-              <span className="text-xs font-mono font-semibold text-white">{trackCount} songs</span>
+              <span className="text-xs font-mono font-bold text-white">{trackCount} songs</span>
             </div>
             <div className="flex items-center gap-1.5">
               {[4, 8, 12, 16, 24].map((count) => (
                 <button
                   key={count}
                   onClick={() => setTrackCount(count)}
-                  className={`flex-1 py-1.5 rounded-full text-xs font-mono font-semibold transition-all cursor-pointer border ${
+                  className={`flex-1 py-1.5 rounded-full text-xs font-mono font-bold transition-all cursor-pointer border ${
                     trackCount === count
-                      ? 'bg-white text-black border-white shadow-md'
-                      : 'bg-white/[0.04] border-white/[0.08] text-zinc-400 hover:text-white hover:bg-white/[0.08]'
+                      ? 'bg-white text-black border-white shadow-md shadow-white/10'
+                      : 'bg-white/[0.04] border-white/10 text-zinc-400 hover:text-white hover:bg-white/[0.08]'
                   }`}
                 >
                   {count}
@@ -424,23 +427,25 @@ export default function Sidebar({
             </div>
           </div>
 
+          <div className="h-[1px] bg-white/10" />
+
           <div>
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-semibold">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold">
                   Energy Bias
                 </span>
                 {isPresetCustomized && (
                   <button
                     onClick={() => setEnergyLevel(activePreset.energy)}
                     title="Reset energy to preset default"
-                    className="text-zinc-500 hover:text-white transition-colors cursor-pointer"
+                    className="text-zinc-500 hover:text-emerald-400 transition-colors cursor-pointer"
                   >
                     <RotateCcw className="w-2.5 h-2.5" />
                   </button>
                 )}
               </div>
-              <span className="text-xs font-mono font-semibold text-rose-400">
+              <span className="text-xs font-mono font-bold text-emerald-400">
                 {energyLevel}%
               </span>
             </div>
@@ -450,36 +455,38 @@ export default function Sidebar({
               max="100"
               value={energyLevel}
               onChange={(e) => setEnergyLevel(parseInt(e.target.value, 10))}
-              className="w-full accent-rose-500 cursor-pointer h-1 bg-white/[0.1] rounded-lg appearance-none"
+              className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-white/10 rounded-full appearance-none"
             />
           </div>
         </div>
 
         {/* App Info */}
-        <div className="pt-2 text-[10px] font-mono text-zinc-500 border-t border-white/[0.08]">
-          <span className="text-zinc-400 font-medium">UpBeat</span>
+        <div className="pt-2 text-[10px] font-mono text-zinc-500 border-t border-white/10 flex items-center justify-between">
+          <span className="text-zinc-400 font-medium">UpBeat Music</span>
+          <span className="text-emerald-400/80 font-mono">v4.3.7</span>
         </div>
       </div>
 
       {/* Bottom Profile Snapshot */}
       {tasteDna && (
-        <div className="p-3.5 border-t border-white/[0.08] bg-black/60">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-[10px] font-mono uppercase text-zinc-500 font-semibold">
-              Profile
+        <div className="p-4 border-t border-white/10 bg-black/80 backdrop-blur-2xl">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 font-bold flex items-center gap-1.5">
+              <Dna className="w-3 h-3" />
+              <span>Profile Snapshot</span>
             </span>
-            <span className="text-[10px] font-mono text-zinc-400">
+            <span className="text-[10px] font-mono font-medium text-zinc-400 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/10">
               {tasteDna.sonic_attributes?.tempo || '120-140 BPM'}
             </span>
           </div>
-          <div className="text-xs font-semibold text-white truncate">
+          <div className="text-xs font-bold text-white truncate tracking-tight">
             {tasteDna.archetype || 'Listener Profile'}
           </div>
-          <div className="flex flex-wrap gap-1 mt-2">
+          <div className="flex flex-wrap gap-1.5 mt-2.5">
             {(tasteDna.primary_genres || []).slice(0, 3).map((g, i) => (
               <span
                 key={i}
-                className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.06] text-zinc-400 border border-white/[0.08]"
+                className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/25 font-medium"
               >
                 {g}
               </span>
