@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import {
-  RefreshCw, Menu, Settings, Sparkles, ChevronDown, Search, Loader2, X, Check, Music, ArrowLeft, ExternalLink
+  RefreshCw, Menu, Settings, Sparkles, ChevronDown, Search, Loader2, X, Check, Music, ArrowLeft, ExternalLink, Sun, Moon
 } from 'lucide-react'
 import { getStoredApiKey, setStoredApiKey, getStoredServerUrl, setStoredServerUrl, hasBackend } from '../standaloneApi'
 import { GoogleIcon } from './GoogleAuthModal'
 import { checkOtaUpdate, getCurrentOtaVersion, applyOtaBundle } from '../otaUpdater'
+import { getStoredThemeMode, setStoredThemeMode } from '../utils/themeCycle'
 
 export default function Navbar({
   themeInfo,
@@ -38,9 +39,15 @@ export default function Navbar({
   const [savedBanner, setSavedBanner] = useState(false)
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false)
-  const [otaVer, setOtaVer] = useState('v4.2.1')
+  const [otaVer, setOtaVer] = useState('v4.2.3')
   const [isCheckingOta, setIsCheckingOta] = useState(false)
   const [otaStatusMsg, setOtaStatusMsg] = useState('')
+  const [themeMode, setThemeMode] = useState(() => getStoredThemeMode())
+
+  const handleThemeChange = (mode) => {
+    setThemeMode(mode)
+    setStoredThemeMode(mode)
+  }
 
   useEffect(() => {
     getCurrentOtaVersion().then(v => setOtaVer(v))
@@ -457,6 +464,44 @@ export default function Navbar({
                   placeholder="http://192.168.1.4:8000"
                   className="w-full bg-[#0d0d10] border border-[#262630] focus:border-rose-500 rounded-xl px-3 py-2.5 text-xs font-mono text-[#f4f4f5] focus:outline-none"
                 />
+              </div>
+
+              {/* Appearance & Theme (Dark / Light Mode) */}
+              <div className="pt-3 border-t border-[#22222c]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-[#a1a1aa]">
+                    Appearance & Theme
+                  </span>
+                  <span className="text-[10px] font-mono text-zinc-500">
+                    {themeMode === 'light' ? 'Light Studio Active' : 'Cyber Atmosphere'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleThemeChange('dark')}
+                    className={`py-2 px-3 rounded-xl border text-xs font-mono font-medium flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      themeMode === 'dark'
+                        ? 'bg-[#181822] border-sky-500/50 text-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.2)]'
+                        : 'bg-[#0d0d10] border-[#262630] text-[#71717a] hover:text-white'
+                    }`}
+                  >
+                    <Moon className="w-3.5 h-3.5" />
+                    <span>Dark Cyber</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleThemeChange('light')}
+                    className={`py-2 px-3 rounded-xl border text-xs font-mono font-medium flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      themeMode === 'light'
+                        ? 'bg-amber-500/15 border-amber-500/50 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+                        : 'bg-[#0d0d10] border-[#262630] text-[#71717a] hover:text-white'
+                    }`}
+                  >
+                    <Sun className="w-3.5 h-3.5" />
+                    <span>Light Studio</span>
+                  </button>
+                </div>
               </div>
 
               {/* Over-The-Air (OTA) Live Updates */}

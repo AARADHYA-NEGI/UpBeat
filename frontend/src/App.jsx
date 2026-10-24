@@ -11,7 +11,7 @@ import QueueDrawer from './components/QueueDrawer'
 import GoogleAuthModal from './components/GoogleAuthModal'
 import { getOfflineTracks, getOfflineStorageStats, subscribeOfflineChanges } from './offlineStorage'
 import { initOtaUpdater } from './otaUpdater'
-import { getDayNightThemeInfo } from './utils/themeCycle'
+import { getDayNightThemeInfo, getStoredThemeMode, applyThemeMode } from './utils/themeCycle'
 import {
   getApiBase,
   curateStandalone,
@@ -155,8 +155,9 @@ export default function App() {
   const [otaUpdate, setOtaUpdate] = useState(null)
   const [isApplyingOta, setIsApplyingOta] = useState(false)
 
-  // Initialize Over-The-Air (OTA) live updater on startup
+  // Initialize Over-The-Air (OTA) live updater & active appearance on startup
   useEffect(() => {
+    applyThemeMode(getStoredThemeMode())
     initOtaUpdater((updateInfo) => {
       setOtaUpdate(updateInfo)
     })
@@ -393,7 +394,51 @@ export default function App() {
     setIsSyncingLikes(true)
     showNotify(`Syncing ${activeU.name}'s YouTube Music profile...`, 'info')
     try {
-      // 1. On MacBook with local backend, sync authentic liked songs from active Safari session
+      // 1. Direct imported tracks from playlist link
+      if (activeU.importedTracks && activeU.importedTracks.length > 0) {
+        setFavorites(activeU.importedTracks)
+        setExtractedTracks(activeU.importedTracks)
+        try { localStorage.setItem('argon_seeds_v2', JSON.stringify(activeU.importedTracks)) } catch {}
+        const dna = await analyzeTasteDnaStandalone(activeU.importedTracks)
+        if (dna) setTasteDna(dna)
+        showNotify(`Imported ${activeU.importedTracks.length} tracks & tailored taste DNA for ${activeU.name}!`, 'success')
+        return
+      }
+
+      // 2. Real Google OAuth 2.0: Fetch authentic YouTube Liked Videos (playlist ID 'LL')
+      if (activeU.accessToken) {
+        try {
+          const ytRes = await fetch(
+            'https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=LL&maxResults=50',
+            { headers: { Authorization: `Bearer ${activeU.accessToken}` } }
+          )
+          if (ytRes.ok) {
+            const data = await ytRes.json()
+            const realTracks = (data.items || []).map((item) => ({
+              title: item.snippet?.title || 'Unknown Title',
+              artist: item.snippet?.videoOwnerChannelTitle || item.snippet?.channelTitle || 'YouTube Artist',
+              video_id: item.contentDetails?.videoId || item.snippet?.resourceId?.videoId,
+              thumbnail: item.snippet?.thumbnails?.high?.url || item.snippet?.thumbnails?.medium?.url || '',
+              vibe: 'YouTube Liked',
+              liked_at: Date.now()
+            })).filter((t) => t.video_id && !t.title.includes('Deleted video') && !t.title.includes('Private video'))
+
+            if (realTracks.length > 0) {
+              setFavorites(realTracks)
+              setExtractedTracks(realTracks)
+              try { localStorage.setItem('argon_seeds_v2', JSON.stringify(realTracks)) } catch {}
+              const dna = await analyzeTasteDnaStandalone(realTracks)
+              if (dna) setTasteDna(dna)
+              showNotify(`Synced ${realTracks.length} authentic liked tracks from ${activeU.name}'s YouTube account!`, 'success')
+              return
+            }
+          }
+        } catch (oauthErr) {
+          console.warn('YouTube API Liked Videos error, trying fallback:', oauthErr)
+        }
+      }
+
+      // 3. On MacBook with local backend, sync authentic liked songs from active Safari session
       if (hasBackend()) {
         try {
           const res = await fetch(`${getApiBase()}/safari/liked`)
@@ -402,6 +447,7 @@ export default function App() {
             if (data.tracks && data.tracks.length) {
               setFavorites(data.tracks)
               setExtractedTracks(data.tracks)
+              try { localStorage.setItem('argon_seeds_v2', JSON.stringify(data.tracks)) } catch {}
               const dna = await analyzeTasteDnaStandalone(data.tracks)
               if (dna) setTasteDna(dna)
               showNotify(`Synced ${data.tracks.length} tracks from YouTube Music`, 'success')
@@ -411,7 +457,7 @@ export default function App() {
         } catch {}
       }
 
-      // 2. On Android / standalone mobile:
+      // 4. On Android / standalone mobile:
       // If user already has hearted favorites on this device, derive their authentic taste profile from them!
       if (favorites && favorites.length > 0) {
         setExtractedTracks((prev) => {
@@ -427,7 +473,7 @@ export default function App() {
         return
       }
 
-      // 3. If user has seed tracks in their Library, derive from their seed tracks
+      // 5. If user has seed tracks in their Library, derive from their seed tracks
       if (extractedTracks && extractedTracks.length > 0) {
         const dna = await analyzeTasteDnaStandalone(extractedTracks)
         if (dna) setTasteDna(dna)
@@ -435,7 +481,7 @@ export default function App() {
         return
       }
 
-      // 4. For new users with zero songs, pull real top trending songs (not hardcoded anime)
+      // 6. For new users with zero songs, pull real top trending songs (not hardcoded anime)
       const searchRes = await directSearchStandalone('Top Hits 2026', 'songs')
       const starterTracks = (searchRes?.tracks || []).slice(0, 6)
       if (starterTracks.length > 0) {

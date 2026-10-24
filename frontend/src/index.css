@@ -21,58 +21,109 @@ html, body, #root {
 
 /* Dynamic Day/Night Cycle Cyber Atmosphere Themes */
 :root {
-  --atm-glow-1: rgba(239, 68, 68, 0.22);
-  --atm-glow-2: rgba(244, 63, 94, 0.12);
-  --atm-glow-3: rgba(251, 146, 60, 0.04);
-  --atm-accent: rgba(225, 29, 72, 0.08);
-  --atm-grid: rgba(239, 68, 68, 0.045);
+  --atm-glow-1: rgba(239, 68, 68, 0.28);
+  --atm-glow-2: rgba(244, 63, 94, 0.16);
+  --atm-glow-3: rgba(251, 146, 60, 0.07);
+  --atm-accent: rgba(225, 29, 72, 0.12);
+  --atm-grid: rgba(239, 68, 68, 0.055);
 }
 
 /* Morning (4:00 AM - 11:59 AM) - Crimson Sunrise */
 .theme-morning, :root.theme-morning {
-  --atm-glow-1: rgba(239, 68, 68, 0.24);
-  --atm-glow-2: rgba(244, 63, 94, 0.14);
-  --atm-glow-3: rgba(251, 146, 60, 0.05);
-  --atm-accent: rgba(225, 29, 72, 0.09);
-  --atm-grid: rgba(239, 68, 68, 0.048);
+  --atm-glow-1: rgba(239, 68, 68, 0.32);
+  --atm-glow-2: rgba(244, 63, 94, 0.18);
+  --atm-glow-3: rgba(251, 146, 60, 0.08);
+  --atm-accent: rgba(225, 29, 72, 0.13);
+  --atm-grid: rgba(239, 68, 68, 0.058);
 }
 
 /* Afternoon / Sunset (12:00 PM - 7:59 PM) - Radiant Azure Sky & Solar Gold */
 .theme-afternoon, :root.theme-afternoon {
-  --atm-glow-1: rgba(14, 165, 233, 0.24);
-  --atm-glow-2: rgba(245, 158, 11, 0.14);
-  --atm-glow-3: rgba(16, 185, 129, 0.05);
-  --atm-accent: rgba(14, 165, 233, 0.09);
-  --atm-grid: rgba(56, 189, 248, 0.048);
+  --atm-glow-1: rgba(14, 165, 233, 0.30);
+  --atm-glow-2: rgba(245, 158, 11, 0.18);
+  --atm-glow-3: rgba(16, 185, 129, 0.08);
+  --atm-accent: rgba(14, 165, 233, 0.13);
+  --atm-grid: rgba(56, 189, 248, 0.058);
 }
 
 /* Night (8:00 PM - 3:59 AM) - Cosmic Midnight Violet & Neon Indigo */
 .theme-night, :root.theme-night {
-  --atm-glow-1: rgba(139, 92, 246, 0.26);
-  --atm-glow-2: rgba(99, 102, 241, 0.15);
-  --atm-glow-3: rgba(236, 72, 153, 0.05);
-  --atm-accent: rgba(124, 58, 237, 0.10);
-  --atm-grid: rgba(139, 92, 246, 0.048);
+  --atm-glow-1: rgba(139, 92, 246, 0.32);
+  --atm-glow-2: rgba(99, 102, 241, 0.19);
+  --atm-glow-3: rgba(236, 72, 153, 0.08);
+  --atm-accent: rgba(124, 58, 237, 0.14);
+  --atm-grid: rgba(139, 92, 246, 0.058);
 }
 
-/* YouTube Music Inspired Cyber Atmosphere with Dynamic Day/Night Cycle */
+/* Light Mode Overrides */
+html.theme-light, body.theme-light {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+  color-scheme: light;
+}
+
+html.theme-light.theme-morning, :root.theme-light.theme-morning {
+  --atm-glow-1: rgba(239, 68, 68, 0.18);
+  --atm-glow-2: rgba(244, 63, 94, 0.10);
+  --atm-glow-3: rgba(251, 146, 60, 0.04);
+  --atm-accent: rgba(225, 29, 72, 0.07);
+  --atm-grid: rgba(239, 68, 68, 0.05);
+}
+
+html.theme-light.theme-afternoon, :root.theme-light.theme-afternoon {
+  --atm-glow-1: rgba(14, 165, 233, 0.18);
+  --atm-glow-2: rgba(245, 158, 11, 0.10);
+  --atm-glow-3: rgba(16, 185, 129, 0.04);
+  --atm-accent: rgba(14, 165, 233, 0.07);
+  --atm-grid: rgba(14, 165, 233, 0.05);
+}
+
+html.theme-light.theme-night, :root.theme-light.theme-night {
+  --atm-glow-1: rgba(139, 92, 246, 0.18);
+  --atm-glow-2: rgba(99, 102, 241, 0.10);
+  --atm-glow-3: rgba(236, 72, 153, 0.04);
+  --atm-accent: rgba(124, 58, 237, 0.07);
+  --atm-grid: rgba(139, 92, 246, 0.05);
+}
+
+/* Broadened Cyber Atmosphere with Seamless Edge Spread */
 .ytm-atmosphere {
   background-color: #030305;
   background-image: 
-    radial-gradient(ellipse 85% 440px at 45% -30px, var(--atm-glow-1) 0%, var(--atm-glow-2) 35%, var(--atm-glow-3) 70%, transparent 100%),
-    radial-gradient(circle 600px at 85% 15%, var(--atm-accent) 0%, transparent 75%),
+    /* Primary overhead atmospheric dome - spread broadly to 800px depth */
+    radial-gradient(ellipse 130% 800px at 50% -70px, var(--atm-glow-1) 0%, var(--atm-glow-2) 42%, var(--atm-glow-3) 78%, transparent 100%),
+    /* Mid-tier ambient glow floating across center-right */
+    radial-gradient(ellipse 95% 750px at 85% 35%, var(--atm-accent) 0%, var(--atm-glow-2) 45%, transparent 75%),
+    /* Ambient base foundation glow for lower sections */
+    radial-gradient(ellipse 100% 650px at 45% 100%, var(--atm-glow-3) 0%, var(--atm-accent) 45%, transparent 80%),
     linear-gradient(to right, var(--atm-grid) 1px, transparent 1px),
     linear-gradient(to bottom, var(--atm-grid) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+  background-size: 100% 100%, 100% 100%, 100% 100%, 40px 40px, 40px 40px;
   background-attachment: fixed;
   transition: background-image 1.2s ease-in-out;
 }
+
+html.theme-light .ytm-atmosphere {
+  background-color: #f8fafc;
+}
+
+html.theme-light .bg-\[\#030305\] { background-color: #f8fafc !important; }
+html.theme-light .bg-\[\#0d0d0f\], html.theme-light .bg-\[\#0d0d11\] { background-color: #ffffff !important; }
+html.theme-light .bg-\[\#0e0e13\], html.theme-light .bg-\[\#0f0f13\] { background-color: #f8fafc !important; }
+html.theme-light .bg-\[\#121217\], html.theme-light .bg-\[\#131317\], html.theme-light .bg-\[\#141418\] { background-color: #ffffff !important; }
+html.theme-light .bg-\[\#15151c\], html.theme-light .bg-\[\#181820\], html.theme-light .bg-\[\#1c1c24\] { background-color: #f1f5f9 !important; }
+html.theme-light .text-\[\#f4f4f5\], html.theme-light .text-\[\#f5f5f5\], html.theme-light .text-white { color: #0f172a !important; }
+html.theme-light .text-\[\#8e8e96\], html.theme-light .text-\[\#a1a1aa\] { color: #475569 !important; }
+html.theme-light .text-\[\#71717a\] { color: #64748b !important; }
+html.theme-light .border-white\/\[0\.06\], html.theme-light .border-white\/\[0\.08\], html.theme-light .border-white\/10 { border-color: rgba(0, 0, 0, 0.08) !important; }
+html.theme-light .border-\[\#202028\], html.theme-light .border-\[\#22222c\], html.theme-light .border-\[\#242432\], html.theme-light .border-\[\#262630\], html.theme-light .border-\[\#262634\] { border-color: #e2e8f0 !important; }
+html.theme-light .border-\[\#181820\], html.theme-light .border-\[\#1c1c22\] { border-color: #e2e8f0 !important; }
 
 .ytm-grid-overlay {
   background-image: 
     linear-gradient(to right, var(--atm-grid) 1px, transparent 1px),
     linear-gradient(to bottom, var(--atm-grid) 1px, transparent 1px);
-  background-size: 36px 36px;
+  background-size: 40px 40px;
 }
 
 /* Mobile GPU Acceleration & Smooth 120fps Scrolling */
