@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import {
-  X, Check, Sparkles, Heart, LogOut, ArrowRight, Loader2, Music, ShieldCheck, RefreshCw, Image, User,
-  Link as LinkIcon, Key, ChevronDown, ChevronUp, AlertCircle
+  X, Check, Sparkles, Heart, LogOut, ArrowRight, Loader2, Music, ShieldCheck, RefreshCw,
+  Image, User, Link as LinkIcon, Key, ChevronDown, ChevronUp, AlertCircle, ExternalLink,
+  CheckCircle2, Zap, HelpCircle
 } from 'lucide-react'
 import { Youtube } from './YouTubeTasteSyncModal'
 import { getApiBase, hasBackend, importYouTubePlaylistStandalone } from '../standaloneApi'
@@ -38,17 +39,22 @@ export default function GoogleAuthModal({
   onSyncYouTubeLikes,
   isSyncingLikes = false
 }) {
-  const [authMode, setAuthMode] = useState('oauth') // 'oauth', 'playlist', 'direct'
+  // 'instant' (default, zero setup needed) | 'oauth' (Google Cloud OAuth 2.0)
+  const [authMode, setAuthMode] = useState('instant')
   const [playlistUrl, setPlaylistUrl] = useState('')
   const [customClientId, setCustomClientId] = useState(() => {
     try { return localStorage.getItem('upbeat_google_client_id') || '' } catch { return '' }
   })
   const [customAccessToken, setCustomAccessToken] = useState('')
-  const [customEmail, setCustomEmail] = useState('')
-  const [customName, setCustomName] = useState('')
+  const [customEmail, setCustomEmail] = useState(() => {
+    try { return localStorage.getItem('upbeat_last_google_email') || 'divyanshnegi009@gmail.com' } catch { return 'divyanshnegi009@gmail.com' }
+  })
+  const [customName, setCustomName] = useState(() => {
+    try { return localStorage.getItem('upbeat_last_google_name') || 'Divyansh Negi' } catch { return 'Divyansh Negi' }
+  })
   const [customPicUrl, setCustomPicUrl] = useState('')
   const [showEditPic, setShowEditPic] = useState(false)
-  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [showOAuthGuide, setShowOAuthGuide] = useState(false)
   const [isLoggingIn, setIsLoggingIn] = useState(false)
   const [isSyncingProfile, setIsSyncingProfile] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
@@ -69,16 +75,70 @@ export default function GoogleAuthModal({
 
   if (!isOpen) return null
 
-  // Real Google OAuth 2.0 Sign-In via Google Identity Services (GSI)
+  // 1. Instant YouTube Taste & Google Profile Connect (Zero Setup)
+  const handleInstantConnect = async (e) => {
+    if (e) e.preventDefault()
+    setErrorMsg('')
+    const email = customEmail.trim() || 'divyanshnegi009@gmail.com'
+    const name = customName.trim() || email.split('@')[0]
+    const url = playlistUrl.trim()
+
+    setIsLoggingIn(true)
+    try {
+      let importedTracks = []
+      if (url) {
+        importedTracks = await importYouTubePlaylistStandalone(url)
+        if (!importedTracks || importedTracks.length === 0) {
+          setErrorMsg('Could not find songs in that playlist URL. Check that it is Public or Unlisted, or continue without playlist.')
+          setIsLoggingIn(false)
+          return
+        }
+      }
+
+      try {
+        localStorage.setItem('upbeat_last_google_email', email)
+        localStorage.setItem('upbeat_last_google_name', name)
+      } catch {}
+
+      const userObj = {
+        name,
+        email,
+        picture: customPicUrl.trim() || (importedTracks[0]?.thumbnail || ''),
+        connectedAt: Date.now(),
+        provider: 'youtube_instant',
+        importedTracks: importedTracks
+      }
+
+      onLogin(userObj)
+      setIsLoggingIn(false)
+      onClose()
+    } catch (err) {
+      console.error('Instant connect error:', err)
+      setErrorMsg('Failed to connect: ' + err.message)
+      setIsLoggingIn(false)
+    }
+  }
+
+  // 2. Real Google OAuth 2.0 Sign-In via Google Identity Services (GSI)
   const handleGoogleOAuthSignIn = () => {
     setErrorMsg('')
-    if (typeof window === 'undefined' || !window.google?.accounts?.oauth2) {
-      setErrorMsg('Google Identity Services is initializing. Please check your internet connection or use Playlist Sync below.')
+    const clientId = customClientId.trim()
+
+    if (!clientId) {
+      setErrorMsg('Google Cloud Client ID required for OAuth. Enter your Client ID below, or use 1-Click Instant Connect.')
+      setShowOAuthGuide(true)
       return
     }
 
-    // Default UpBeat Google Web OAuth Client ID or user-specified custom Client ID
-    const clientId = customClientId.trim() || '1035251877478-f7bktm480s9b5v25j5b7s00uvlqmvg24.apps.googleusercontent.com'
+    if (!clientId.includes('.apps.googleusercontent.com')) {
+      setErrorMsg('Invalid Client ID format. It must end with .apps.googleusercontent.com')
+      return
+    }
+
+    if (typeof window === 'undefined' || !window.google?.accounts?.oauth2) {
+      setErrorMsg('Google Identity Services is initializing. Please check internet connection or use Instant Connect.')
+      return
+    }
 
     try {
       setIsLoggingIn(true)
@@ -88,13 +148,19 @@ export default function GoogleAuthModal({
         callback: async (tokenResponse) => {
           if (tokenResponse.error) {
             console.error('Google OAuth error:', tokenResponse)
-            setErrorMsg(tokenResponse.error_description || tokenResponse.error || 'Google sign-in was cancelled or denied.')
+            if (tokenResponse.error === 'invalid_client') {
+              setErrorMsg('Google returned 401 (invalid_client): The Client ID was not found in Google Cloud Console. Check that your Client ID is correct and active.')
+            } else if (tokenResponse.error === 'access_denied') {
+              setErrorMsg('Google sign-in was cancelled or access was denied.')
+            } else {
+              setErrorMsg(tokenResponse.error_description || tokenResponse.error || 'Google sign-in error.')
+            }
             setIsLoggingIn(false)
             return
           }
 
           try {
-            // 1. Fetch real Google profile info
+            // Fetch real Google profile info
             const profileRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
               headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
             })
@@ -109,9 +175,7 @@ export default function GoogleAuthModal({
               provider: 'google_oauth'
             }
 
-            if (customClientId.trim()) {
-              try { localStorage.setItem('upbeat_google_client_id', customClientId.trim()) } catch {}
-            }
+            try { localStorage.setItem('upbeat_google_client_id', clientId) } catch {}
 
             onLogin(userObj)
             setIsLoggingIn(false)
@@ -132,34 +196,38 @@ export default function GoogleAuthModal({
     }
   }
 
-  // Fast direct YouTube playlist or Liked Songs import
-  const handlePlaylistImport = async (e) => {
+  // 3. Direct OAuth Access Token Login (e.g. from Google OAuth Playground)
+  const handleDirectAccessTokenLogin = async (e) => {
     if (e) e.preventDefault()
-    const url = playlistUrl.trim()
-    if (!url) return
+    const token = customAccessToken.trim()
+    if (!token) {
+      setErrorMsg('Please paste a valid Google OAuth Access Token (starts with ya29...)')
+      return
+    }
     setErrorMsg('')
     setIsLoggingIn(true)
-
     try {
-      const tracks = await importYouTubePlaylistStandalone(url)
-      if (tracks && tracks.length > 0) {
-        const userObj = {
-          name: customName.trim() || 'YouTube Listener',
-          email: customEmail.trim() || 'playlist@youtube.com',
-          picture: customPicUrl.trim() || (tracks[0]?.thumbnail || ''),
-          connectedAt: Date.now(),
-          provider: 'youtube_playlist',
-          importedTracks: tracks
-        }
-        onLogin(userObj)
-        setIsLoggingIn(false)
-        onClose()
-      } else {
-        setErrorMsg('Could not find songs in that YouTube playlist. Ensure the playlist is Public or Unlisted.')
-        setIsLoggingIn(false)
+      const profileRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!profileRes.ok) {
+        throw new Error(`Google returned status ${profileRes.status}. Token may be expired or invalid.`)
       }
+      const profile = await profileRes.json()
+      const userObj = {
+        name: profile.name || profile.given_name || customName.trim() || 'Google User',
+        email: profile.email || customEmail.trim() || 'connected@gmail.com',
+        picture: profile.picture || '',
+        accessToken: token,
+        connectedAt: Date.now(),
+        provider: 'google_oauth'
+      }
+      onLogin(userObj)
+      setIsLoggingIn(false)
+      onClose()
     } catch (err) {
-      setErrorMsg('Playlist import failed: ' + err.message)
+      console.error('Direct token login error:', err)
+      setErrorMsg('Token sign-in failed: ' + err.message)
       setIsLoggingIn(false)
     }
   }
@@ -218,7 +286,7 @@ export default function GoogleAuthModal({
                 {googleUser ? 'Google Account & YouTube Taste' : 'Connect Google & YouTube'}
               </h3>
               <p className="text-[11px] text-[#8e8e96] font-mono">
-                {googleUser ? 'Authentic listener profile & seeds sync' : 'Sync your real YouTube likes & personalize Taste DNA'}
+                {googleUser ? 'Authentic listener profile & seeds sync' : 'Sync real YouTube likes & personalize Taste DNA'}
               </p>
             </div>
           </div>
@@ -241,7 +309,7 @@ export default function GoogleAuthModal({
           )}
 
           {googleUser ? (
-            /* Logged-in State with Verified Avatar */
+            /* Logged-in State with Verified Profile */
             <div className="space-y-4">
               <div className="p-4 rounded-xl bg-[#14141c] border border-emerald-500/30 flex items-center gap-3.5">
                 {googleUser.picture ? (
@@ -268,7 +336,11 @@ export default function GoogleAuthModal({
                   </div>
                   <div className="flex items-center gap-1 text-[10px] text-emerald-400 font-mono mt-1">
                     <ShieldCheck className="w-3 h-3" />
-                    <span>{googleUser.provider === 'google_oauth' ? 'Google OAuth 2.0 Verified' : 'YouTube Profile Synced'}</span>
+                    <span>
+                      {googleUser.provider === 'google_oauth'
+                        ? 'Google OAuth 2.0 Connected'
+                        : 'YouTube Music Profile Synced'}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -327,9 +399,7 @@ export default function GoogleAuthModal({
               {/* Action Buttons */}
               <div className="space-y-2 pt-1">
                 <button
-                  onClick={() => {
-                    onSyncYouTubeLikes()
-                  }}
+                  onClick={() => onSyncYouTubeLikes()}
                   disabled={isSyncingLikes}
                   className="w-full py-2.5 px-4 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/40 text-rose-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-xs disabled:opacity-50"
                 >
@@ -349,153 +419,206 @@ export default function GoogleAuthModal({
                   className="w-full py-2 px-4 rounded-xl bg-[#16161f] hover:bg-rose-500/10 border border-[#242432] hover:border-rose-500/30 text-[#a1a1aa] hover:text-rose-300 text-xs font-medium flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span>Disconnect Google Account</span>
+                  <span>Disconnect Account</span>
                 </button>
               </div>
             </div>
           ) : (
             /* Sign-In State */
             <div className="space-y-4">
-              <div className="p-3.5 rounded-xl bg-[#14141c] border border-[#22222e] text-xs text-[#a1a1aa] leading-relaxed">
-                Connect your real Google account to import your authentic <strong>YouTube Music Liked Songs</strong>, populate your seeds library, and generate a personal AI Sonic DNA matched directly to your music taste.
-              </div>
-
-              {/* Tab Selector: Real OAuth vs Playlist Sync */}
+              {/* Tab Selector: Instant Connect vs Google Cloud OAuth */}
               <div className="grid grid-cols-2 p-1 bg-[#121217] border border-[#22222e] rounded-xl text-xs font-medium">
                 <button
                   type="button"
+                  onClick={() => setAuthMode('instant')}
+                  className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    authMode === 'instant'
+                      ? 'bg-gradient-to-r from-rose-500/20 to-purple-500/20 text-white border border-rose-500/30 shadow-xs font-semibold'
+                      : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-400" />
+                  <span>1-Click Instant Sync</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setAuthMode('oauth')}
-                  className={`py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                     authMode === 'oauth'
                       ? 'bg-white/10 text-white shadow-xs font-semibold'
                       : 'text-zinc-400 hover:text-white'
                   }`}
                 >
                   <GoogleIcon className="w-3.5 h-3.5" />
-                  <span>Google OAuth</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAuthMode('playlist')}
-                  className={`py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                    authMode === 'playlist'
-                      ? 'bg-white/10 text-white shadow-xs font-semibold'
-                      : 'text-zinc-400 hover:text-white'
-                  }`}
-                >
-                  <LinkIcon className="w-3.5 h-3.5 text-rose-400" />
-                  <span>YouTube Playlist</span>
+                  <span>Google Cloud OAuth</span>
                 </button>
               </div>
 
-              {authMode === 'oauth' ? (
-                /* 1. Real Google OAuth Button */
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    onClick={handleGoogleOAuthSignIn}
-                    disabled={isLoggingIn}
-                    className="w-full py-3 px-4 rounded-xl bg-white hover:bg-[#f2f2f2] active:scale-[0.99] disabled:opacity-50 text-[#1f1f1f] text-xs font-semibold flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-md"
-                  >
-                    {isLoggingIn ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" />
-                    ) : (
-                      <GoogleIcon className="w-4 h-4" />
-                    )}
-                    <span>Continue with Google</span>
-                  </button>
-
-                  <p className="text-[11px] text-[#71717a] text-center font-mono">
-                    Official Google Identity Services • Read-only YouTube access
-                  </p>
-
-                  {/* Advanced OAuth Details Toggle */}
-                  <div className="pt-2 border-t border-[#1e1e28]">
-                    <button
-                      type="button"
-                      onClick={() => setShowAdvanced((p) => !p)}
-                      className="text-[11px] text-[#8e8e96] hover:text-white flex items-center justify-between w-full cursor-pointer font-mono"
-                    >
-                      <span>Custom OAuth Client ID (Optional)</span>
-                      {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                    </button>
-
-                    {showAdvanced && (
-                      <div className="mt-2.5 space-y-2 p-3 bg-[#111116] rounded-xl border border-white/[0.06] text-xs font-mono">
-                        <div>
-                          <label className="block text-[10px] text-[#8e8e96] mb-1">
-                            Google Cloud Client ID
-                          </label>
-                          <input
-                            type="text"
-                            value={customClientId}
-                            onChange={(e) => setCustomClientId(e.target.value)}
-                            placeholder="...apps.googleusercontent.com"
-                            className="w-full px-2.5 py-1.5 rounded-lg bg-black/40 border border-white/10 text-white text-[11px] focus:outline-none focus:border-sky-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] text-[#8e8e96] mb-1">
-                            Or Paste OAuth Access Token
-                          </label>
-                          <input
-                            type="password"
-                            value={customAccessToken}
-                            onChange={(e) => setCustomAccessToken(e.target.value)}
-                            placeholder="ya29...."
-                            className="w-full px-2.5 py-1.5 rounded-lg bg-black/40 border border-white/10 text-white text-[11px] focus:outline-none focus:border-sky-500"
-                          />
-                        </div>
-                      </div>
-                    )}
+              {authMode === 'instant' ? (
+                /* TAB 1: 1-Click Instant YouTube & Google Sync (Zero Setup, No 401 errors) */
+                <form onSubmit={handleInstantConnect} className="space-y-3.5">
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200/90 text-[11px] leading-relaxed">
+                    ✨ <strong>No Google Cloud setup required!</strong> Connect your account name and YouTube playlist link to immediately calibrate your seeds feed and taste archetype.
                   </div>
-                </div>
-              ) : (
-                /* 2. Direct YouTube Playlist / Liked Songs Import */
-                <form onSubmit={handlePlaylistImport} className="space-y-3">
+
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[10px] font-mono uppercase tracking-wider text-[#a1a1aa] mb-1">
+                        Display Name
+                      </label>
+                      <input
+                        type="text"
+                        value={customName}
+                        onChange={(e) => setCustomName(e.target.value)}
+                        placeholder="Divyansh Negi"
+                        className="w-full px-3 py-2 rounded-xl bg-[#121217] border border-[#262634] text-xs text-[#f4f4f5] focus:outline-none focus:border-rose-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-mono uppercase tracking-wider text-[#a1a1aa] mb-1">
+                        Google / YT Email
+                      </label>
+                      <input
+                        type="email"
+                        value={customEmail}
+                        onChange={(e) => setCustomEmail(e.target.value)}
+                        placeholder="divyanshnegi009@gmail.com"
+                        className="w-full px-3 py-2 rounded-xl bg-[#121217] border border-[#262634] text-xs text-[#f4f4f5] focus:outline-none focus:border-rose-500 font-mono"
+                      />
+                    </div>
+                  </div>
+
                   <div>
-                    <label className="block text-[11px] font-mono uppercase tracking-wider text-[#a1a1aa] mb-1.5">
-                      YouTube Playlist Link or Liked Songs
+                    <label className="block text-[10px] font-mono uppercase tracking-wider text-[#a1a1aa] mb-1">
+                      YouTube Playlist Link or Liked Songs URL (Optional)
                     </label>
                     <input
                       type="url"
-                      required
                       value={playlistUrl}
                       onChange={(e) => setPlaylistUrl(e.target.value)}
                       placeholder="https://music.youtube.com/playlist?list=..."
-                      className="w-full px-3 py-2.5 rounded-xl bg-[#121217] border border-[#262634] text-xs text-[#f4f4f5] placeholder:text-[#6e6e78] focus:outline-none focus:border-rose-500 font-mono"
+                      className="w-full px-3 py-2 rounded-xl bg-[#121217] border border-[#262634] text-xs text-[#f4f4f5] placeholder:text-[#6e6e78] focus:outline-none focus:border-rose-500 font-mono"
                     />
                     <p className="text-[10px] text-[#71717a] mt-1 font-mono">
-                      Works with public or unlisted YouTube Music playlists
+                      Paste any public/unlisted playlist or your music library URL
                     </p>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-mono uppercase tracking-wider text-[#a1a1aa] mb-1.5">
-                      Your Name / Handle
-                    </label>
-                    <input
-                      type="text"
-                      value={customName}
-                      onChange={(e) => setCustomName(e.target.value)}
-                      placeholder="Your listener name..."
-                      className="w-full px-3 py-2 rounded-xl bg-[#121217] border border-[#262634] text-xs text-[#f4f4f5] placeholder:text-[#6e6e78] focus:outline-none focus:border-rose-500"
-                    />
                   </div>
 
                   <button
                     type="submit"
-                    disabled={!playlistUrl.trim() || isLoggingIn}
-                    className="w-full py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-[0.99] disabled:opacity-40 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
+                    disabled={isLoggingIn}
+                    className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-purple-600 hover:from-rose-500 hover:to-purple-500 active:scale-[0.99] disabled:opacity-50 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
                   >
                     {isLoggingIn ? (
                       <Loader2 className="w-4 h-4 animate-spin text-white" />
                     ) : (
                       <Sparkles className="w-4 h-4 text-white" />
                     )}
-                    <span>Import Songs & Analyze Taste DNA</span>
+                    <span>{playlistUrl.trim() ? 'Connect & Sync Music Taste' : 'Connect Profile Directly'}</span>
                   </button>
                 </form>
+              ) : (
+                /* TAB 2: Official Google Cloud OAuth 2.0 */
+                <div className="space-y-3.5">
+                  <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/20 text-sky-200/90 text-[11px] leading-relaxed">
+                    Uses official Google Identity Services to pull your Liked Videos (`LL`). Requires an active Google Cloud Web Client ID.
+                  </div>
+
+                  {/* Client ID Configuration Field */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-mono uppercase tracking-wider text-[#a1a1aa]">
+                        Google Cloud Web Client ID
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowOAuthGuide((p) => !p)}
+                        className="text-[10px] text-sky-400 hover:text-sky-300 font-mono flex items-center gap-1 cursor-pointer"
+                      >
+                        <HelpCircle className="w-3 h-3" />
+                        <span>{showOAuthGuide ? 'Hide Instructions' : 'How to get ID'}</span>
+                      </button>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={customClientId}
+                      onChange={(e) => {
+                        setCustomClientId(e.target.value)
+                        try { localStorage.setItem('upbeat_google_client_id', e.target.value.trim()) } catch {}
+                      }}
+                      placeholder="...apps.googleusercontent.com"
+                      className="w-full px-3 py-2 rounded-xl bg-[#121217] border border-[#262634] text-xs text-[#f4f4f5] placeholder:text-[#6e6e78] focus:outline-none focus:border-sky-500 font-mono"
+                    />
+                  </div>
+
+                  {/* OAuth Guide Accordion */}
+                  {showOAuthGuide && (
+                    <div className="p-3 rounded-xl bg-[#14141d] border border-white/10 text-[11px] text-[#a1a1aa] space-y-2 animate-in fade-in font-sans">
+                      <div className="font-semibold text-white flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-sky-400" />
+                        <span>Quick 2-minute Google Cloud Setup:</span>
+                      </div>
+                      <ol className="list-decimal list-inside space-y-1 text-[#8e8e96] font-mono text-[10px] pl-1">
+                        <li>
+                          Open{' '}
+                          <a
+                            href="https://console.cloud.google.com/apis/credentials"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sky-400 hover:underline inline-flex items-center gap-0.5"
+                          >
+                            Google Cloud Credentials <ExternalLink className="w-2.5 h-2.5" />
+                          </a>
+                        </li>
+                        <li>Click <strong>Create Credentials</strong> &rarr; <strong>OAuth client ID</strong></li>
+                        <li>Select <strong>Application type: Web application</strong></li>
+                        <li>Under <strong>Authorized JavaScript origins</strong>, add: <code className="text-white bg-black/50 px-1 py-0.5 rounded">http://localhost</code> and <code className="text-white bg-black/50 px-1 py-0.5 rounded">capacitor://localhost</code></li>
+                        <li>Under <strong>Enabled APIs & Services</strong>, enable <strong>YouTube Data API v3</strong></li>
+                        <li>Copy and paste your Client ID above.</li>
+                      </ol>
+                    </div>
+                  )}
+
+                  {/* Continue with Google Button */}
+                  <button
+                    type="button"
+                    onClick={handleGoogleOAuthSignIn}
+                    disabled={isLoggingIn}
+                    className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-[#f2f2f2] active:scale-[0.99] disabled:opacity-50 text-[#1f1f1f] text-xs font-semibold flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-md"
+                  >
+                    {isLoggingIn ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-[#4285F4]" />
+                    ) : (
+                      <GoogleIcon className="w-4 h-4" />
+                    )}
+                    <span>Continue with Google OAuth</span>
+                  </button>
+
+                  {/* Alternative: Direct Access Token */}
+                  <div className="pt-2 border-t border-[#1e1e28] space-y-2">
+                    <label className="block text-[10px] font-mono uppercase tracking-wider text-[#8e8e96]">
+                      Or Paste OAuth Access Token Directly
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        value={customAccessToken}
+                        onChange={(e) => setCustomAccessToken(e.target.value)}
+                        placeholder="ya29...."
+                        className="flex-1 px-2.5 py-1.5 rounded-lg bg-black/40 border border-white/10 text-white text-[11px] focus:outline-none focus:border-sky-500 font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleDirectAccessTokenLogin}
+                        disabled={!customAccessToken.trim() || isLoggingIn}
+                        className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 disabled:opacity-40 text-xs text-white font-medium cursor-pointer"
+                      >
+                        Sign In
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}

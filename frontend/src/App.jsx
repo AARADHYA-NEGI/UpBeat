@@ -432,6 +432,11 @@ export default function App() {
               showNotify(`Synced ${realTracks.length} authentic liked tracks from ${activeU.name}'s YouTube account!`, 'success')
               return
             }
+          } else {
+            const errJson = await ytRes.json().catch(() => ({}))
+            const errMsg = errJson?.error?.message || `Status ${ytRes.status}`
+            console.warn('YouTube API Liked Videos returned error:', errMsg)
+            showNotify(`YouTube API notice: ${errMsg}`, 'info')
           }
         } catch (oauthErr) {
           console.warn('YouTube API Liked Videos error, trying fallback:', oauthErr)
