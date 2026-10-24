@@ -124,78 +124,36 @@ export default function OfflineView({
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-transparent overflow-y-auto select-none gpu-scroll">
       {/* Sticky Header */}
-      <div className="p-4 sm:p-6 border-b border-white/[0.06] bg-[#030305]/75 backdrop-blur-xl sticky top-0 z-20">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="px-3.5 py-3 sm:px-6 sm:py-4 border-b border-white/[0.06] bg-gradient-to-b from-[var(--atm-accent)]/15 via-[#030305]/85 to-[#030305]/95 backdrop-blur-xl sticky top-0 z-20">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                <DownloadCloud className="w-4 h-4" />
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                <DownloadCloud className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               </div>
-              <h1 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                Offline Downloads
+              <h1 className="text-sm sm:text-base font-bold text-white tracking-tight">
+                Downloads
               </h1>
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-[#181820] text-emerald-400 border border-emerald-500/20">
-                {stats.count} {stats.count === 1 ? 'track' : 'tracks'}
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-[#181820] text-emerald-400 border border-emerald-500/20">
+                {stats.count}
               </span>
             </div>
-            <p className="text-xs text-[#8e8e96] mt-1 flex items-center gap-2 font-mono">
-              <HardDrive className="w-3.5 h-3.5 text-[#71717a]" />
-              <span>{stats.formattedSize} stored locally</span>
+            <p className="text-[11px] text-[#8e8e96] mt-0.5 flex items-center gap-1.5 font-mono">
+              <HardDrive className="w-3 h-3 text-[#71717a]" />
+              <span>{stats.count} {stats.count === 1 ? 'track' : 'tracks'} • {stats.formattedSize} stored locally</span>
             </p>
           </div>
 
-          {/* Offline Mode Toggle & Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={handleToggleOfflineMode}
-              title={offlineMode ? "Disable strict offline mode" : "Enable strict offline mode"}
-              className={`px-3 py-1.5 rounded-lg border text-xs font-mono flex items-center gap-2 transition-all cursor-pointer ${
-                offlineMode
-                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 shadow-[0_0_12px_rgba(52,211,153,0.25)]'
-                  : 'bg-[#141418] border-[#25252e] text-[#a1a1aa] hover:text-white hover:border-[#353540]'
-              }`}
-            >
-              {offlineMode ? (
-                <>
-                  <WifiOff className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="font-semibold">Offline Mode ON</span>
-                </>
-              ) : (
-                <>
-                  <Wifi className="w-3.5 h-3.5 text-[#71717a]" />
-                  <span>Offline Mode OFF</span>
-                </>
-              )}
-            </button>
-
-            {hasBackend() && (
-              <button
-                onClick={handleOpenDownloadsFolder}
-                className="px-3 py-1.5 rounded-lg bg-[#141418] hover:bg-[#1c1c24] border border-[#25252e] hover:border-[#353540] text-xs font-mono text-[#a1a1aa] hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
-                title="Open UpBeat downloads folder in macOS Finder"
-              >
-                <Folder className="w-3.5 h-3.5 text-sky-400" />
-                <span className="hidden sm:inline">Open in Finder</span>
-                <span className="sm:hidden">Folder</span>
-              </button>
-            )}
-
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 shrink-0">
             {tracks.length > 0 && (
               <>
                 <button
-                  onClick={handlePlayAll}
-                  className="px-3.5 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-white text-xs font-mono font-medium flex items-center gap-1.5 transition-all shadow-md cursor-pointer active:scale-95"
-                  title="Play all offline tracks"
-                >
-                  <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Play All</span>
-                </button>
-
-                <button
                   onClick={handleShuffle}
-                  className="px-3 py-1.5 rounded-lg bg-[#15151c] hover:bg-[#1f1f28] border border-[#262632] text-xs font-mono text-[#f4f4f5] flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl bg-[#15151c] hover:bg-[#1f1f28] border border-[#262632] text-xs font-mono text-[#f4f4f5] flex items-center gap-1.5 transition-colors cursor-pointer active:scale-95 shadow-sm"
                   title="Shuffle offline songs"
                 >
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Shuffle</span>
                 </button>
 
@@ -217,7 +175,7 @@ export default function OfflineView({
                 ) : (
                   <button
                     onClick={() => setConfirmClear(true)}
-                    className="p-1.5 rounded-lg text-[#71717a] hover:text-rose-400 hover:bg-[#1a1418] border border-transparent hover:border-rose-500/20 transition-colors cursor-pointer"
+                    className="p-1.5 rounded-xl text-[#71717a] hover:text-rose-400 hover:bg-[#1a1418] border border-transparent hover:border-rose-500/20 transition-colors cursor-pointer"
                     title="Clear all offline storage"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -225,38 +183,31 @@ export default function OfflineView({
                 )}
               </>
             )}
+
+            {hasBackend() && (
+              <button
+                onClick={handleOpenDownloadsFolder}
+                className="hidden sm:flex px-2.5 py-1.5 rounded-xl bg-[#141418] hover:bg-[#1c1c24] border border-[#25252e] hover:border-[#353540] text-xs font-mono text-[#a1a1aa] hover:text-white items-center gap-1.5 transition-colors cursor-pointer"
+                title="Open UpBeat downloads folder in macOS Finder"
+              >
+                <Folder className="w-3.5 h-3.5 text-sky-400" />
+                <span>Folder</span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Offline Mode Alert Banner */}
-        {offlineMode && (
-          <div className="mt-3.5 px-3 py-2 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 text-xs font-mono flex items-center justify-between gap-2 shadow-inner">
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>
-                <strong>Offline Mode Active:</strong> Playback is strictly sourced from local device storage without network requests.
-              </span>
-            </div>
-            <button
-              onClick={handleToggleOfflineMode}
-              className="text-[11px] text-emerald-400 hover:text-emerald-200 underline cursor-pointer shrink-0"
-            >
-              Turn Off
-            </button>
-          </div>
-        )}
-
         {/* Search & Filter Bar */}
         {tracks.length > 0 && (
-          <div className="mt-4 flex items-center gap-2">
-            <div className="relative flex-1 max-w-md">
+          <div className="mt-2.5 flex items-center gap-2">
+            <div className="relative flex-1">
               <Search className="w-3.5 h-3.5 text-[#71717a] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search downloaded songs by title, artist..."
-                className="w-full bg-[#131317] border border-[#22222c] focus:border-emerald-500/60 rounded-lg pl-9 pr-3 py-1.5 text-xs text-[#f4f4f5] placeholder-[#71717a] font-mono focus:outline-none transition-colors"
+                className="w-full bg-[#131317] border border-[#22222c] focus:border-emerald-500/60 rounded-xl pl-9 pr-8 py-1.5 text-xs text-[#f4f4f5] placeholder-[#71717a] font-mono focus:outline-none transition-colors"
               />
               {searchQuery && (
                 <button

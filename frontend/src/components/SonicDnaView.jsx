@@ -120,28 +120,23 @@ export default function SonicDnaView({
 
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-transparent gpu-scroll">
-        <div className="px-3.5 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.06] bg-[#030305]/75 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <Heart className="w-4 h-4 fill-rose-500 text-rose-500 shrink-0" />
-              <h2 className="text-sm sm:text-base font-semibold text-[#f5f5f5]">
-                Saved Favorites Memory ({favorites.length})
-              </h2>
-            </div>
-            <p className="text-[11px] sm:text-xs text-[#a1a1aa] mt-0.5 leading-relaxed">
-              Persisted to disk • Used as your highest-priority taste signal during AI playlist curation
-            </p>
+        <div className="px-3.5 sm:px-6 py-2.5 sm:py-3.5 border-b border-white/[0.06] bg-gradient-to-b from-[var(--atm-accent)]/15 via-[#030305]/85 to-[#030305]/95 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4">
+          <div className="flex items-center gap-2">
+            <Heart className="w-4 h-4 fill-rose-500 text-rose-500 shrink-0" />
+            <h2 className="text-sm sm:text-base font-semibold text-[#f5f5f5]">
+              Favourites ({favorites.length})
+            </h2>
           </div>
 
           {favorites.length > 0 && (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
-              <div className="flex items-center bg-[#141418] border border-[#282830] rounded-xl px-3 py-1.5 w-full sm:w-48">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="flex-1 sm:w-48 flex items-center bg-[#141418] border border-[#282830] rounded-xl px-3 py-1.5">
                 <Search className="w-3.5 h-3.5 text-[#8e8e93] mr-2 shrink-0" />
                 <input
                   type="text"
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
-                  placeholder="Filter favorites..."
+                  placeholder="Filter favourites..."
                   className="bg-transparent text-xs text-[#f5f5f5] placeholder:text-[#73737a] focus:outline-none w-full"
                 />
                 {Boolean(filter) && (
@@ -156,27 +151,16 @@ export default function SonicDnaView({
                 )}
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              {onCurateFromFavorites && (
                 <button
-                  onClick={() => onPlayTrack(favorites[0], 0)}
-                  title="Play your saved favorites"
-                  className="flex-1 sm:flex-initial px-3.5 py-2 sm:py-1.5 rounded-xl bg-[#16161c] hover:bg-[#22222a] border border-[#2e2e38] text-xs text-[#f5f5f5] font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap active:scale-[0.98]"
+                  onClick={onCurateFromFavorites}
+                  title="Generate a fresh playlist inspired by your hearted songs"
+                  className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shadow-sm active:scale-[0.98] shrink-0"
                 >
-                  <Play className="w-3.5 h-3.5 fill-current text-indigo-400 shrink-0" />
-                  <span>Play Favorites</span>
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                  <span>Curate from Favs</span>
                 </button>
-
-                {onCurateFromFavorites && (
-                  <button
-                    onClick={onCurateFromFavorites}
-                    title="Generate a fresh playlist inspired by your hearted songs"
-                    className="flex-1 sm:flex-initial px-3.5 py-2 sm:py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shadow-sm active:scale-[0.98]"
-                  >
-                    <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                    <span>Curate from Favorites</span>
-                  </button>
-                )}
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -360,18 +344,15 @@ export default function SonicDnaView({
 
     return (
       <div className="flex-1 flex flex-col min-h-0 bg-transparent gpu-scroll" onClick={() => setQueueMenuIdx(null)}>
-        <div className="px-3.5 sm:px-6 py-3.5 sm:py-4 border-b border-white/[0.06] bg-[#030305]/75 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-          <div>
+        <div className="px-3.5 sm:px-6 py-2.5 sm:py-3.5 border-b border-white/[0.06] bg-gradient-to-b from-[var(--atm-accent)]/15 via-[#030305]/85 to-[#030305]/95 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-4">
+          <div className="flex items-center gap-2">
             <h2 className="text-sm sm:text-base font-semibold text-[#f5f5f5]">
               YouTube Seeds & Library ({extractedTracks.length})
             </h2>
-            <p className="text-[11px] sm:text-xs text-[#a1a1aa] mt-0.5 leading-relaxed">
-              Curate seed tracks from YouTube search, playlists, or Safari tabs to power your Sonic DNA
-            </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2.5 w-full sm:w-auto">
-            <div className="flex items-center bg-[#141418] border border-[#282830] rounded-xl px-3 py-1.5 w-full sm:w-48">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex-1 sm:w-48 flex items-center bg-[#141418] border border-[#282830] rounded-xl px-3 py-1.5">
               <Search className="w-3.5 h-3.5 text-[#8e8e93] mr-2 shrink-0" />
               <input
                 type="text"
@@ -392,38 +373,36 @@ export default function SonicDnaView({
               )}
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => setIsTasteSyncOpen(true)}
+              title="Add seeds from YouTube search or playlist URL"
+              className="px-3.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap active:scale-[0.98] shrink-0"
+            >
+              <Youtube className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+              <span>Sync YouTube Seeds</span>
+            </button>
+
+            {onClearSeeds && extractedTracks.length > 0 && (
               <button
-                onClick={() => setIsTasteSyncOpen(true)}
-                title="Add seeds from YouTube search or playlist URL"
-                className="flex-1 sm:flex-initial px-3.5 py-2 sm:py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/35 text-xs text-rose-200 font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap active:scale-[0.98]"
+                onClick={onClearSeeds}
+                title="Clear all seed tracks from your Library"
+                className="p-1.5 rounded-xl bg-white/[0.04] hover:bg-rose-500/15 border border-white/[0.08] hover:border-rose-500/30 text-zinc-400 hover:text-rose-300 transition-colors cursor-pointer shrink-0"
               >
-                <Youtube className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                <span>Sync YouTube Seeds</span>
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
+            )}
 
-              {onClearSeeds && extractedTracks.length > 0 && (
-                <button
-                  onClick={onClearSeeds}
-                  title="Clear all seed tracks from your Library"
-                  className="p-2 sm:p-1.5 rounded-xl bg-white/[0.04] hover:bg-rose-500/15 border border-white/[0.08] hover:border-rose-500/30 text-zinc-400 hover:text-rose-300 transition-colors cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
-
-              {hasBackend && (
-                <button
-                  onClick={onSyncSafari}
-                  disabled={isSyncing}
-                  title="Re-scan open Safari YouTube tabs"
-                  className="flex-1 sm:flex-initial px-3.5 py-2 sm:py-1.5 rounded-xl bg-[#18181c] hover:bg-[#22222a] border border-[#2e2e36] text-xs text-[#e5e5e5] font-mono flex items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 active:scale-[0.98]"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
-                  <span>{isSyncing ? 'Syncing...' : 'Safari'}</span>
-                </button>
-              )}
-            </div>
+            {hasBackend && (
+              <button
+                onClick={onSyncSafari}
+                disabled={isSyncing}
+                title="Re-scan open Safari YouTube tabs"
+                className="hidden sm:flex px-2.5 py-1.5 rounded-xl bg-[#18181c] hover:bg-[#22222a] border border-[#2e2e36] text-xs text-[#e5e5e5] font-mono items-center justify-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap disabled:opacity-50 active:scale-[0.98] shrink-0"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-indigo-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSyncing ? 'Syncing...' : 'Safari'}</span>
+              </button>
+            )}
           </div>
         </div>
 
