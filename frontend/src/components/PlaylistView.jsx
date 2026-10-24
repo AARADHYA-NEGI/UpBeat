@@ -543,10 +543,14 @@ export default function PlaylistView({
                       </button>
 
                       {activeMenuIdx === idx && (
-                        <div className="absolute right-0 top-8 z-30 w-44 bg-[#141418] border border-white/10 rounded-xl p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in duration-100">
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute right-0 top-8 z-30 w-44 bg-[#141418] border border-white/10 rounded-xl p-1.5 shadow-2xl backdrop-blur-xl animate-in fade-in duration-100"
+                        >
                           {onPlayNext && (
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 onPlayNext(track)
                                 setActiveMenuIdx(null)
                               }}

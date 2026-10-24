@@ -263,9 +263,13 @@ export default function SonicDnaView({
                               <ListPlus className="w-3.5 h-3.5" />
                             </button>
                             {queueMenuIdx === `fav-${idx}` && (
-                              <div className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100">
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100"
+                              >
                                 <button
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation()
                                     onPlayNext && onPlayNext(t)
                                     setQueueMenuIdx(null)
                                   }}
@@ -275,7 +279,8 @@ export default function SonicDnaView({
                                   <span>Play Next</span>
                                 </button>
                                 <button
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation()
                                     onAddToQueue && onAddToQueue(t)
                                     setQueueMenuIdx(null)
                                   }}
@@ -501,9 +506,13 @@ export default function SonicDnaView({
                               <ListPlus className="w-3.5 h-3.5" />
                             </button>
                             {queueMenuIdx === `lib-${idx}` && (
-                              <div className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100">
+                              <div
+                                onClick={(e) => e.stopPropagation()}
+                                className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100"
+                              >
                                 <button
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation()
                                     onPlayNext && onPlayNext(t)
                                     setQueueMenuIdx(null)
                                   }}
@@ -513,7 +522,8 @@ export default function SonicDnaView({
                                   <span>Play Next</span>
                                 </button>
                                 <button
-                                  onClick={() => {
+                                  onClick={(e) => {
+                                    e.stopPropagation()
                                     onAddToQueue && onAddToQueue(t)
                                     setQueueMenuIdx(null)
                                   }}

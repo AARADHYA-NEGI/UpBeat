@@ -125,6 +125,7 @@ export default function App() {
   const [notification, setNotification] = useState(null)
   const [offlineTracks, setOfflineTracks] = useState([])
   const [offlineStats, setOfflineStats] = useState({ count: 0, totalBytes: 0, formattedSize: '0 B' })
+  const [activePlaybackContext, setActivePlaybackContext] = useState(null)
   const [queue, setQueue] = useState(() => loadStorage('upbeat_playback_queue', []))
   const [isQueueOpen, setIsQueueOpen] = useState(false)
   const [isNowPlayingOpen, setIsNowPlayingOpen] = useState(false)
@@ -326,6 +327,31 @@ export default function App() {
       }
     } catch {}
   }, [googleUser])
+
+  // Sync offline tracks & stats from client IndexedDB
+  useEffect(() => {
+    let mounted = true
+    const reloadOffline = async () => {
+      try {
+        const tracks = await getOfflineTracks()
+        const stats = await getOfflineStorageStats()
+        if (mounted) {
+          setOfflineTracks(tracks || [])
+          setOfflineStats(stats || { count: 0, totalBytes: 0, formattedSize: '0 B' })
+        }
+      } catch (err) {
+        console.error('Error loading offline tracks in App:', err)
+      }
+    }
+    reloadOffline()
+    const unsubscribe = subscribeOfflineChanges(() => {
+      reloadOffline()
+    })
+    return () => {
+      mounted = false
+      unsubscribe()
+    }
+  }, [])
 
   // Auto-sync authentic Google avatar from active YouTube Music Safari session
   useEffect(() => {
@@ -956,7 +982,35 @@ export default function App() {
     setActivePresetId(matching ? matching.id : null)
   }
 
-  const handlePlayTrack = (track, idx) => {
+  const handlePlayTrack = (track, idxOrList, customList) => {
+    if (!track) return
+
+    let listToUse = null
+    let actualIdx = 0
+
+    if (Array.isArray(idxOrList)) {
+      listToUse = idxOrList
+      const found = listToUse.findIndex(
+        (t) => (t.video_id && track.video_id && t.video_id === track.video_id) ||
+               (t.title === track.title && t.artist === track.artist)
+      )
+      actualIdx = found >= 0 ? found : 0
+    } else if (typeof idxOrList === 'number') {
+      actualIdx = idxOrList
+      if (Array.isArray(customList) && customList.length > 0) {
+        listToUse = customList
+      }
+    }
+
+    if (listToUse && listToUse.length > 0) {
+      setActivePlaybackContext(listToUse)
+    } else {
+      if (activeTab === 'library') setActivePlaybackContext(extractedTracks)
+      else if (activeTab === 'favorites') setActivePlaybackContext(favorites)
+      else if (activeTab === 'offline') setActivePlaybackContext(offlineTracks)
+      else setActivePlaybackContext(playlist?.tracks || [])
+    }
+
     const isSame = currentTrack && (
       (currentTrack.video_id && currentTrack.video_id === track.video_id) ||
       (currentTrack.title === track.title && currentTrack.artist === track.artist)
@@ -967,7 +1021,7 @@ export default function App() {
       return
     }
     setCurrentTrack(track)
-    setCurrentTrackIdx(idx)
+    setCurrentTrackIdx(actualIdx)
     setIsPlaying(true)
     setIsNowPlayingOpen(true)
 
@@ -987,6 +1041,9 @@ export default function App() {
   }
 
   const getActiveTrackList = () => {
+    if (activePlaybackContext && activePlaybackContext.length > 0) {
+      return activePlaybackContext
+    }
     if (activeTab === 'library') return extractedTracks
     if (activeTab === 'favorites') return favorites
     if (activeTab === 'offline') return offlineTracks
@@ -1009,12 +1066,25 @@ export default function App() {
     // 2. Sequential playlist fallback
     const list = getActiveTrackList()
     if (!list || list.length === 0) return
-    const nextIdx = (currentTrackIdx + 1) % list.length
-    setCurrentTrack(list[nextIdx])
+
+    let curIdx = typeof currentTrackIdx === 'number' ? currentTrackIdx : 0
+    if (currentTrack && (curIdx < 0 || curIdx >= list.length ||
+        (list[curIdx]?.video_id !== currentTrack.video_id && list[curIdx]?.title !== currentTrack.title))) {
+      const found = list.findIndex(
+        (t) => (t.video_id && currentTrack.video_id && t.video_id === currentTrack.video_id) ||
+               (t.title === currentTrack.title && t.artist === currentTrack.artist)
+      )
+      if (found >= 0) curIdx = found
+    }
+
+    const nextIdx = (curIdx + 1) % list.length
+    const nextTrack = list[nextIdx]
+    if (!nextTrack) return
+    setCurrentTrack(nextTrack)
     setCurrentTrackIdx(nextIdx)
     setIsPlaying(true)
     if (playbackMode === 'safari') {
-      handlePushToSafari(list[nextIdx])
+      handlePushToSafari(nextTrack)
     }
   }
 
@@ -1096,12 +1166,25 @@ export default function App() {
   const handlePrev = () => {
     const list = getActiveTrackList()
     if (!list || list.length === 0) return
-    const prevIdx = (currentTrackIdx - 1 + list.length) % list.length
-    setCurrentTrack(list[prevIdx])
+
+    let curIdx = typeof currentTrackIdx === 'number' ? currentTrackIdx : 0
+    if (currentTrack && (curIdx < 0 || curIdx >= list.length ||
+        (list[curIdx]?.video_id !== currentTrack.video_id && list[curIdx]?.title !== currentTrack.title))) {
+      const found = list.findIndex(
+        (t) => (t.video_id && currentTrack.video_id && t.video_id === currentTrack.video_id) ||
+               (t.title === currentTrack.title && t.artist === currentTrack.artist)
+      )
+      if (found >= 0) curIdx = found
+    }
+
+    const prevIdx = (curIdx - 1 + list.length) % list.length
+    const prevTrack = list[prevIdx]
+    if (!prevTrack) return
+    setCurrentTrack(prevTrack)
     setCurrentTrackIdx(prevIdx)
     setIsPlaying(true)
     if (playbackMode === 'safari') {
-      handlePushToSafari(list[prevIdx])
+      handlePushToSafari(prevTrack)
     }
   }
 

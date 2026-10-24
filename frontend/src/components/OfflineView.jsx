@@ -68,13 +68,13 @@ export default function OfflineView({
 
   const handlePlayAll = () => {
     if (!filteredTracks.length) return
-    onPlayTrack(filteredTracks[0], filteredTracks)
+    onPlayTrack(filteredTracks[0], 0, filteredTracks)
   }
 
   const handleShuffle = () => {
     if (!filteredTracks.length) return
     const shuffled = [...filteredTracks].sort(() => Math.random() - 0.5)
-    onPlayTrack(shuffled[0], shuffled)
+    onPlayTrack(shuffled[0], 0, shuffled)
   }
 
   const handleReDownload = (track, e) => {
@@ -333,7 +333,7 @@ export default function OfflineView({
                     return (
                       <tr
                         key={t.video_id || idx}
-                        onClick={() => onPlayTrack(t, filteredTracks)}
+                        onClick={() => onPlayTrack(t, idx, filteredTracks)}
                         className={`group hover:bg-[#15151d] transition-colors cursor-pointer ${
                           isCur ? 'bg-[#161622]' : ''
                         }`}
@@ -411,9 +411,13 @@ export default function OfflineView({
                                 <ListPlus className="w-3.5 h-3.5" />
                               </button>
                               {queueMenuIdx === `off-d-${idx}` && (
-                                <div className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100">
+                                <div
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100"
+                                >
                                   <button
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation()
                                       onPlayNext && onPlayNext(t)
                                       setQueueMenuIdx(null)
                                     }}
@@ -423,7 +427,8 @@ export default function OfflineView({
                                     <span>Play Next</span>
                                   </button>
                                   <button
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation()
                                       onAddToQueue && onAddToQueue(t)
                                       setQueueMenuIdx(null)
                                     }}
@@ -468,7 +473,7 @@ export default function OfflineView({
                 return (
                   <div
                     key={t.video_id || idx}
-                    onClick={() => onPlayTrack(t, filteredTracks)}
+                    onClick={() => onPlayTrack(t, idx, filteredTracks)}
                     className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 fast-row ${
                       isCur
                         ? 'bg-[#151522]/90 border-emerald-500/40 shadow-sm backdrop-blur-md'
@@ -525,9 +530,13 @@ export default function OfflineView({
                           <ListPlus className="w-4 h-4" />
                         </button>
                         {queueMenuIdx === `off-m-${idx}` && (
-                          <div className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100">
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            className="absolute right-0 bottom-full mb-1 w-36 py-1 bg-[#14141c] border border-[#262638] rounded-xl shadow-2xl z-40 text-xs font-medium text-left animate-in fade-in zoom-in-95 duration-100"
+                          >
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 onPlayNext && onPlayNext(t)
                                 setQueueMenuIdx(null)
                               }}
@@ -537,7 +546,8 @@ export default function OfflineView({
                               <span>Play Next</span>
                             </button>
                             <button
-                              onClick={() => {
+                              onClick={(e) => {
+                                e.stopPropagation()
                                 onAddToQueue && onAddToQueue(t)
                                 setQueueMenuIdx(null)
                               }}
@@ -553,7 +563,7 @@ export default function OfflineView({
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
-                          onPlayTrack(t, filteredTracks)
+                          onPlayTrack(t, idx, filteredTracks)
                         }}
                         className={`p-2 rounded-full cursor-pointer ${
                           isCurPlaying
